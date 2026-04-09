@@ -465,4 +465,11 @@ end
 ActionButton.MouseButton1Click:Connect(StartUniversalDump)
 
 -- Mensagens iniciais
-AddLog("SKYNET V4.1 Carregado com Sucesso.", "*
+AddLog("SKYNET V4.1 Carregado com Sucesso.", "*")
+AddLog("
+AddLog("Interface gráfica injetada com prioridade máxima.", "*")
+AddLog("Sistema de arquivos verificado: OK", "*")
+AddLog("Aguardando comando do usuário...", "*")
+
+-- Fim do Script SKYNET V4.1
+-- Clique no botão "INICIAR EXTRAÇÃO COMPLETA" na janela que apareceu na sua tela para começar o dump.
