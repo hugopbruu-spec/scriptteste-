@@ -35,6 +35,9 @@ frame.Parent = adminWindow
 
 local logDataStore = DataStoreService:GetDataStore(LOG_DATASTORE_NAME)
 
+local dragging = false
+local dragOffset = Vector2.new(0, 0)
+
 -- Funções Auxiliares
 local function obfuscateString(str)
     local encoded = ""
@@ -136,10 +139,46 @@ end)
 
 -- Botões de controle da janela
 local btnMinimize = Instance.new("TextButton")
--- ... (código para minimizar)
+btnMinimize.Name = "MinimizeButton"
+btnMinimize.Size = UDim2.new(0, 20, 0, 20)
+btnMinimize.Position = UDim2.new(0.9, -20, 0.05, 0)
+btnMinimize.Text = "_"
+btnMinimize.BackgroundColor3 = Color3.new(0.3, 0.3, 0.3)
+btnMinimize.Parent = frame
+
+btnMinimize.MouseButton1Click:Connect(function()
+    adminWindow.Enabled = false
+end)
 
 local btnClose = Instance.new("TextButton")
--- ... (código para fechar)
+btnClose.Name = "CloseButton"
+btnClose.Size = UDim2.new(0, 20, 0, 20)
+btnClose.Position = UDim2.new(0.95, -20, 0.05, 0)
+btnClose.Text = "X"
+btnClose.BackgroundColor3 = Color3.new(0.5, 0.1, 0.1)
+btnClose.Parent = frame
+
+btnClose.MouseButton1Click:Connect(function()
+    adminWindow.Enabled = false
+end)
+
+-- Tornar a janela arrastável
+frame.MouseEnter:Connect(function()
+    dragging = true
+    dragOffset = UserInputService:GetMouseLocation() - frame.Position.Scale
+end)
+
+frame.MouseLeave:Connect(function()
+    dragging = false
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if gameProcessedEvent then return end
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local newPosition = UserInputService:GetMouseLocation() - dragOffset
+        frame.Position = UDim2.new(newPosition.X, 0, newPosition.Y, 0)
+    end
+end)
 
 -- Tornar a janela visível apenas para administradores
 adminWindow.Enabled = isAdmin(game.Players.LocalPlayer)
