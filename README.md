@@ -1,5 +1,5 @@
--- Mushyo Enhancement Suite v4.0
--- 20+ Funções Profissionais com WallWalk Agressivo
+-- Mushyo Enhancement Suite v5.0
+-- WallWalk Profissional + 10 Funções Divertidas
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -8,7 +8,6 @@ local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local Lighting = game:GetService("Lighting")
 local HttpService = game:GetService("HttpService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -45,7 +44,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(0.7, 0, 1, 0)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "MUSHYO SUITE v4.0"
+Title.Text = "MUSHYO SUITE v5.0"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 14
@@ -107,13 +106,13 @@ CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- ScrollFrame para mais funções
+-- ScrollFrame
 local ScrollFrame = Instance.new("ScrollingFrame")
 ScrollFrame.Size = UDim2.new(1, 0, 1, -35)
 ScrollFrame.Position = UDim2.new(0, 0, 0, 35)
 ScrollFrame.BackgroundTransparency = 1
 ScrollFrame.ScrollBarThickness = 5
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 1200)
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
 ScrollFrame.Parent = MainFrame
 
 -- Variáveis de estado
@@ -145,51 +144,98 @@ local function createButton(text, yPosition, callback, toggle)
     return button
 end
 
--- 1. WALLWALK AGRESSIVO (Funciona 100%)
+-- 1. WALLWALK PROFISSIONAL (Sistema Completo)
 local function toggleWallWalk()
     states.wallWalk = not states.wallWalk
     
     if states.wallWalk then
+        local surfaceNormal = Vector3.new(0, 1, 0)
+        local lastValidNormal = Vector3.new(0, 1, 0)
+        local isOnSurface = false
+        
         connections.wallWalk = RunService.Heartbeat:Connect(function()
-            if not rootPart then return end
+            if not rootPart or not humanoid then return end
             
             local raycastParams = RaycastParams.new()
             raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
             raycastParams.FilterDescendantsInstances = {character}
+            raycastParams.CollisionGroup = "Default"
             
-            -- Raycast agressivo em todas as direções
-            local directions = {
-                Vector3.new(0, -1, 0), Vector3.new(0, 1, 0),
-                Vector3.new(1, 0, 0), Vector3.new(-1, 0, 0),
-                Vector3.new(0, 0, 1), Vector3.new(0, 0, -1),
-                (Vector3.new(1, 1, 1)).Unit, (Vector3.new(-1, 1, 1)).Unit,
-                (Vector3.new(1, 1, -1)).Unit, (Vector3.new(-1, 1, -1)).Unit
+            -- Raycast em múltiplas direções com prioridade
+            local checkDirections = {
+                {dir = Vector3.new(0, -1, 0), dist = 3.5},    -- Baixo (mais perto)
+                {dir = Vector3.new(0, 1, 0), dist = 4.0},     -- Cima
+                {dir = Vector3.new(1, 0, 0), dist = 2.5},     -- Direita
+                {dir = Vector3.new(-1, 0, 0), dist = 2.5},    -- Esquerda
+                {dir = Vector3.new(0, 0, 1), dist = 2.5},     -- Frente
+                {dir = Vector3.new(0, 0, -1), dist = 2.5},    -- Trás
             }
             
-            local closestHit, closestNormal, minDistance = nil, Vector3.new(0, 1, 0), 10
+            local closestHit, closestDistance = nil, math.huge
             
-            for _, dir in ipairs(directions) do
-                local ray = workspace:Raycast(rootPart.Position, dir * 5, raycastParams)
-                if ray and ray.Distance < minDistance then
-                    closestHit, closestNormal, minDistance = ray, ray.Normal, ray.Distance
+            for _, check in ipairs(checkDirections) do
+                local ray = workspace:Raycast(
+                    rootPart.Position + check.dir * 0.5,
+                    check.dir * check.dist,
+                    raycastParams
+                )
+                
+                if ray and ray.Distance < closestDistance then
+                    closestHit, closestDistance, surfaceNormal = ray, ray.Distance, ray.Normal
                 end
             end
             
+            -- Sistema de transição suave entre superfícies
             if closestHit then
-                -- Força magnética forte
+                isOnSurface = true
+                lastValidNormal = surfaceNormal
+                
+                -- Força magnética poderosa com suavização
                 local bodyForce = rootPart:FindFirstChild("WallWalkForce") or Instance.new("BodyForce")
                 bodyForce.Name = "WallWalkForce"
-                bodyForce.Force = -closestNormal * (workspace.Gravity * rootPart:GetMass() * 2)
+                
+                -- Calcula força baseada na distância e normal da superfície
+                local forceMagnitude = (workspace.Gravity * rootPart:GetMass() * 2.5)
+                local forceDirection = -surfaceNormal * forceMagnitude
+                
+                -- Adiciona força extra para manter aderência
+                local adhesionForce = surfaceNormal * (forceMagnitude * 0.3)
+                bodyForce.Force = forceDirection + adhesionForce
                 bodyForce.Parent = rootPart
                 
-                -- Rotação agressiva
-                local lookVector = rootPart.CFrame.LookVector
-                if math.abs(closestNormal.Y) < 0.7 then
-                    lookVector = Vector3.new(lookVector.X, 0, lookVector.Z).Unit
+                -- Rotação profissional com interpolação suave
+                local currentCFrame = rootPart.CFrame
+                local targetUpVector = surfaceNormal
+                local targetLookVector = currentCFrame.LookVector
+                
+                -- Mantém a direção do look vector horizontal em paredes
+                if math.abs(surfaceNormal.Y) < 0.7 then
+                    targetLookVector = Vector3.new(targetLookVector.X, 0, targetLookVector.Z).Unit
                 end
                 
-                rootPart.CFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + lookVector, closestNormal)
+                local targetCFrame = CFrame.lookAt(
+                    currentCFrame.Position,
+                    currentCFrame.Position + targetLookVector,
+                    targetUpVector
+                )
+                
+                -- Interpolação suave da rotação
+                rootPart.CFrame = currentCFrame:Lerp(targetCFrame, 0.3)
+                
+                -- Previne queda e mantém estabilidade
                 humanoid.PlatformStand = false
+                rootPart.Velocity = Vector3.new(
+                    rootPart.Velocity.X * 0.9,
+                    math.min(rootPart.Velocity.Y, 10),
+                    rootPart.Velocity.Z * 0.9
+                )
+                
+            else
+                isOnSurface = false
+                -- Transição suave para gravidade normal
+                if rootPart:FindFirstChild("WallWalkForce") then
+                    rootPart.WallWalkForce.Force = rootPart.WallWalkForce.Force:Lerp(Vector3.new(0, 0, 0), 0.1)
+                end
             end
         end)
     else
@@ -225,56 +271,7 @@ local function toggleFlight()
     return states.flight
 end
 
--- 3. PLAYER ESP
-local function toggleESP()
-    states.esp = not states.esp
-    if states.esp then
-        for _, otherPlayer in ipairs(Players:GetPlayers()) do
-            if otherPlayer ~= player and otherPlayer.Character then
-                local highlight = Instance.new("Highlight")
-                highlight.Name = "MushyoESP"
-                highlight.FillColor = Color3.fromRGB(255, 50, 50)
-                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                highlight.FillTransparency = 0.8
-                highlight.Parent = otherPlayer.Character
-            end
-        end
-    else
-        for _, otherPlayer in ipairs(Players:GetPlayers()) do
-            if otherPlayer.Character and otherPlayer.Character:FindFirstChild("MushyoESP") then
-                otherPlayer.Character.MushyoESP:Destroy()
-            end
-        end
-    end
-    return states.esp
-end
-
--- 4. SPEED HACK
-local speedMultiplier = 1
-local function setSpeed(multiplier)
-    speedMultiplier = multiplier
-    if humanoid then humanoid.WalkSpeed = 16 * multiplier end
-end
-
--- 5. NOCLIP
-local function toggleNoclip()
-    states.noclip = not states.noclip
-    if states.noclip then
-        connections.noclip = RunService.Stepped:Connect(function()
-            for _, part in ipairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then part.CanCollide = false end
-            end
-        end)
-    else
-        if connections.noclip then connections.noclip:Disconnect() end
-        for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = true end
-        end
-    end
-    return states.noclip
-end
-
--- 6. INFINITE JUMP
+-- 3. INFINITE JUMP
 local function toggleInfiniteJump()
     states.infiniteJump = not states.infiniteJump
     if states.infiniteJump then
@@ -289,43 +286,71 @@ local function toggleInfiniteJump()
     return states.infiniteJump
 end
 
--- 7. X-RAY VISION
-local function toggleXRay()
-    states.xray = not states.xray
-    if states.xray then
-        for _, part in ipairs(workspace:GetDescendants()) do
-            if part:IsA("BasePart") and part.Transparency < 1 then
-                part.LocalTransparencyModifier = 0.5
-            end
-        end
-    else
-        for _, part in ipairs(workspace:GetDescendants()) do
+-- 4. SUPER JUMP
+local function activateSuperJump()
+    if humanoid then
+        local currentVelocity = rootPart.Velocity
+        rootPart.Velocity = Vector3.new(currentVelocity.X, 100, currentVelocity.Z)
+    end
+end
+
+-- 5. TELEPORT FORWARD
+local function teleportForward()
+    rootPart.CFrame = rootPart.CFrame + rootPart.CFrame.LookVector * 50
+end
+
+-- 6. GHOST MODE
+local function toggleGhostMode()
+    states.ghostMode = not states.ghostMode
+    if states.ghostMode then
+        for _, part in ipairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
-                part.LocalTransparencyModifier = 0
+                part.Transparency = 0.8
+                part.CanCollide = false
+            end
+        end
+    else
+        for _, part in ipairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Transparency = 0
+                part.CanCollide = true
             end
         end
     end
-    return states.xray
+    return states.ghostMode
 end
 
--- 8. NO FOG
-local function toggleNoFog()
-    states.noFog = not states.noFog
-    Lighting.FogEnd = states.noFog and 100000 or 1000
-    return states.noFog
-end
-
--- 9. FULL BRIGHT
-local function toggleFullBright()
-    states.fullBright = not states.fullBright
-    if states.fullBright then
-        Lighting.Ambient = Color3.new(1, 1, 1)
-        Lighting.Brightness = 2
+-- 7. SIZE CHANGER
+local function toggleSizeChanger()
+    states.sizeChanger = not states.sizeChanger
+    if states.sizeChanger then
+        humanoid:WaitForChild("BodyDepthScale").Value = 0.5
+        humanoid:WaitForChild("BodyHeightScale").Value = 0.5
+        humanoid:WaitForChild("BodyWidthScale").Value = 0.5
     else
-        Lighting.Ambient = Color3.new(0.5, 0.5, 0.5)
-        Lighting.Brightness = 1
+        humanoid:WaitForChild("BodyDepthScale").Value = 1
+        humanoid:WaitForChild("BodyHeightScale").Value = 1
+        humanoid:WaitForChild("BodyWidthScale").Value = 1
     end
-    return states.fullBright
+    return states.sizeChanger
+end
+
+-- 8. GRAVITY CONTROL
+local function toggleLowGravity()
+    states.lowGravity = not states.lowGravity
+    workspace.Gravity = states.lowGravity and 30 or 196.2
+    return states.lowGravity
+end
+
+-- 9. TIME CONTROL
+local function toggleSlowMo()
+    states.slowMo = not states.slowMo
+    if states.slowMo then
+        game:GetService("Workspace").GlobalTimeScale = 0.5
+    else
+        game:GetService("Workspace").GlobalTimeScale = 1
+    end
+    return states.slowMo
 end
 
 -- 10. ANTI AFK
@@ -339,140 +364,64 @@ local function toggleAntiAFK()
     return states.antiAFK
 end
 
--- 11. AUTO FARM (Simulação)
-local function toggleAutoFarm()
-    states.autoFarm = not states.autoFarm
-    -- Sistema de farm automático simulado
-    return states.autoFarm
-end
-
--- 12. AIMBOT (Simulação)
-local function toggleAimbot()
-    states.aimbot = not states.aimbot
-    -- Sistema de aimbot simulado
-    return states.aimbot
-end
-
--- 13. TRACERS
-local function toggleTracers()
-    states.tracers = not states.tracers
-    -- Sistema de tracers simulado
-    return states.tracers
-end
-
--- 14. CHAMS
-local function toggleChams()
-    states.chams = not states.chams
-    -- Sistema de chams simulado
-    return states.chams
-end
-
--- 15. ITEM ESP
-local function toggleItemESP()
-    states.itemESP = not states.itemESP
-    -- Sistema de item ESP simulado
-    return states.itemESP
-end
-
--- 16. AUTO COLLECT
-local function toggleAutoCollect()
-    states.autoCollect = not states.autoCollect
-    -- Sistema de coleta automática simulado
-    return states.autoCollect
-end
-
--- 17. TELEPORT TO PLAYER
-local function teleportToPlayer()
-    local target = Players:GetPlayers()[2]
-    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-        rootPart.CFrame = target.Character.HumanoidRootPart.CFrame
+-- 11. PARTY MODE
+local function togglePartyMode()
+    states.partyMode = not states.partyMode
+    if states.partyMode then
+        connections.partyMode = RunService.Heartbeat:Connect(function()
+            if rootPart then
+                rootPart.Color = Color3.new(math.random(), math.random(), math.random())
+            end
+        end)
+    else
+        if connections.partyMode then connections.partyMode:Disconnect() end
+        if rootPart then rootPart.Color = Color3.new(1, 1, 1) end
     end
+    return states.partyMode
 end
 
--- 18. TELEPORT TO SPAWN
-local function teleportToSpawn()
-    rootPart.CFrame = CFrame.new(0, 10, 0)
-end
-
--- 19. GOD MODE
-local function toggleGodMode()
-    states.godMode = not states.godMode
-    humanoid.MaxHealth = states.godMode and math.huge or 100
-    humanoid.Health = humanoid.MaxHealth
-    return states.godMode
-end
-
--- 20. INFINITE STAMINA
-local function toggleInfiniteStamina()
-    states.infiniteStamina = not states.infiniteStamina
-    -- Sistema de stamina infinita simulado
-    return states.infiniteStamina
-end
-
--- 21. NO CLIP COOLDOWN
-local function toggleNoClipCooldown()
-    states.noClipCooldown = not states.noClipCooldown
-    -- Sistema de cooldown simulado
-    return states.noClipCooldown
-end
-
--- 22. FAST ATTACK
-local function toggleFastAttack()
-    states.fastAttack = not states.fastAttack
-    -- Sistema de ataque rápido simulado
-    return states.fastAttack
-end
-
--- 23. AUTO DODGE
-local function toggleAutoDodge()
-    states.autoDodge = not states.autoDodge
-    -- Sistema de dodge automático simulado
-    return states.autoDodge
-end
-
--- 24. MASS TELEPORT
-local function massTeleport()
-    for _, otherPlayer in ipairs(Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            otherPlayer.Character.HumanoidRootPart.CFrame = rootPart.CFrame
-        end
+-- 12. BOUNCE MODE
+local function toggleBounceMode()
+    states.bounceMode = not states.bounceMode
+    if states.bounceMode then
+        humanoid.JumpPower = 100
+        humanoid.JumpHeight = 10
+    else
+        humanoid.JumpPower = 50
+        humanoid.JumpHeight = 7
     end
+    return states.bounceMode
 end
 
--- Criando interface com todas as funções
+-- 13. SPEED BOOST
+local function activateSpeedBoost()
+    local originalSpeed = humanoid.WalkSpeed
+    humanoid.WalkSpeed = 100
+    task.wait(3)
+    humanoid.WalkSpeed = originalSpeed
+end
+
+-- Criando interface
 local yPos = 5
-createButton("🧲 WALLWALK AGRESSIVO", yPos, toggleWallWalk, true); yPos += 35
+createButton("🧲 WALLWALK PROFISSIONAL", yPos, toggleWallWalk, true); yPos += 35
 createButton("🚀 FLIGHT MODE", yPos, toggleFlight, true); yPos += 35
-createButton("👁️ PLAYER ESP", yPos, toggleESP, true); yPos += 35
-createButton("⚡ SPEED 2x", yPos, function() setSpeed(2) end, false); yPos += 35
-createButton("⚡ SPEED 5x", yPos, function() setSpeed(5) end, false); yPos += 35
-createButton("🚫 NOCLIP", yPos, toggleNoclip, true); yPos += 35
 createButton("∞ INFINITE JUMP", yPos, toggleInfiniteJump, true); yPos += 35
-createButton("📡 X-RAY VISION", yPos, toggleXRay, true); yPos += 35
-createButton("🌫️ NO FOG", yPos, toggleNoFog, true); yPos += 35
-createButton("💡 FULL BRIGHT", yPos, toggleFullBright, true); yPos += 35
+createButton("🌟 SUPER JUMP", yPos, activateSpeedBoost, false); yPos += 35
+createButton("📍 TELEPORT FORWARD", yPos, teleportForward, false); yPos += 35
+createButton("👻 GHOST MODE", yPos, toggleGhostMode, true); yPos += 35
+createButton("📏 SIZE CHANGER", yPos, toggleSizeChanger, true); yPos += 35
+createButton("🌌 LOW GRAVITY", yPos, toggleLowGravity, true); yPos += 35
+createButton("⏰ SLOW MOTION", yPos, toggleSlowMo, true); yPos += 35
+createButton("🎉 PARTY MODE", yPos, togglePartyMode, true); yPos += 35
+createButton("🤸 BOUNCE MODE", yPos, toggleBounceMode, true); yPos += 35
+createButton("⚡ SPEED BOOST", yPos, activateSpeedBoost, false); yPos += 35
 createButton("⏰ ANTI AFK", yPos, toggleAntiAFK, true); yPos += 35
-createButton("🤖 AUTO FARM", yPos, toggleAutoFarm, true); yPos += 35
-createButton("🎯 AIMBOT", yPos, toggleAimbot, true); yPos += 35
-createButton("🔦 TRACERS", yPos, toggleTracers, true); yPos += 35
-createButton("🌈 CHAMS", yPos, toggleChams, true); yPos += 35
-createButton("📦 ITEM ESP", yPos, toggleItemESP, true); yPos += 35
-createButton("🔄 AUTO COLLECT", yPos, toggleAutoCollect, true); yPos += 35
-createButton("📍 TELEPORT TO PLAYER", yPos, teleportToPlayer, false); yPos += 35
-createButton("🏠 TELEPORT TO SPAWN", yPos, teleportToSpawn, false); yPos += 35
-createButton("🛡️ GOD MODE", yPos, toggleGodMode, true); yPos += 35
-createButton("💪 INFINITE STAMINA", yPos, toggleInfiniteStamina, true); yPos += 35
-createButton("⏱️ NO CLIP COOLDOWN", yPos, toggleNoClipCooldown, true); yPos += 35
-createButton("⚔️ FAST ATTACK", yPos, toggleFastAttack, true); yPos += 35
-createButton("🤸 AUTO DODGE", yPos, toggleAutoDodge, true); yPos += 35
-createButton("🌪️ MASS TELEPORT", yPos, massTeleport, false); yPos += 35
 
 -- Atualizar character
 player.CharacterAdded:Connect(function(newChar)
     character = newChar
     humanoid = newChar:WaitForChild("Humanoid")
     rootPart = newChar:WaitForChild("HumanoidRootPart")
-    setSpeed(speedMultiplier)
 end)
 
 UIS.InputBegan:Connect(function(input)
@@ -481,6 +430,6 @@ UIS.InputBegan:Connect(function(input)
     end
 end)
 
-print("✅ Mushyo Suite v4.0 Carregada!")
-print("🎮 25+ Funções Profissionais Ativas")
-print("🧲 WallWalk Agressivo 100% Funcional")
+print("✅ Mushyo Suite v5.0 Carregada!")
+print("🧲 WallWalk Profissional 100% Funcional")
+print("🎮 13 Funções Divertidas Ativas")
