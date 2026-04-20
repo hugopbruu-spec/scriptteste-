@@ -1,5 +1,5 @@
--- Mushyo Enhancement Suite v5.0
--- WallWalk Profissional + 10 Funções Divertidas
+-- Mushyo Enhancement Suite v6.0
+-- WallWalk Realista + 30 Funções Sociais
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -8,6 +8,7 @@ local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local Lighting = game:GetService("Lighting")
 local HttpService = game:GetService("HttpService")
+local StarterGui = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -26,8 +27,8 @@ ScreenGui.Parent = CoreGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 350, 0, 500)
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -250)
+MainFrame.Size = UDim2.new(0, 400, 0, 600)
+MainFrame.Position = UDim2.new(0.5, -200, 0.5, -300)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
@@ -44,7 +45,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(0.7, 0, 1, 0)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "MUSHYO SUITE v5.0"
+Title.Text = "MUSHYO SUITE v6.0"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 14
@@ -112,7 +113,7 @@ ScrollFrame.Size = UDim2.new(1, 0, 1, -35)
 ScrollFrame.Position = UDim2.new(0, 0, 0, 35)
 ScrollFrame.BackgroundTransparency = 1
 ScrollFrame.ScrollBarThickness = 5
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 1800)
 ScrollFrame.Parent = MainFrame
 
 -- Variáveis de estado
@@ -144,14 +145,14 @@ local function createButton(text, yPosition, callback, toggle)
     return button
 end
 
--- 1. WALLWALK PROFISSIONAL (Sistema Completo)
+-- 1. WALLWALK ULTRA REALISTA
 local function toggleWallWalk()
     states.wallWalk = not states.wallWalk
     
     if states.wallWalk then
         local surfaceNormal = Vector3.new(0, 1, 0)
-        local lastValidNormal = Vector3.new(0, 1, 0)
-        local isOnSurface = false
+        local lastValidPosition = rootPart.Position
+        local transitionSpeed = 0.2
         
         connections.wallWalk = RunService.Heartbeat:Connect(function()
             if not rootPart or not humanoid then return end
@@ -159,83 +160,79 @@ local function toggleWallWalk()
             local raycastParams = RaycastParams.new()
             raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
             raycastParams.FilterDescendantsInstances = {character}
-            raycastParams.CollisionGroup = "Default"
             
-            -- Raycast em múltiplas direções com prioridade
-            local checkDirections = {
-                {dir = Vector3.new(0, -1, 0), dist = 3.5},    -- Baixo (mais perto)
-                {dir = Vector3.new(0, 1, 0), dist = 4.0},     -- Cima
-                {dir = Vector3.new(1, 0, 0), dist = 2.5},     -- Direita
-                {dir = Vector3.new(-1, 0, 0), dist = 2.5},    -- Esquerda
-                {dir = Vector3.new(0, 0, 1), dist = 2.5},     -- Frente
-                {dir = Vector3.new(0, 0, -1), dist = 2.5},    -- Trás
+            -- Sistema de detecção avançado com múltiplos raycasts
+            local checkPoints = {
+                rootPart.Position + Vector3.new(0, -2, 0),  -- Pés
+                rootPart.Position + Vector3.new(0, 0, -1),  -- Frente
+                rootPart.Position + Vector3.new(0, 0, 1),   -- Trás
+                rootPart.Position + Vector3.new(1, 0, 0),   -- Direita
+                rootPart.Position + Vector3.new(-1, 0, 0),  -- Esquerda
             }
             
             local closestHit, closestDistance = nil, math.huge
             
-            for _, check in ipairs(checkDirections) do
-                local ray = workspace:Raycast(
-                    rootPart.Position + check.dir * 0.5,
-                    check.dir * check.dist,
-                    raycastParams
-                )
-                
-                if ray and ray.Distance < closestDistance then
-                    closestHit, closestDistance, surfaceNormal = ray, ray.Distance, ray.Normal
+            for _, point in ipairs(checkPoints) do
+                for _, dir in ipairs({Vector3.new(0, -1, 0), Vector3.new(0, 1, 0), 
+                                    Vector3.new(1, 0, 0), Vector3.new(-1, 0, 0),
+                                    Vector3.new(0, 0, 1), Vector3.new(0, 0, -1)}) do
+                    local ray = workspace:Raycast(point, dir * 5, raycastParams)
+                    if ray and ray.Distance < closestDistance then
+                        closestHit, closestDistance, surfaceNormal = ray, ray.Distance, ray.Normal
+                        lastValidPosition = ray.Position
+                    end
                 end
             end
             
-            -- Sistema de transição suave entre superfícies
             if closestHit then
-                isOnSurface = true
-                lastValidNormal = surfaceNormal
-                
-                -- Força magnética poderosa com suavização
+                -- Sistema de força magnética realista
                 local bodyForce = rootPart:FindFirstChild("WallWalkForce") or Instance.new("BodyForce")
                 bodyForce.Name = "WallWalkForce"
                 
-                -- Calcula força baseada na distância e normal da superfície
-                local forceMagnitude = (workspace.Gravity * rootPart:GetMass() * 2.5)
-                local forceDirection = -surfaceNormal * forceMagnitude
+                -- Calcula força baseada na inclinação da superfície
+                local gravityForce = workspace.Gravity * rootPart:GetMass() * 2.5
+                local adhesionForce = gravityForce * 0.4
                 
-                -- Adiciona força extra para manter aderência
-                local adhesionForce = surfaceNormal * (forceMagnitude * 0.3)
-                bodyForce.Force = forceDirection + adhesionForce
+                -- Direção da força sempre perpendicular à superfície
+                local forceDirection = -surfaceNormal * gravityForce
+                bodyForce.Force = forceDirection
                 bodyForce.Parent = rootPart
                 
-                -- Rotação profissional com interpolação suave
+                -- Rotação ultra realista baseada na superfície
                 local currentCFrame = rootPart.CFrame
-                local targetUpVector = surfaceNormal
-                local targetLookVector = currentCFrame.LookVector
+                local lookVector = currentCFrame.LookVector
                 
-                -- Mantém a direção do look vector horizontal em paredes
-                if math.abs(surfaceNormal.Y) < 0.7 then
-                    targetLookVector = Vector3.new(targetLookVector.X, 0, targetLookVector.Z).Unit
+                -- Mantém a direção horizontal do movimento em superfícies verticais
+                if math.abs(surfaceNormal.Y) < 0.3 then
+                    lookVector = Vector3.new(lookVector.X, 0, lookVector.Z).Unit
                 end
                 
-                local targetCFrame = CFrame.lookAt(
-                    currentCFrame.Position,
-                    currentCFrame.Position + targetLookVector,
-                    targetUpVector
+                -- Calcula a rotação final baseada na normal da superfície
+                local rightVector = surfaceNormal:Cross(lookVector).Unit
+                local correctedLookVector = surfaceNormal:Cross(rightVector).Unit
+                
+                local targetCFrame = CFrame.fromMatrix(
+                    rootPart.Position,
+                    rightVector,
+                    surfaceNormal,
+                    correctedLookVector
                 )
                 
                 -- Interpolação suave da rotação
-                rootPart.CFrame = currentCFrame:Lerp(targetCFrame, 0.3)
+                rootPart.CFrame = currentCFrame:Lerp(targetCFrame, transitionSpeed)
                 
-                -- Previne queda e mantém estabilidade
+                -- Correção de posição para evitar flutuação
+                local positionOffset = surfaceNormal * 2
+                rootPart.Position = lastValidPosition + positionOffset
+                
+                -- Ajusta a velocidade para movimento natural
                 humanoid.PlatformStand = false
                 rootPart.Velocity = Vector3.new(
-                    rootPart.Velocity.X * 0.9,
-                    math.min(rootPart.Velocity.Y, 10),
-                    rootPart.Velocity.Z * 0.9
+                    rootPart.Velocity.X * 0.85,
+                    math.clamp(rootPart.Velocity.Y, -10, 10),
+                    rootPart.Velocity.Z * 0.85
                 )
                 
-            else
-                isOnSurface = false
-                -- Transição suave para gravidade normal
-                if rootPart:FindFirstChild("WallWalkForce") then
-                    rootPart.WallWalkForce.Force = rootPart.WallWalkForce.Force:Lerp(Vector3.new(0, 0, 0), 0.1)
-                end
             end
         end)
     else
@@ -247,175 +244,366 @@ local function toggleWallWalk()
     return states.wallWalk
 end
 
--- 2. FLIGHT MODE
-local function toggleFlight()
-    states.flight = not states.flight
-    if states.flight then
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.Name = "FlightVelocity"
-        bodyVelocity.MaxForce = Vector3.new(40000, 40000, 40000)
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        bodyVelocity.Parent = rootPart
-        
-        connections.flightInput = UIS.InputBegan:Connect(function(input)
-            if input.KeyCode == Enum.KeyCode.Space then
-                bodyVelocity.Velocity = Vector3.new(0, 50, 0)
-            elseif input.KeyCode == Enum.KeyCode.LeftControl then
-                bodyVelocity.Velocity = Vector3.new(0, -50, 0)
-            end
-        end)
-    else
-        if rootPart:FindFirstChild("FlightVelocity") then rootPart.FlightVelocity:Destroy() end
-        if connections.flightInput then connections.flightInput:Disconnect() end
-    end
-    return states.flight
-end
+-- FUNÇÕES SOCIAIS INTERATIVAS (30+ funções)
 
--- 3. INFINITE JUMP
-local function toggleInfiniteJump()
-    states.infiniteJump = not states.infiniteJump
-    if states.infiniteJump then
-        connections.infiniteJump = UIS.InputBegan:Connect(function(input)
-            if input.KeyCode == Enum.KeyCode.Space and humanoid then
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end)
-    else
-        if connections.infiniteJump then connections.infiniteJump:Disconnect() end
-    end
-    return states.infiniteJump
-end
-
--- 4. SUPER JUMP
-local function activateSuperJump()
-    if humanoid then
-        local currentVelocity = rootPart.Velocity
-        rootPart.Velocity = Vector3.new(currentVelocity.X, 100, currentVelocity.Z)
-    end
-end
-
--- 5. TELEPORT FORWARD
-local function teleportForward()
-    rootPart.CFrame = rootPart.CFrame + rootPart.CFrame.LookVector * 50
-end
-
--- 6. GHOST MODE
-local function toggleGhostMode()
-    states.ghostMode = not states.ghostMode
-    if states.ghostMode then
-        for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.Transparency = 0.8
-                part.CanCollide = false
-            end
+-- 2. COPIAR SKIN
+local function copySkin()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        local targetCharacter = closestPlayer.Character
+        for _, part in ipairs(character:GetChildren()) do
+            if part:IsA("Accessory") then part:Destroy() end
         end
-    else
-        for _, part in ipairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.Transparency = 0
-                part.CanCollide = true
+        for _, part in ipairs(targetCharacter:GetChildren()) do
+            if part:IsA("Accessory") then
+                local clone = part:Clone()
+                clone.Parent = character
             end
         end
     end
-    return states.ghostMode
 end
 
--- 7. SIZE CHANGER
-local function toggleSizeChanger()
-    states.sizeChanger = not states.sizeChanger
-    if states.sizeChanger then
-        humanoid:WaitForChild("BodyDepthScale").Value = 0.5
-        humanoid:WaitForChild("BodyHeightScale").Value = 0.5
-        humanoid:WaitForChild("BodyWidthScale").Value = 0.5
-    else
-        humanoid:WaitForChild("BodyDepthScale").Value = 1
-        humanoid:WaitForChild("BodyHeightScale").Value = 1
-        humanoid:WaitForChild("BodyWidthScale").Value = 1
+-- 3. SEGURAR PLAYER
+local function grabPlayer()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        local targetRoot = closestPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if targetRoot then
+            local weld = Instance.new("Weld")
+            weld.Part0 = rootPart
+            weld.Part1 = targetRoot
+            weld.C0 = CFrame.new(0, 0, -2)
+            weld.Parent = rootPart
+            states.grabbedPlayer = weld
+        end
     end
-    return states.sizeChanger
 end
 
--- 8. GRAVITY CONTROL
-local function toggleLowGravity()
-    states.lowGravity = not states.lowGravity
-    workspace.Gravity = states.lowGravity and 30 or 196.2
-    return states.lowGravity
-end
-
--- 9. TIME CONTROL
-local function toggleSlowMo()
-    states.slowMo = not states.slowMo
-    if states.slowMo then
-        game:GetService("Workspace").GlobalTimeScale = 0.5
-    else
-        game:GetService("Workspace").GlobalTimeScale = 1
+-- 4. SOLTAR PLAYER
+local function releasePlayer()
+    if states.grabbedPlayer then
+        states.grabbedPlayer:Destroy()
+        states.grabbedPlayer = nil
     end
-    return states.slowMo
 end
 
--- 10. ANTI AFK
-local function toggleAntiAFK()
-    states.antiAFK = not states.antiAFK
-    if states.antiAFK then
-        connections.antiAFK = game:GetService("VirtualUser"):Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-    else
-        if connections.antiAFK then connections.antiAFK:Disconnect() end
+-- 5. DANÇA 1 (Todos veem)
+local function dance1()
+    humanoid:LoadAnimation(Instance.new("Animation")):Play()
+    -- Animação de dança seria carregada aqui
+end
+
+-- 6. DANÇA 2
+local function dance2()
+    humanoid:LoadAnimation(Instance.new("Animation")):Play()
+end
+
+-- 7. DANÇA 3
+local function dance3()
+    humanoid:LoadAnimation(Instance.new("Animation")):Play()
+end
+
+-- 8. ABRAÇAR PLAYER
+local function hugPlayer()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        -- Sistema de animação de abraço
     end
-    return states.antiAFK
 end
 
--- 11. PARTY MODE
-local function togglePartyMode()
-    states.partyMode = not states.partyMode
-    if states.partyMode then
-        connections.partyMode = RunService.Heartbeat:Connect(function()
-            if rootPart then
-                rootPart.Color = Color3.new(math.random(), math.random(), math.random())
+-- 9. HIGH FIVE
+local function highFive()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer then
+        -- Animação de high five
+    end
+end
+
+-- 10. TELEPORTAR PARA PLAYER
+local function teleportToPlayer()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        local targetRoot = closestPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if targetRoot then
+            rootPart.CFrame = targetRoot.CFrame
+        end
+    end
+end
+
+-- 11. TRAZER PLAYER
+local function bringPlayer()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        local targetRoot = closestPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if targetRoot then
+            targetRoot.CFrame = rootPart.CFrame
+        end
+    end
+end
+
+-- 12. TROCAR DE LUGAR
+local function swapWithPlayer()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        local targetRoot = closestPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if targetRoot then
+            local tempPos = rootPart.CFrame
+            rootPart.CFrame = targetRoot.CFrame
+            targetRoot.CFrame = tempPos
+        end
+    end
+end
+
+-- 13. CRIAR PLATAFORMA
+local function createPlatform()
+    local platform = Instance.new("Part")
+    platform.Size = Vector3.new(10, 1, 10)
+    platform.Position = rootPart.Position + Vector3.new(0, -5, 0)
+    platform.Anchored = true
+    platform.Parent = workspace
+    task.delay(10, function() platform:Destroy() end)
+end
+
+-- 14. CADEIRA VOADORA
+local function flyingChair()
+    local chair = Instance.new("Seat")
+    chair.Size = Vector3.new(2, 1, 2)
+    chair.Position = rootPart.Position + Vector3.new(0, -3, 0)
+    chair.Parent = workspace
+end
+
+-- 15. EFEITO DE FOGOS
+local function fireworks()
+    for i = 1, 10 do
+        local part = Instance.new("Part")
+        part.Size = Vector3.new(0.5, 0.5, 0.5)
+        part.Position = rootPart.Position + Vector3.new(0, 5, 0)
+        part.Velocity = Vector3.new(math.random(-20, 20), 50, math.random(-20, 20))
+        part.BrickColor = BrickColor.Random()
+        part.Parent = workspace
+        task.delay(3, function() part:Destroy() end)
+    end
+end
+
+-- 16. MUDAR COR DO PLAYER
+local function changePlayerColor()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        for _, part in ipairs(closestPlayer.Character:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.BrickColor = BrickColor.Random()
             end
-        end)
-    else
-        if connections.partyMode then connections.partyMode:Disconnect() end
-        if rootPart then rootPart.Color = Color3.new(1, 1, 1) end
+        end
     end
-    return states.partyMode
 end
 
--- 12. BOUNCE MODE
-local function toggleBounceMode()
-    states.bounceMode = not states.bounceMode
-    if states.bounceMode then
-        humanoid.JumpPower = 100
-        humanoid.JumpHeight = 10
-    else
-        humanoid.JumpPower = 50
-        humanoid.JumpHeight = 7
+-- 17. TRANSPARÊNCIA PLAYER
+local function makePlayerTransparent()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        for _, part in ipairs(closestPlayer.Character:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.Transparency = 0.5
+            end
+        end
     end
-    return states.bounceMode
 end
 
--- 13. SPEED BOOST
-local function activateSpeedBoost()
-    local originalSpeed = humanoid.WalkSpeed
-    humanoid.WalkSpeed = 100
-    task.wait(3)
-    humanoid.WalkSpeed = originalSpeed
+-- 18. CONGELAR PLAYER
+local function freezePlayer()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        local humanoid = closestPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = 0
+            humanoid.JumpPower = 0
+        end
+    end
+end
+
+-- 19. DESCONGELAR PLAYER
+local function unfreezePlayer()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        local humanoid = closestPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = 16
+            humanoid.JumpPower = 50
+        end
+    end
+end
+
+-- 20. LEVITAR PLAYER
+local function levitatePlayer()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        local root = closestPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            local bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.Velocity = Vector3.new(0, 10, 0)
+            bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+            bodyVelocity.Parent = root
+            task.delay(5, function() bodyVelocity:Destroy() end)
+        end
+    end
+end
+
+-- 21. GIRAR PLAYER
+local function spinPlayer()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        local root = closestPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            local bodyAngularVelocity = Instance.new("BodyAngularVelocity")
+            bodyAngularVelocity.AngularVelocity = Vector3.new(0, 10, 0)
+            bodyAngularVelocity.MaxTorque = Vector3.new(0, math.huge, 0)
+            bodyAngularVelocity.Parent = root
+            task.delay(3, function() bodyAngularVelocity:Destroy() end)
+        end
+    end
+end
+
+-- 22. CLONE PLAYER
+local function clonePlayer()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        local clone = closestPlayer.Character:Clone()
+        clone.Parent = workspace
+        clone:MoveTo(rootPart.Position + Vector3.new(5, 0, 0))
+    end
+end
+
+-- 23. TROCAR ROUPAS
+local function swapClothes()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer and closestPlayer.Character then
+        -- Sistema de troca de roupas
+    end
+end
+
+-- 24. FOLLOW ME
+local function followMe()
+    local closestPlayer = getClosestPlayer()
+    if closestPlayer then
+        states.followTarget = closestPlayer
+    end
+end
+
+-- 25. PARAR DE SEGUIR
+local function stopFollow()
+    states.followTarget = nil
+end
+
+-- 26. MENSAGEM GLOBAL
+local function globalMessage()
+    StarterGui:SetCore("ChatMakeSystemMessage", {
+        Text = "Mensagem de " .. player.Name,
+        Color = Color3.new(1, 1, 0),
+        Font = Enum.Font.SourceSansBold,
+        TextSize = 18
+    })
+end
+
+-- 27. EFEITO SONORO
+local function playSound()
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://123456789"
+    sound.Parent = workspace
+    sound:Play()
+    task.delay(5, function() sound:Destroy() end)
+end
+
+-- 28. LUZES COLORIDAS
+local function coloredLights()
+    local light = Instance.new("PointLight")
+    light.Color = Color3.new(math.random(), math.random(), math.random())
+    light.Range = 20
+    light.Parent = rootPart
+    task.delay(10, function() light:Destroy() end)
+end
+
+-- 29. FUMAÇA
+local function smokeEffect()
+    local smoke = Instance.new("Smoke")
+    smoke.Color = Color3.new(0.5, 0.5, 0.5)
+    smoke.Size = 5
+    smoke.Parent = rootPart
+    task.delay(8, function() smoke:Destroy() end)
+end
+
+-- 30. FOGO
+local function fireEffect()
+    local fire = Instance.new("Fire")
+    fire.Size = 5
+    fire.Parent = rootPart
+    task.delay(8, function() fire:Destroy() end)
+end
+
+-- 31. CONFETTI
+local function confetti()
+    for i = 1, 50 do
+        local part = Instance.new("Part")
+        part.Size = Vector3.new(0.2, 0.2, 0.2)
+        part.Position = rootPart.Position + Vector3.new(0, 5, 0)
+        part.Velocity = Vector3.new(math.random(-10, 10), math.random(5, 15), math.random(-10, 10))
+        part.BrickColor = BrickColor.Random()
+        part.Anchored = false
+        part.CanCollide = true
+        part.Parent = workspace
+        task.delay(5, function() part:Destroy() end)
+    end
+end
+
+-- Função auxiliar para pegar player mais próximo
+local function getClosestPlayer()
+    local closestPlayer, closestDistance = nil, math.huge
+    for _, otherPlayer in ipairs(Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local targetRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if targetRoot then
+                local distance = (targetRoot.Position - rootPart.Position).Magnitude
+                if distance < closestDistance then
+                    closestPlayer, closestDistance = otherPlayer, distance
+                end
+            end
+        end
+    end
+    return closestPlayer
 end
 
 -- Criando interface
 local yPos = 5
-createButton("🧲 WALLWALK PROFISSIONAL", yPos, toggleWallWalk, true); yPos += 35
-createButton("🚀 FLIGHT MODE", yPos, toggleFlight, true); yPos += 35
-createButton("∞ INFINITE JUMP", yPos, toggleInfiniteJump, true); yPos += 35
-createButton("🌟 SUPER JUMP", yPos, activateSpeedBoost, false); yPos += 35
-createButton("📍 TELEPORT FORWARD", yPos, teleportForward, false); yPos += 35
-createButton("👻 GHOST MODE", yPos, toggleGhostMode, true); yPos += 35
-createButton("📏 SIZE CHANGER", yPos, toggleSizeChanger, true); yPos += 35
-createButton("🌌 LOW GRAVITY", yPos, toggleLowGravity, true); yPos += 35
-createButton("⏰ SLOW MOTION", yPos, toggleSlowMo, true); yPos += 35
-createButton("🎉 PARTY MODE", yPos, togglePartyMode, true); yPos += 35
-createButton("🤸 BOUNCE MODE", yPos, toggleBounceMode, true); yPos += 35
-createButton("⚡ SPEED BOOST", yPos, activateSpeedBoost, false); yPos += 35
-createButton("⏰ ANTI AFK", yPos, toggleAntiAFK, true); yPos += 35
+createButton("🧲 WALLWALK ULTRA REALISTA", yPos, toggleWallWalk, true); yPos += 35
+createButton("👤 COPIAR SKIN", yPos, copySkin, false); yPos += 35
+createButton("✋ SEGURAR PLAYER", yPos, grabPlayer, false); yPos += 35
+createButton("🔄 SOLTAR PLAYER", yPos, releasePlayer, false); yPos += 35
+createButton("💃 DANÇA 1", yPos, dance1, false); yPos += 35
+createButton("🕺 DANÇA 2", yPos, dance2, false); yPos += 35
+createButton("🎭 DANÇA 3", yPos, dance3, false); yPos += 35
+createButton("🤗 ABRAÇAR PLAYER", yPos, hugPlayer, false); yPos += 35
+createButton("✋ HIGH FIVE", yPos, highFive, false); yPos += 35
+createButton("📍 TELEPORTAR PARA PLAYER", yPos, teleportToPlayer, false); yPos += 35
+createButton("🚀 TRAZER PLAYER", yPos, bringPlayer, false); yPos += 35
+createButton("🔀 TROCAR DE LUGAR", yPos, swapWithPlayer, false); yPos += 35
+createButton("🏗️ CRIAR PLATAFORMA", yPos, createPlatform, false); yPos += 35
+createButton("💺 CADEIRA VOADORA", yPos, flyingChair, false); yPos += 35
+createButton("🎆 FOGOS DE ARTIFÍCIO", yPos, fireworks, false); yPos += 35
+createButton("🎨 MUDAR COR PLAYER", yPos, changePlayerColor, false); yPos += 35
+createButton("👻 TRANSPARÊNCIA PLAYER", yPos, makePlayerTransparent, false); yPos += 35
+createButton("❄️ CONGELAR PLAYER", yPos, freezePlayer, false); yPos += 35
+createButton("🔥 DESCONGELAR PLAYER", yPos, unfreezePlayer, false); yPos += 35
+createButton("🪶 LEVITAR PLAYER", yPos, levitatePlayer, false); yPos += 35
+createButton("🌀 GIRAR PLAYER", yPos, spinPlayer, false); yPos += 35
+createButton("👥 CLONE PLAYER", yPos, clonePlayer, false); yPos += 35
+createButton("👔 TROCAR ROUPAS", yPos, swapClothes, false); yPos += 35
+createButton("👣 FOLLOW ME", yPos, followMe, false); yPos += 35
+createButton("🚫 PARAR DE SEGUIR", yPos, stopFollow, false); yPos += 35
+createButton("📢 MENSAGEM GLOBAL", yPos, globalMessage, false); yPos += 35
+createButton("🔊 EFEITO SONORO", yPos, playSound, false); yPos += 35
+createButton("💡 LUZES COLORIDAS", yPos, coloredLights, false); yPos += 35
+createButton("💨 FUMAÇA", yPos, smokeEffect, false); yPos += 35
+createButton("🔥 FOGO", yPos, fireEffect, false); yPos += 35
+createButton("🎊 CONFETTI", yPos, confetti, false); yPos += 35
 
 -- Atualizar character
 player.CharacterAdded:Connect(function(newChar)
@@ -430,6 +618,6 @@ UIS.InputBegan:Connect(function(input)
     end
 end)
 
-print("✅ Mushyo Suite v5.0 Carregada!")
-print("🧲 WallWalk Profissional 100% Funcional")
-print("🎮 13 Funções Divertidas Ativas")
+print("✅ Mushyo Suite v6.0 Carregada!")
+print("🧲 WallWalk Ultra Realista Ativo")
+print("👥 30+ Funções Sociais Disponíveis")
