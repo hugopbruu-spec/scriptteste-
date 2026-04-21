@@ -1,4 +1,3 @@
-```lua
 -- Mushyo Professional Suite v15.0 - Sistema 100% Funcional
 -- Todas as 5 funções otimizadas e sem bugs
 
@@ -499,4 +498,3 @@ game:GetService("Debris"):AddItem(ScreenGui, 10)
 print("✅ Mushyo Professional Suite v15.0 Carregado!")
 print("🎮 Todas as 5 funções otimizadas e funcionais")
 print("🚀 Pressione RightShift para abrir o menu")
-```
