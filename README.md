@@ -1,5 +1,5 @@
--- Mushyo Professional Suite v12.1 - Interface Corrigida
--- Sistema completo com terminal de debug e todas as funções funcionais
+-- Mushyo All-In-One Suite v13.0 - Categoria Única
+-- Todas as funções em uma única categoria com terminal funcional
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -9,15 +9,13 @@ local CoreGui = game:GetService("CoreGui")
 local Lighting = game:GetService("Lighting")
 local HttpService = game:GetService("HttpService")
 local SoundService = game:GetService("SoundService")
-local TextService = game:GetService("TextService")
-local StarterGui = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- Sistema de logging avançado
+-- Sistema de logging
 local Logs = {}
 local MAX_LOGS = 50
 
@@ -26,94 +24,63 @@ local function addLog(message, logType)
     local logEntry = {
         message = message,
         type = logType or "INFO",
-        timestamp = timestamp,
-        stack = debug.traceback()
+        timestamp = timestamp
     }
     
     table.insert(Logs, 1, logEntry)
     if #Logs > MAX_LOGS then
         table.remove(Logs, MAX_LOGS + 1)
     end
-    
     return logEntry
 end
 
--- Sistema de execução com debug
+-- Sistema de execução seguro
 local function safeExecute(func, funcName)
     local success, result = pcall(func)
     if not success then
-        local log = addLog("ERRO em " .. funcName .. ": " .. result, "ERROR")
+        local log = addLog("ERRO em " .. funcName .. ": " .. tostring(result), "ERROR")
         return false, log
     end
-    addLog("Função executada: " .. funcName, "SUCCESS")
+    addLog("Executado: " .. funcName, "SUCCESS")
     return true, result
 end
 
 -- Remover interface existente
-if CoreGui:FindFirstChild("MushyoProfessionalSuite") then
-    CoreGui.MushyoProfessionalSuite:Destroy()
+if CoreGui:FindFirstChild("MushyoAllInOneSuite") then
+    CoreGui.MushyoAllInOneSuite:Destroy()
 end
 
--- Interface principal premium
+-- Interface simplificada
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MushyoProfessionalSuite"
+ScreenGui.Name = "MushyoAllInOneSuite"
 ScreenGui.Parent = CoreGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 500, 0, 700)
 MainFrame.Position = UDim2.new(0.5, -250, 0.5, -350)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
-
--- Gradiente profissional
-local Gradient = Instance.new("UIGradient")
-Gradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 30)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 20))
-})
-Gradient.Rotation = 135
-Gradient.Parent = MainFrame
 
 -- Barra de título
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.Position = UDim2.new(0, 0, 0, 0)
-TitleBar.BackgroundColor3 = Color3.fromRGB(0, 40, 80)
+TitleBar.BackgroundColor3 = Color3.fromRGB(0, 50, 100)
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
-
-local TitleGradient = Instance.new("UIGradient")
-TitleGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 80, 160)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 40, 80))
-})
-TitleGradient.Rotation = 90
-TitleGradient.Parent = TitleBar
 
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(0.6, 0, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🔧 MUSHYO PRO v12.1"
+Title.Text = "🌟 MUSHYO ALL-IN-ONE v13.0"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 14
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TitleBar
-
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(0.3, 0, 1, 0)
-StatusLabel.Position = UDim2.new(0.7, 0, 0, 0)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "✅ CONECTADO"
-StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-StatusLabel.Font = Enum.Font.GothamMedium
-StatusLabel.TextSize = 12
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Right
-StatusLabel.Parent = TitleBar
 
 -- Botões de controle
 local MinimizeButton = Instance.new("TextButton")
@@ -136,62 +103,15 @@ CloseButton.Font = Enum.Font.GothamBold
 CloseButton.TextSize = 20
 CloseButton.Parent = TitleBar
 
--- Sistema de abas
-local TabContainer = Instance.new("Frame")
-TabContainer.Size = UDim2.new(1, 0, 0, 40)
-TabContainer.Position = UDim2.new(0, 0, 0, 35)
-TabContainer.BackgroundTransparency = 1
-TabContainer.Parent = MainFrame
-
-local tabs = {
-    "🚀 Movimento", 
-    "👁️ Visual", 
-    "👥 Social", 
-    "🌍 Mundo", 
-    "🎮 Diversão", 
-    "⚙️ Utilitários",
-    "📊 Terminal"
-}
-
-local currentTab = "🚀 Movimento"
-local tabButtons = {}
-
-for i, tabName in ipairs(tabs) do
-    local tabButton = Instance.new("TextButton")
-    tabButton.Size = UDim2.new(1/#tabs, -2, 0.8, 0)
-    tabButton.Position = UDim2.new((i-1)/#tabs, 1, 0.1, 0)
-    tabButton.Text = tabName
-    tabButton.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
-    tabButton.TextColor3 = Color3.fromRGB(180, 180, 180)
-    tabButton.Font = Enum.Font.GothamMedium
-    tabButton.TextSize = 11
-    tabButton.BorderSizePixel = 0
-    tabButton.Parent = TabContainer
-    
-    tabButton.MouseButton1Click:Connect(function()
-        currentTab = tabName
-        updateTabDisplay()
-    end)
-    
-    tabButtons[tabName] = tabButton
-end
-
--- Área principal
-local ContentFrame = Instance.new("Frame")
-ContentFrame.Size = UDim2.new(1, 0, 1, -75)
-ContentFrame.Position = UDim2.new(0, 0, 0, 75)
-ContentFrame.BackgroundTransparency = 1
-ContentFrame.Parent = MainFrame
-
--- Scroll para funções
+-- Área principal única
 local MainScroll = Instance.new("ScrollingFrame")
 MainScroll.Size = UDim2.new(1, 0, 0.6, 0)
-MainScroll.Position = UDim2.new(0, 0, 0, 0)
+MainScroll.Position = UDim2.new(0, 0, 0, 35)
 MainScroll.BackgroundTransparency = 1
 MainScroll.ScrollBarThickness = 6
 MainScroll.ScrollBarImageColor3 = Color3.fromRGB(0, 150, 255)
-MainScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-MainScroll.Parent = ContentFrame
+MainScroll.CanvasSize = UDim2.new(0, 0, 0, 2000)
+MainScroll.Parent = MainFrame
 
 -- Terminal de debug
 local TerminalFrame = Instance.new("Frame")
@@ -200,8 +120,7 @@ TerminalFrame.Position = UDim2.new(0, 0, 0.6, 5)
 TerminalFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
 TerminalFrame.BorderSizePixel = 1
 TerminalFrame.BorderColor3 = Color3.fromRGB(50, 50, 60)
-TerminalFrame.Visible = false
-TerminalFrame.Parent = ContentFrame
+TerminalFrame.Parent = MainFrame
 
 local TerminalHeader = Instance.new("Frame")
 TerminalHeader.Size = UDim2.new(1, 0, 0, 25)
@@ -245,21 +164,15 @@ TerminalScroll.Parent = TerminalFrame
 local states = {}
 local connections = {}
 local activeEffects = {}
-local allButtons = {}
 
--- Função para criar botões premium
-local function createButton(text, yPosition, callback, toggle, tab, emoji, description)
+-- Função para criar botões
+local function createButton(text, yPosition, callback, toggle, emoji, description)
     local buttonFrame = Instance.new("Frame")
     buttonFrame.Size = UDim2.new(0.98, 0, 0, 45)
     buttonFrame.Position = UDim2.new(0.01, 0, 0, yPosition)
     buttonFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
     buttonFrame.BorderSizePixel = 0
-    buttonFrame.Visible = (tab == currentTab)
     buttonFrame.Parent = MainScroll
-    
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 6)
-    buttonCorner.Parent = buttonFrame
     
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(1, 0, 1, 0)
@@ -279,10 +192,6 @@ local function createButton(text, yPosition, callback, toggle, tab, emoji, descr
     statusIndicator.BorderSizePixel = 0
     statusIndicator.Visible = false
     statusIndicator.Parent = buttonFrame
-    
-    local statusCorner = Instance.new("UICorner")
-    statusCorner.CornerRadius = UDim.new(0, 2)
-    statusCorner.Parent = statusIndicator
     
     button.MouseEnter:Connect(function()
         TweenService:Create(buttonFrame, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 45, 65)}):Play()
@@ -305,14 +214,13 @@ local function createButton(text, yPosition, callback, toggle, tab, emoji, descr
             end
         end, text)
         
-        if not success and logEntry then
+        if not success then
             TweenService:Create(buttonFrame, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(100, 40, 40)}):Play()
             task.wait(0.1)
             TweenService:Create(buttonFrame, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(35, 35, 50)}):Play()
         end
     end)
     
-    table.insert(allButtons, {frame = buttonFrame, tab = tab})
     return buttonFrame
 end
 
@@ -341,41 +249,7 @@ local function updateTerminal()
         logLabel.TextYAlignment = Enum.TextYAlignment.Top
         logLabel.TextWrapped = true
         logLabel.Parent = TerminalScroll
-        
-        logLabel.MouseButton1Click:Connect(function()
-            setclipboard(log.stack)
-            addLog("Stack trace copiado para clipboard", "INFO")
-        end)
     end
-end
-
--- Atualizar display das abas CORRIGIDO
-local function updateTabDisplay()
-    for tabName, tabButton in pairs(tabButtons) do
-        local isCurrentTab = (tabName == currentTab)
-        tabButton.BackgroundColor3 = isCurrentTab and Color3.fromRGB(0, 120, 220) or Color3.fromRGB(30, 30, 45)
-        tabButton.TextColor3 = isCurrentTab and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 180)
-    end
-    
-    -- Atualizar visibilidade dos botões
-    for _, buttonData in ipairs(allButtons) do
-        buttonData.frame.Visible = (buttonData.tab == currentTab)
-    end
-    
-    -- Atualizar visibilidade das seções
-    MainScroll.Visible = (currentTab ~= "📊 Terminal")
-    TerminalFrame.Visible = (currentTab == "📊 Terminal")
-    
-    -- Ajustar canvas size baseado na aba atual
-    local buttonCount = 0
-    for _, buttonData in ipairs(allButtons) do
-        if buttonData.tab == currentTab then
-            buttonCount = buttonCount + 1
-        end
-    end
-    MainScroll.CanvasSize = UDim2.new(0, 0, 0, buttonCount * 50)
-    
-    updateTerminal()
 end
 
 -- Sistema de arrastar
@@ -421,12 +295,11 @@ ClearTerminalButton.MouseButton1Click:Connect(function()
     addLog("Terminal limpo", "INFO")
 end)
 
--- FUNÇÕES COMPLETAS PARA TODAS AS CATEGORIAS
+-- TODAS AS FUNÇÕES EM UMA ÚNICA CATEGORIA
+local buttonY = 5
 
--- CATEGORIA MOVIMENTO
-local movementY = 5
-
-createButton("Flight Mode", movementY, function()
+-- 1. Flight Mode
+createButton("Flight Mode", buttonY, function()
     states.Flight = not states.Flight
     if states.Flight then
         local bodyVelocity = Instance.new("BodyVelocity")
@@ -446,20 +319,28 @@ createButton("Flight Mode", movementY, function()
         return true
     else
         if activeEffects.Flight then activeEffects.Flight:Destroy() end
-        if connections.FflightInput then connections.FlightInput:Disconnect() end
+        if connections.FlightInput then connections.FlightInput:Disconnect() end
         return false
     end
-end, true, "🚀 Movimento", "🚀", "Voar pelo mapa")
+end, true, "🚀", "Voar pelo mapa")
 
-movementY += 50
+buttonY += 50
 
-createButton("Speed 3x", movementY, function()
+-- 2. Speed Hack
+createButton("Speed 3x", buttonY, function()
     humanoid.WalkSpeed = 48
-end, false, "🚀 Movimento", "⚡", "Aumentar velocidade")
+end, false, "⚡", "Aumentar velocidade para 3x")
 
-movementY += 50
+buttonY += 50
 
-createButton("Noclip", movementY, function()
+createButton("Speed 5x", buttonY, function()
+    humanoid.WalkSpeed = 80
+end, false, "⚡", "Aumentar velocidade para 5x")
+
+buttonY += 50
+
+-- 3. Noclip
+createButton("Noclip", buttonY, function()
     states.Noclip = not states.Noclip
     if states.Noclip then
         connections.Noclip = RunService.Stepped:Connect(function()
@@ -479,17 +360,19 @@ createButton("Noclip", movementY, function()
         end
         return false
     end
-end, true, "🚀 Movimento", "🚫", "Atravessar paredes")
+end, true, "🚫", "Atravessar paredes e objetos")
 
-movementY += 50
+buttonY += 50
 
-createButton("Super Jump", movementY, function()
+-- 4. Super Jump
+createButton("Super Jump", buttonY, function()
     rootPart.Velocity = Vector3.new(rootPart.Velocity.X, 100, rootPart.Velocity.Z)
-end, false, "🚀 Movimento", "🌟", "Pulo super alto")
+end, false, "🌟", "Pulo super alto")
 
-movementY += 50
+buttonY += 50
 
-createButton("WallRun", movementY, function()
+-- 5. WallRun
+createButton("WallRun", buttonY, function()
     states.WallRun = not states.WallRun
     if states.WallRun then
         connections.WallRun = RunService.Heartbeat:Connect(function()
@@ -503,37 +386,38 @@ createButton("WallRun", movementY, function()
         if connections.WallRun then connections.WallRun:Disconnect() end
         return false
     end
-end, true, "🚀 Movimento", "🧱", "Correr nas paredes")
+end, true, "🧱", "Correr nas paredes")
 
--- CATEGORIA VISUAL
-local visualY = 5
+buttonY += 50
 
-createButton("Player ESP", visualY, function()
+-- 6. Player ESP
+createButton("Player ESP", buttonY, function()
     states.ESP = not states.ESP
     if states.ESP then
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= Players.LocalPlayer and player.Character then
+        for _, otherPlayer in ipairs(Players:GetPlayers()) do
+            if otherPlayer ~= player and otherPlayer.Character then
                 local highlight = Instance.new("Highlight")
                 highlight.FillColor = Color3.fromRGB(255, 0, 0)
                 highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
                 highlight.FillTransparency = 0.7
-                highlight.Parent = player.Character
+                highlight.Parent = otherPlayer.Character
             end
         end
         return true
     else
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player.Character and player.Character:FindFirstChild("Highlight") then
-                player.Character.Highlight:Destroy()
+        for _, otherPlayer in ipairs(Players:GetPlayers()) do
+            if otherPlayer.Character and otherPlayer.Character:FindFirstChild("Highlight") then
+                otherPlayer.Character.Highlight:Destroy()
             end
         end
         return false
     end
-end, true, "👁️ Visual", "👁️", "Ver jogadores através das paredes")
+end, true, "👁️", "Ver jogadores através das paredes")
 
-visualY += 50
+buttonY += 50
 
-createButton("X-Ray Vision", visualY, function()
+-- 7. X-Ray Vision
+createButton("X-Ray Vision", buttonY, function()
     states.XRay = not states.XRay
     if states.XRay then
         for _, part in ipairs(workspace:GetDescendants()) do
@@ -550,44 +434,53 @@ createButton("X-Ray Vision", visualY, function()
         end
         return false
     end
-end, true, "👁️ Visual", "📡", "Visão através de objetos")
+end, true, "📡", "Visão através de objetos")
 
--- CATEGORIA SOCIAL
-local socialY = 5
+buttonY += 50
 
-createButton("Teleport to Player", socialY, function()
+-- 8. Teleport to Player
+createButton("Teleport to Player", buttonY, function()
     local target = Players:GetPlayers()[2]
     if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
         rootPart.CFrame = target.Character.HumanoidRootPart.CFrame
     end
-end, false, "👥 Social", "📍", "Teleportar para outro jogador")
+end, false, "📍", "Teleportar para outro jogador")
 
-socialY += 50
+buttonY += 50
 
-createButton("Bring Player", socialY, function()
+-- 9. Bring Player
+createButton("Bring Player", buttonY, function()
     local target = Players:GetPlayers()[2]
     if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
         target.Character.HumanoidRootPart.CFrame = rootPart.CFrame
     end
-end, false, "👥 Social", "🚀", "Trazer jogador para você")
+end, false, "🚀", "Trazer jogador para você")
 
--- CATEGORIA MUNDO
-local worldY = 5
+buttonY += 50
 
-createButton("Day Time", worldY, function()
+-- 10. Day Time
+createButton("Day Time", buttonY, function()
     Lighting.ClockTime = 14
-end, false, "🌍 Mundo", "⏰", "Mudar para horário diurno")
+end, false, "⏰", "Mudar para horário diurno")
 
-worldY += 50
+buttonY += 50
 
-createButton("Night Time", worldY, function()
+-- 11. Night Time
+createButton("Night Time", buttonY, function()
     Lighting.ClockTime = 0
-end, false, "🌍 Mundo", "🌙", "Mudar para horário noturno")
+end, false, "🌙", "Mudar para horário noturno")
 
--- CATEGORIA DIVERSÃO
-local funY = 5
+buttonY += 50
 
-createButton("Fireworks", funY, function()
+-- 12. No Fog
+createButton("No Fog", buttonY, function()
+    Lighting.FogEnd = 100000
+end, false, "🌫️", "Remover neblina")
+
+buttonY += 50
+
+-- 13. Fireworks
+createButton("Fireworks", buttonY, function()
     for i = 1, 15 do
         local firework = Instance.new("Part")
         firework.Size = Vector3.new(0.5, 0.5, 0.5)
@@ -598,12 +491,12 @@ createButton("Fireworks", funY, function()
         firework.Parent = workspace
         game:GetService("Debris"):AddItem(firework, 5)
     end
-end, false, "🎮 Diversão", "🎆", "Criar fogos de artifício")
+end, false, "🎆", "Criar fogos de artifício")
 
--- CATEGORIA UTILITÁRIOS
-local utilY = 5
+buttonY += 50
 
-createButton("Anti AFK", utilY, function()
+-- 14. Anti AFK
+createButton("Anti AFK", buttonY, function()
     states.AntiAFK = not states.AntiAFK
     if states.AntiAFK then
         connections.AntiAFK = game:GetService("VirtualUser"):Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
@@ -612,10 +505,23 @@ createButton("Anti AFK", utilY, function()
         if connections.AntiAFK then connections.AntiAFK:Disconnect() end
         return false
     end
-end, true, "⚙️ Utilitários", "⏰", "Prevenir desconexão por AFK")
+end, true, "⏰", "Prevenir desconexão por AFK")
+
+buttonY += 50
+
+-- 15. God Mode
+createButton("God Mode", buttonY, function()
+    states.GodMode = not states.GodMode
+    humanoid.MaxHealth = states.GodMode and math.huge or 100
+    humanoid.Health = humanoid.MaxHealth
+    return states.GodMode
+end, true, "🛡️", "Modo invencível")
+
+-- Ajustar canvas size
+MainScroll.CanvasSize = UDim2.new(0, 0, 0, buttonY + 50)
 
 -- Sistema de inicialização
-addLog("Mushyo Professional Suite inicializado", "SUCCESS")
+addLog("Mushyo All-In-One Suite inicializado", "SUCCESS")
 addLog("Player: " .. player.Name, "INFO")
 
 player.CharacterAdded:Connect(function(newChar)
@@ -632,9 +538,10 @@ UIS.InputBegan:Connect(function(input)
     end
 end)
 
--- Inicializar interface
-updateTabDisplay()
+-- Inicializar terminal
+updateTerminal()
 
-print("🎮 Mushyo Professional Suite v12.1 Carregado!")
-print("✅ Interface completamente funcional")
+print("🎮 Mushyo All-In-One Suite v13.0 Carregado!")
+print("✅ Todas as funções em uma única categoria")
+print("📟 Terminal de debug funcional")
 print("🚀 Pressione RightShift para abrir o menu")
