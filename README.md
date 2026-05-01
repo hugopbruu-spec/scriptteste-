@@ -1,171 +1,232 @@
--- VR Universal: Simula um headset VR completo usando mouse+teclado e replica para o servidor.
--- Ative com F5. Movimento: WASD (relativo à cabeça). Mouse: gira cabeça. Q/E: gira mãos.
+-- VR_MouseKeyboard_Universal.lua
+-- Ativa/desativa com F5. Debug com F6.
+-- Tentará forçar VRService, hooks e fallbacks.
 
-local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local UIS = game:GetService("UserInputService")
 local VRService = game:GetService("VRService")
-
+local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
--- Estado
-local vrAtivo = false
-local mouseLocked = false
-local moveDirection = Vector3.new()
+-- Configs
+local VR_ATIVO = false
+local SENSIBILIDADE = 0.3
+local DEBUG = false
 local keys = {}
+local moveDir = Vector3.new()
+local anguloMao = 0
 
--- Sensibilidade da câmera
-local sensibilidade = 0.3
+-- Elementos de debug GUI
+local dbgText
+if not syn and not getexecutorname then
+    -- Se não for executor, tenta criar GUI mesmo assim (modo Roblox normal)
+    local screen = Instance.new("ScreenGui")
+    screen.Parent = player:WaitForChild("PlayerGui")
+    dbgText = Instance.new("TextLabel")
+    dbgText.Size = UDim2.new(0, 300, 0, 200)
+    dbgText.Position = UDim2.new(0, 10, 0, 10)
+    dbgText.BackgroundTransparency = 0.5
+    dbgText.BackgroundColor3 = Color3.new(0,0,0)
+    dbgText.TextColor3 = Color3.new(1,1,1)
+    dbgText.TextWrapped = true
+    dbgText.Font = Enum.Font.Code
+    dbgText.TextSize = 14
+    dbgText.Parent = screen
+end
 
--- Posições das mãos (avanço manual com scroll ou teclas)
-local anguloMao = 0 -- rotação extra para as mãos (controlada por Q/E)
-local inclinacaoMao = 0
+local function debugPrint(msg)
+    print("[VR_DEBUG]", msg)
+    if dbgText then
+        dbgText.Text = dbgText.Text .. "\n" .. msg
+    end
+end
 
--- Prender mouse
+-- ========== FORÇAR ATIVAÇÃO DO VR ==========
+local vrForcedOk = false
+local function tentarForcarVR()
+    -- Método 1: SetVREnabled
+    local s1, e1 = pcall(function()
+        VRService:SetVREnabled(true)
+    end)
+    if s1 and VRService.VREnabled then
+        debugPrint("Método 1 OK: SetVREnabled chamado com sucesso. VREnabled="..tostring(VRService.VREnabled))
+        vrForcedOk = true
+        return
+    end
+    debugPrint("Método 1 falhou: "..tostring(e1))
+    
+    -- Método 2: Hook __index para retornar true
+    local s2, e2 = pcall(function()
+        local mt = getrawmetatable(VRService)
+        local oldIdx = mt.__index
+        mt.__index = function(self, prop)
+            if prop == "VREnabled" then
+                return true
+            end
+            return oldIdx(self, prop)
+        end
+    end)
+    if s2 and VRService.VREnabled then
+        debugPrint("Método 2 OK: __index hookado. VREnabled="..tostring(VRService.VREnabled))
+        VRService:SetVREnabled(true) -- tenta novamente
+        vrForcedOk = true
+        return
+    end
+    debugPrint("Método 2 falhou: "..tostring(e2))
+    
+    -- Método 3: Raw set da propriedade (se possível)
+    local s3, e3 = pcall(function()
+        local mt = getrawmetatable(VRService)
+        local oldNewIdx = mt.__newindex
+        mt.__newindex = function(self, prop, val)
+            if prop == "VREnabled" then
+                oldNewIdx(self, prop, true)
+            else
+                oldNewIdx(self, prop, val)
+            end
+        end
+        VRService.VREnabled = true
+    end)
+    if s3 and VRService.VREnabled then
+        debugPrint("Método 3 OK: __newindex hookado. VREnabled="..tostring(VRService.VREnabled))
+        vrForcedOk = true
+        return
+    end
+    debugPrint("Método 3 falhou: "..tostring(e3))
+    
+    -- Método 4: Recriar serviço? (não possível)
+    debugPrint("Todos os métodos de ativação falharam. O VR não funcionará para os outros.")
+end
+
+tentarForcarVR()
+
+-- ========== CONTROLES ==========
 local function lockMouse()
-    UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-    mouseLocked = true
+    pcall(function()
+        UIS.MouseBehavior = Enum.MouseBehavior.LockCenter
+    end)
 end
 
 local function unlockMouse()
-    UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-    mouseLocked = false
+    pcall(function()
+        UIS.MouseBehavior = Enum.MouseBehavior.Default
+    end)
 end
 
--- Movimento relativo à cabeça
-local function updateMoveDirection()
+local function updateMove()
     local dir = Vector3.new()
     if keys[Enum.KeyCode.W] then dir += Vector3.new(0,0,-1) end
     if keys[Enum.KeyCode.S] then dir += Vector3.new(0,0,1) end
     if keys[Enum.KeyCode.A] then dir += Vector3.new(-1,0,0) end
     if keys[Enum.KeyCode.D] then dir += Vector3.new(1,0,0) end
-    moveDirection = dir.Magnitude > 0 and dir.Unit or Vector3.new()
+    moveDir = dir.Magnitude > 0 and dir.Unit or Vector3.new()
 end
 
-UserInputService.InputBegan:Connect(function(input, processed)
+UIS.InputBegan:Connect(function(inp, processed)
     if processed then return end
-    if input.KeyCode == Enum.KeyCode.F5 then
-        vrAtivo = not vrAtivo
-        if vrAtivo then
-            ativarVR()
+    if inp.KeyCode == Enum.KeyCode.F5 then
+        VR_ATIVO = not VR_ATIVO
+        if VR_ATIVO then
+            ativar()
         else
-            desativarVR()
+            desativar()
         end
-    elseif vrAtivo then
-        keys[input.KeyCode] = true
-        updateMoveDirection()
-        if input.KeyCode == Enum.KeyCode.Q then
-            anguloMao -= 45   -- gira mãos "para dentro"
-        elseif input.KeyCode == Enum.KeyCode.E then
-            anguloMao += 45
-        end
+    elseif inp.KeyCode == Enum.KeyCode.F6 then
+        DEBUG = not DEBUG
+        debugPrint("Modo Debug: "..tostring(DEBUG))
+    elseif VR_ATIVO then
+        keys[inp.KeyCode] = true
+        updateMove()
+        if inp.KeyCode == Enum.KeyCode.Q then anguloMao -= 45
+        elseif inp.KeyCode == Enum.KeyCode.E then anguloMao += 45 end
+    end
+end)
+UIS.InputEnded:Connect(function(inp)
+    if VR_ATIVO then
+        keys[inp.KeyCode] = nil
+        updateMove()
     end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-    if vrAtivo then
-        keys[input.KeyCode] = nil
-        updateMoveDirection()
+local function ativar()
+    debugPrint("Ativando VR...")
+    if not vrForcedOk then
+        tentarForcarVR() -- tenta novamente
     end
-end)
-
-local function ativarVR()
-    -- Força o cliente a acreditar que está em VR, ativando a replicação nativa.
-    if not VRService.VREnabled then
-        -- Alguns executores oferecem setVREnabled diretamente; caso contrário, usamos hook.
-        pcall(function()
-            VRService:SetVREnabled(true)
-        end)
-        if not VRService.VREnabled then
-            -- Fallback: hook na propriedade para burlar a verificação.
-            local mt = getrawmetatable(VRService)
-            local old = mt.__index
-            mt.__index = function(self, prop)
-                if prop == "VREnabled" then
-                    return true
-                end
-                return old(self, prop)
-            end
-        end
-    end
-    
     lockMouse()
     camera.CameraType = Enum.CameraType.Scriptable
-    player.Character.Humanoid.AutoRotate = false
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.AutoRotate = false
+    end
     RunService:BindToRenderStep("VR_Universal", Enum.RenderPriority.Camera.Value + 1, vrLoop)
 end
 
-local function desativarVR()
+local function desativar()
+    debugPrint("Desativando VR...")
     unlockMouse()
     camera.CameraType = Enum.CameraType.Custom
     if player.Character and player.Character:FindFirstChild("Humanoid") then
         player.Character.Humanoid.AutoRotate = true
     end
     RunService:UnbindFromRenderStep("VR_Universal")
-    -- Reseta UserCFrames para posição neutra
-    pcall(function()
-        VRService:Recenter()
-    end)
+    pcall(function() VRService:Recenter() end)
 end
 
 local function vrLoop(delta)
     local char = player.Character
     if not char or not char.Parent then
-        desativarVR()
+        desativar()
         return
     end
     local head = char:FindFirstChild("Head")
     if not head then return end
-
-    -- 1. Movimentação
+    
+    -- Movimento relativo à cabeça
     local camCF = camera.CFrame
-    local forward = Vector3.new(camCF.LookVector.X, 0, camCF.LookVector.Z).Unit
+    local fwd = Vector3.new(camCF.LookVector.X, 0, camCF.LookVector.Z).Unit
     local right = Vector3.new(camCF.RightVector.X, 0, camCF.RightVector.Z).Unit
-    local worldMove = (forward * -moveDirection.Z) + (right * moveDirection.X)
-    if worldMove.Magnitude > 0 then
-        char.Humanoid:Move(worldMove, false)
+    local mv = (fwd * -moveDir.Z) + (right * moveDir.X)
+    if mv.Magnitude > 0 then
+        char.Humanoid:Move(mv, false)
     end
-
-    -- 2. Rotação da cabeça (mouse delta)
-    local deltaMouse = UserInputService:GetMouseDelta()
+    
+    -- Rotação da câmera
+    local deltaMouse = UIS:GetMouseDelta()
     if deltaMouse ~= Vector2.new() then
-        local rotAtual = camCF - camCF.Position
-        local yaw = deltaMouse.X * math.rad(sensibilidade)
-        local pitch = deltaMouse.Y * math.rad(sensibilidade)
-        local novaRot = rotAtual * CFrame.Angles(0, -yaw, 0) * CFrame.Angles(-pitch, 0, 0)
-        -- Limitar pitch
-        local _, p, _ = novaRot:toEulerAnglesYXZ()
+        local currentRot = camCF - camCF.Position
+        local yaw = math.rad(-deltaMouse.X * SENSIBILIDADE)
+        local pitch = math.rad(-deltaMouse.Y * SENSIBILIDADE)
+        local newRot = currentRot * CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)
+        local _, p, _ = newRot:toEulerAnglesYXZ()
         if math.abs(p) > math.rad(80) then
-            novaRot = rotAtual * CFrame.Angles(0, -yaw, 0) * CFrame.Angles(math.clamp(p, math.rad(-80), math.rad(80)) - (select(2, rotAtual:toEulerAnglesYXZ())), 0, 0)
+            -- clamp
+            newRot = currentRot * CFrame.Angles(0, yaw, 0) * CFrame.Angles(math.clamp(p, math.rad(-80), math.rad(80)) - (select(2,currentRot:toEulerAnglesYXZ()) or 0), 0, 0)
         end
-        camera.CFrame = CFrame.new(camera.CFrame.Position) * novaRot
+        camera.CFrame = CFrame.new(camera.CFrame.Position) * newRot
     end
-    -- Posicionar câmera na cabeça
     camera.CFrame = CFrame.new(head.Position) * camera.CFrame.Rotation
-
-    -- 3. Calcular UserCFrames (Head, mãos)
-    local headCF = camera.CFrame * CFrame.new(0, 0, 0) -- já é a posição/rotação correta?
-    -- Ajuste para UserCFrame.Head (posição dos olhos, ligeiramente à frente)
-    local olhosCF = headCF * CFrame.new(0, 0.15, -0.1) -- pequeno offset típico
-
-    -- Mãos: posicionadas à frente do peito/ombros, com rotação baseada no head + ajustes
-    local baseMaoDir = headCF * CFrame.new(.4, -.5, -.8) * CFrame.Angles(math.rad(-90), 0, 0) * CFrame.Angles(0, 0, math.rad(anguloMao))
-    local baseMaoEsq = headCF * CFrame.new(-.4, -.5, -.8) * CFrame.Angles(math.rad(-90), 0, 0) * CFrame.Angles(0, 0, math.rad(-anguloMao))
-
-    -- Enviar UserCFrames (replicação nativa)
-    -- O Roblox espera UserCFrames para Head, RightHand, LeftHand (Enum.UserCFrame)
-    pcall(function()
-        VRService:SetUserCFrame(Enum.UserCFrame.Head, olhosCF)
-        VRService:SetUserCFrame(Enum.UserCFrame.RightHand, baseMaoDir)
-        VRService:SetUserCFrame(Enum.UserCFrame.LeftHand, baseMaoEsq)
+    
+    -- UserCFrames para replicação
+    local headCF = camera.CFrame * CFrame.new(0, 0.1, 0)
+    local maoDirCF = headCF * CFrame.new(0.4, -0.5, -0.7) * CFrame.Angles(math.rad(-90), 0, 0) * CFrame.Angles(0, 0, math.rad(anguloMao))
+    local maoEsqCF = headCF * CFrame.new(-0.4, -0.5, -0.7) * CFrame.Angles(math.rad(-90), 0, 0) * CFrame.Angles(0, 0, math.rad(-anguloMao))
+    
+    local status, err = pcall(function()
+        VRService:SetUserCFrame(Enum.UserCFrame.Head, headCF)
+        VRService:SetUserCFrame(Enum.UserCFrame.RightHand, maoDirCF)
+        VRService:SetUserCFrame(Enum.UserCFrame.LeftHand, maoEsqCF)
     end)
+    
+    if DEBUG then
+        debugPrint("VREnabled="..tostring(VRService.VREnabled).." UserCFrames sent="..tostring(status).. (err and (" err:"..err) or ""))
+    end
 end
 
--- Limpeza ao sair
-Players.LocalPlayer.CharacterAdded:Connect(function()
-    if vrAtivo then
-        desativarVR()
-        vrAtivo = false
+-- Resetar ao respawn
+player.CharacterAdded:Connect(function(char)
+    if VR_ATIVO then
+        wait(0.5)
+        ativar() -- reaplica autoRotate etc
     end
 end)
