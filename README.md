@@ -1,197 +1,291 @@
 --[[
-    Script: Roblox Game Dumper (Full Asset + Script Extraction)
-    Executor: Qualquer executor compatível com Synapse X, Krnl, ScriptWare, etc.
-    Função: Baixa todos os assets (malhas, texturas, sons, decalques) e scripts locais do jogo atual.
-    Interface GUI própria com botão "Baixar".
-    Os arquivos são salvos na pasta "RobloxDump" dentro do diretório de trabalho do executor.
+    Script: Roblox Full Game Dumper v2.0
+    Requisitos: Executor com capacidade de escrita de arquivos (writefile, makefolder, isfolder)
+                e requisições HTTP (syn.request, http.request, etc.)
+    Saída: Todos os assets e scripts locais do jogo atual.
+    Interface: Botão "BAIXAR TUDO" + exibição do caminho final.
 --]]
 
-local DumpFolder = "RobloxDump/"
-if not isfolder(DumpFolder) then
-    makefolder(DumpFolder)
+local DumpFolder = "Roblox_Game_Dump/"
+local AbsolutePath = getexecutorname and "Pasta do executor" or "Diretório do executor"
+
+-- Função para detectar método de requisição
+local function HttpGet(url)
+    local success, result
+    if syn and syn.request then
+        success, result = pcall(function()
+            local resp = syn.request({ Url = url, Method = "GET" })
+            return resp.Body
+        end)
+        if success then return result end
+    elseif game:GetService("HttpService") then
+        success, result = pcall(function()
+            return game:GetService("HttpService"):GetAsync(url)
+        end)
+        if success then return result end
+    end
+    return nil
 end
 
--- Função para baixar asset via ID
-local function DownloadAsset(assetId, assetType, fileName)
-    if not assetId or assetId == 0 then return end
-    local url = "https://assetdelivery.roblox.com/v1/asset?id=" .. assetId
-    local success, response = pcall(function()
-        return syn.request({ Url = url, Method = "GET" })
-    end)
-    if success and response and response.Body then
-        local path = DumpFolder .. assetType .. "/"
+-- Baixa qualquer asset via ID
+local function DownloadAsset(assetId, subFolder, extension)
+    if not assetId or assetId == 0 then return false end
+    local url = "https://assetdelivery.roblox.com/v1/asset/?id=" .. assetId
+    local data = HttpGet(url)
+    if data and #data > 100 then
+        local path = DumpFolder .. subFolder .. "/"
         if not isfolder(path) then makefolder(path) end
-        local filePath = path .. fileName
-        writefile(filePath, response.Body)
-        return true
+        local fileName = assetId .. extension
+        local fullPath = path .. fileName
+        writefile(fullPath, data)
+        return fullPath
     end
     return false
 end
 
--- Função para extrair scripts locais (código fonte se disponível)
-local function DumpLocalScript(scriptInstance)
-    if scriptInstance.ClassName ~= "LocalScript" and scriptInstance.ClassName ~= "ModuleScript" then
-        return
-    end
-    local source = "" 
+-- Extrai scripts locais (fonte, se disponível)
+local function DumpScript(scriptObj, pathStack)
+    local source = ""
     local success, res = pcall(function()
-        -- Tentativa de obter o código fonte (funciona se o executor permite)
-        source = getsourcestring(scriptInstance) or scriptInstance.Source
+        if getsourcestring then
+            source = getsourcestring(scriptObj) or scriptObj.Source
+        else
+            source = scriptObj.Source
+        end
     end)
-    if not success or not source then
-        source = "-- Código fonte não disponível ou protegido"
+    if not success or source == nil then
+        source = "--[[ Código protegido ou não acessível ]]"
     end
-    local path = DumpFolder .. "Scripts/"
-    if not isfolder(path) then makefolder(path) end
-    local fileName = string.gsub(scriptInstance:GetFullName(), "%.", "_") .. ".lua"
-    writefile(path .. fileName, source)
+    local scriptName = string.gsub(scriptObj.Name, "[^%w_]", "_")
+    local folderPath = DumpFolder .. "Scripts/" .. pathStack
+    if not isfolder(folderPath) then makefolder(folderPath) end
+    local filePath = folderPath .. "/" .. scriptName .. ".lua"
+    writefile(filePath, source)
+    return filePath
 end
 
--- Função recursiva para varrer todos os objetos do jogo
-local function ScanGameObjects(instance)
-    for _, child in ipairs(instance:GetChildren()) do
-        -- Dump scripts
+-- Varredura recursiva completa
+local dumpedAssets = {}
+local dumpedScripts = {}
+
+local function ScanInstance(inst, pathStack)
+    for _, child in ipairs(inst:GetChildren()) do
+        local childStack = pathStack .. "/" .. child.Name
+        
+        -- Scripts
         if child:IsA("LocalScript") or child:IsA("ModuleScript") then
-            DumpLocalScript(child)
+            local p = DumpScript(child, childStack)
+            table.insert(dumpedScripts, p)
         end
         
-        -- Dump MeshPart (ID da malha)
-        if child:IsA("MeshPart") and child.MeshId ~= "" then
-            local meshId = child.MeshId
-            local assetId = string.match(meshId, "rbxassetid://(%d+)")
-            if assetId then
-                DownloadAsset(assetId, "Meshes", assetId .. ".mesh")
+        -- MeshPart
+        if child:IsA("MeshPart") and child.MeshId and child.MeshId ~= "" then
+            local id = tonumber(string.match(child.MeshId, "(%d+)"))
+            if id then
+                local path = DownloadAsset(id, "Meshes", ".mesh")
+                if path then table.insert(dumpedAssets, path) end
             end
         end
         
-        -- Dump Texture (ID da textura)
-        if child:IsA("Texture") and child.Texture ~= "" then
-            local texId = child.Texture
-            local assetId = string.match(texId, "rbxassetid://(%d+)")
-            if assetId then
-                DownloadAsset(assetId, "Textures", assetId .. ".png")
+        -- SpecialMesh
+        if child:IsA("SpecialMesh") and child.MeshId and child.MeshId ~= "" then
+            local id = tonumber(string.match(child.MeshId, "(%d+)"))
+            if id then
+                local path = DownloadAsset(id, "Meshes", ".mesh")
+                if path then table.insert(dumpedAssets, path) end
             end
         end
         
-        -- Dump Decal
-        if child:IsA("Decal") and child.Texture ~= "" then
-            local decalId = child.Texture
-            local assetId = string.match(decalId, "rbxassetid://(%d+)")
-            if assetId then
-                DownloadAsset(assetId, "Decals", assetId .. ".png")
+        -- Texture
+        if child:IsA("Texture") and child.Texture and child.Texture ~= "" then
+            local id = tonumber(string.match(child.Texture, "(%d+)"))
+            if id then
+                local path = DownloadAsset(id, "Textures", ".png")
+                if path then table.insert(dumpedAssets, path) end
             end
         end
         
-        -- Dump Sound
-        if child:IsA("Sound") and child.SoundId ~= "" then
-            local soundId = child.SoundId
-            local assetId = string.match(soundId, "rbxassetid://(%d+)")
-            if assetId then
-                DownloadAsset(assetId, "Sounds", assetId .. ".mp3")
+        -- Decal
+        if child:IsA("Decal") and child.Texture and child.Texture ~= "" then
+            local id = tonumber(string.match(child.Texture, "(%d+)"))
+            if id then
+                local path = DownloadAsset(id, "Decals", ".png")
+                if path then table.insert(dumpedAssets, path) end
             end
         end
         
-        -- Dump Animation
-        if child:IsA("Animation") and child.AnimationId ~= "" then
-            local animId = child.AnimationId
-            local assetId = string.match(animId, "rbxassetid://(%d+)")
-            if assetId then
-                DownloadAsset(assetId, "Animations", assetId .. ".rbxm")
+        -- Sound
+        if child:IsA("Sound") and child.SoundId and child.SoundId ~= "" then
+            local id = tonumber(string.match(child.SoundId, "(%d+)"))
+            if id then
+                local path = DownloadAsset(id, "Sounds", ".mp3")
+                if path then table.insert(dumpedAssets, path) end
             end
         end
         
-        -- Continuar recursão
-        ScanGameObjects(child)
+        -- Animation
+        if child:IsA("Animation") and child.AnimationId and child.AnimationId ~= "" then
+            local id = tonumber(string.match(child.AnimationId, "(%d+)"))
+            if id then
+                local path = DownloadAsset(id, "Animations", ".rbxm")
+                if path then table.insert(dumpedAssets, path) end
+            end
+        end
+        
+        -- Recursão
+        ScanInstance(child, childStack)
     end
 end
 
--- Criar a interface GUI
+-- Criar interface GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "DumperGUI"
+screenGui.Name = "FullGameDumper"
+screenGui.ResetOnSpawn = false
 screenGui.Parent = game:GetService("CoreGui")
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 150)
-frame.Position = UDim2.new(0.5, -150, 0.5, -75)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Draggable = true
-frame.Parent = screenGui
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 420, 0, 200)
+mainFrame.Position = UDim2.new(0.5, -210, 0.5, -100)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.BackgroundTransparency = 0.95
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-title.Text = "ROBLOX GAME DUMPER"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Size = UDim2.new(1, 0, 0, 35)
+title.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+title.Text = "ROBLOX GAME DUMPER - FULL EXTRACTION"
+title.TextColor3 = Color3.fromRGB(255, 200, 100)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 16
-title.Parent = frame
+title.Parent = mainFrame
 
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, 0, 0, 40)
-statusLabel.Position = UDim2.new(0, 0, 0, 35)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Pronto para baixar."
-statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-statusLabel.Font = Enum.Font.SourceSans
-statusLabel.TextSize = 12
-statusLabel.TextWrapped = true
-statusLabel.Parent = frame
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, -20, 0, 50)
+status.Position = UDim2.new(0, 10, 0, 45)
+status.BackgroundTransparency = 1
+status.Text = "Clique em 'INICIAR DUMP' para extrair TODOS os arquivos do jogo."
+status.TextColor3 = Color3.fromRGB(200, 200, 200)
+status.Font = Enum.Font.SourceSans
+status.TextSize = 12
+status.TextWrapped = true
+status.Parent = mainFrame
 
-local downloadButton = Instance.new("TextButton")
-downloadButton.Size = UDim2.new(0, 200, 0, 40)
-downloadButton.Position = UDim2.new(0.5, -100, 0, 85)
-downloadButton.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
-downloadButton.Text = "BAIXAR JOGO COMPLETO"
-downloadButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-downloadButton.Font = Enum.Font.GothamBold
-downloadButton.TextSize = 14
-downloadButton.Parent = frame
+local pathLabel = Instance.new("TextLabel")
+pathLabel.Size = UDim2.new(1, -20, 0, 30)
+pathLabel.Position = UDim2.new(0, 10, 0, 100)
+pathLabel.BackgroundTransparency = 1
+pathLabel.Text = "Caminho: (aguardando...)"
+pathLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+pathLabel.Font = Enum.Font.SourceSans
+pathLabel.TextSize = 11
+pathLabel.TextXAlignment = Enum.TextXAlignment.Left
+pathLabel.Parent = mainFrame
 
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 20, 0, 20)
-closeButton.Position = UDim2.new(1, -25, 0, 5)
-closeButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-closeButton.Text = "X"
-closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeButton.Font = Enum.Font.SourceSansBold
-closeButton.TextSize = 14
-closeButton.Parent = frame
+local dumpButton = Instance.new("TextButton")
+dumpButton.Size = UDim2.new(0, 180, 0, 40)
+dumpButton.Position = UDim2.new(0.5, -90, 0, 145)
+dumpButton.BackgroundColor3 = Color3.fromRGB(0, 150, 200)
+dumpButton.Text = "INICIAR DUMP"
+dumpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+dumpButton.Font = Enum.Font.GothamBold
+dumpButton.TextSize = 14
+dumpButton.Parent = mainFrame
 
-closeButton.MouseButton1Click:Connect(function()
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 25, 0, 25)
+closeBtn.Position = UDim2.new(1, -30, 0, 5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.Font = Enum.Font.SourceSansBold
+closeBtn.TextSize = 14
+closeBtn.Parent = mainFrame
+
+closeBtn.MouseButton1Click:Connect(function()
     screenGui:Destroy()
 end)
 
-downloadButton.MouseButton1Click:Connect(function()
-    statusLabel.Text = "Iniciando dump... Isso pode levar alguns minutos."
-    statusLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+dumpButton.MouseButton1Click:Connect(function()
+    status.Text = "⏳ Dump em andamento... Varrendo todos os objetos e baixando assets. Isso pode levar vários minutos."
+    status.TextColor3 = Color3.fromRGB(255, 255, 100)
+    dumpButton.Visible = false
     
-    -- Limpa pasta anterior (opcional, comente se não quiser)
-    -- if isfolder(DumpFolder) then delfolder(DumpFolder) end
-    -- makefolder(DumpFolder)
+    -- Limpar e recriar pasta
+    if isfolder(DumpFolder) then
+        delfolder(DumpFolder)
+        wait(0.2)
+    end
+    makefolder(DumpFolder)
     
-    -- Inicia varredura a partir do game (Players, Workspace, ReplicatedStorage, etc.)
-    local objects = {
+    dumpedAssets = {}
+    dumpedScripts = {}
+    
+    -- Pontos de entrada da varredura (absolutamente tudo)
+    local roots = {
         game.Workspace,
         game.ReplicatedStorage,
         game.ServerStorage,
         game.Lighting,
-        game.Players
+        game.Players,
+        game.StarterGui,
+        game.StarterPack,
+        game.StarterPlayer,
+        game.Chat,
+        game.SoundService,
+        game.Teams
     }
-    for _, obj in ipairs(objects) do
-        ScanGameObjects(obj)
-    end
     
-    -- Também varre o StarterGui e StarterPlayer
-    ScanGameObjects(game.StarterGui)
-    if game.StarterPlayer then
-        ScanGameObjects(game.StarterPlayer)
-        if game.StarterPlayer.StarterPlayerScripts then
-            ScanGameObjects(game.StarterPlayer.StarterPlayerScripts)
+    for _, root in ipairs(roots) do
+        if root then
+            pcall(ScanInstance, root, root.ClassName)
         end
     end
     
-    statusLabel.Text = "Download concluído! Arquivos salvos em " .. DumpFolder
-    statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    -- Extra também de qualquer objeto solto no game
+    pcall(ScanInstance, game, "Game_Root")
+    
+    local totalAssets = #dumpedAssets
+    local totalScripts = #dumpedScripts
+    
+    -- Determinar caminho ABSOLUTO (tenta obter do executor)
+    local finalPath = DumpFolder
+    if syn and syn.get_executor_path then
+        local execPath = syn.get_executor_path()
+        finalPath = execPath .. "/" .. DumpFolder
+    elseif getexecutorname then
+        finalPath = getexecutorname() .. "_workspace/" .. DumpFolder
+    else
+        finalPath = "Pasta do executor / " .. DumpFolder
+    end
+    
+    status.Text = string.format("✅ DUMP CONCLUÍDO! Assets baixados: %d | Scripts extraídos: %d", totalAssets, totalScripts)
+    status.TextColor3 = Color3.fromRGB(100, 255, 100)
+    
+    pathLabel.Text = "📁 Caminho completo: " .. finalPath
+    pathLabel.TextColor3 = Color3.fromRGB(0, 255, 200)
+    
+    -- Botão para copiar caminho (opcional)
+    local copyBtn = Instance.new("TextButton")
+    copyBtn.Size = UDim2.new(0, 120, 0, 25)
+    copyBtn.Position = UDim2.new(0.5, -60, 0, 175)
+    copyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    copyBtn.Text = "COPIAR CAMINHO"
+    copyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    copyBtn.Font = Enum.Font.SourceSans
+    copyBtn.TextSize = 11
+    copyBtn.Parent = mainFrame
+    
+    copyBtn.MouseButton1Click:Connect(function()
+        if setclipboard then
+            setclipboard(finalPath)
+            status.Text = "📋 Caminho copiado para a área de transferência!"
+        else
+            status.Text = "❌ Não foi possível copiar automaticamente. Copie manualmente: " .. finalPath
+        end
+        wait(2)
+        status.Text = string.format("✅ DUMP CONCLUÍDO! Assets: %d | Scripts: %d", totalAssets, totalScripts)
+    end)
 end)
