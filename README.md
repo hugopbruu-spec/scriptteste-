@@ -1,441 +1,644 @@
 --[[
-    Script: Roblox MEGA DUMPER - Interface Corrigida + Download Agressivo
-    Compatível: Synapse X, Krnl, ScriptWare, Fluxus
-    Funcionalidade: Baixa todos os assets públicos do jogo e salva no PC.
+    ██████╗  ██████╗ ██████╗ ██╗      ██████╗ ██╗  ██╗
+    ██╔══██╗██╔═══██╗██╔══██╗██║     ██╔═══██╗╚██╗██╔╝
+    ██████╔╝██║   ██║██████╔╝██║     ██║   ██║ ╚███╔╝ 
+    ██╔══██╗██║   ██║██╔══██╗██║     ██║   ██║ ██╔██╗ 
+    ██║  ██║╚██████╔╝██████╔╝███████╗╚██████╔╝██╔╝ ██╗
+    ╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝ ╚═════╝ ╚═╝  ╚═╝
+    
+    ROBLOX PUBLIC GAME DOWNLOADER - COMPLETE EDITION
+    Baixa estrutura + todos os assets públicos do jogo
+    Funciona em: Synapse X, Krnl, ScriptWare, Fluxus
 --]]
 
 -- ================= CONFIGURAÇÕES =================
-local DumpFolder = "Roblox_MegaDump/"
-local MaxConcurrent = 12
-local MaxRetries = 3
-local TimeoutSeconds = 5
+local CONFIG = {
+    OutputFolder = "Roblox_Game_Download/",     -- Pasta onde os arquivos serão salvos
+    MaxConcurrentDownloads = 12,                -- Downloads simultâneos (mais rápido)
+    MaxRetries = 3,                             -- Tentativas por asset falho
+    TimeoutSeconds = 8,                         -- Timeout por requisição
+    SaveInstance = true,                        -- Tenta salvar a estrutura .rbxl
+    SaveScripts = true,                         -- Salva LocalScripts/ModuleScripts
+    SaveMeshes = true,                          -- Salva malhas 3D (.mesh)
+    SaveTextures = true,                        -- Salva texturas (.png)
+    SaveSounds = true,                          -- Salva áudios (.mp3)
+    SaveAnimations = true,                      -- Salva animações (.rbxm)
+    SaveModels = true,                          -- Salva modelos (.rbxm)
+}
 
--- ========== FUNÇÕES HTTP ==========
-local function FetchAsset(id, retry)
-    retry = retry or 1
-    local url = "https://assetdelivery.roblox.com/v1/asset/?id=" .. id
-    local data = nil
-
-    -- Synapse X / ScriptWare
+-- ========== FUNÇÕES HTTP ROBUSTAS ==========
+local function FetchAsset(assetId, retryCount)
+    retryCount = retryCount or 1
+    local url = "https://assetdelivery.roblox.com/v1/asset/?id=" .. assetId
+    
+    local responseBody = nil
+    
+    -- Método 1: syn.request (Synapse X, ScriptWare)
     if syn and syn.request then
-        local resp = syn.request({Url = url, Method = "GET", Headers = {["User-Agent"] = "Roblox/WinHTTP"}})
-        if resp and resp.StatusCode == 200 and resp.Body and #resp.Body > 50 then
-            data = resp.Body
+        local success, result = pcall(function()
+            local resp = syn.request({
+                Url = url,
+                Method = "GET",
+                Headers = {
+                    ["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    ["Accept"] = "*/*"
+                }
+            })
+            return resp
+        end)
+        if success and result and result.StatusCode == 200 and result.Body and #result.Body > 50 then
+            responseBody = result.Body
         end
     end
-
-    -- Krnl / http.request
-    if not data and http and http.request then
-        local resp = http.request({Url = url, Method = "GET", Headers = {["User-Agent"] = "Roblox/WinHTTP"}})
-        if resp and resp.StatusCode == 200 and resp.Body and #resp.Body > 50 then
-            data = resp.Body
+    
+    -- Método 2: http.request (Krnl, Oxygen U)
+    if not responseBody and http and http.request then
+        local success, result = pcall(function()
+            local resp = http.request({
+                Url = url,
+                Method = "GET",
+                Headers = {
+                    ["User-Agent"] = "Roblox/WinHTTP"
+                }
+            })
+            return resp
+        end)
+        if success and result and result.StatusCode == 200 and result.Body and #result.Body > 50 then
+            responseBody = result.Body
         end
     end
-
-    -- HttpService (fallback)
-    if not data and game:GetService("HttpService") then
-        local suc, res = pcall(function()
+    
+    -- Método 3: request (Fluxus, Vega X)
+    if not responseBody and request then
+        local success, result = pcall(function()
+            local resp = request({
+                Url = url,
+                Method = "GET"
+            })
+            return resp
+        end)
+        if success and result and result.Body and #result.Body > 50 then
+            responseBody = result.Body
+        end
+    end
+    
+    -- Método 4: HttpService (último recurso)
+    if not responseBody and game:GetService("HttpService") then
+        local success, result = pcall(function()
             return game:GetService("HttpService"):GetAsync(url, true)
         end)
-        if suc and res and #res > 50 then
-            data = res
+        if success and result and #result > 50 then
+            responseBody = result
         end
     end
-
-    if data then
-        return data
-    elseif retry < MaxRetries then
-        task.wait(0.5)
-        return FetchAsset(id, retry + 1)
+    
+    if responseBody then
+        return responseBody
+    elseif retryCount < CONFIG.MaxRetries then
+        task.wait(0.5 * retryCount)
+        return FetchAsset(assetId, retryCount + 1)
     end
+    
     return nil
 end
 
--- ========== DOWNLOAD MANAGER ==========
-local AssetQueue = {}
-local AssetCache = {}
+-- ========== SISTEMA DE DOWNLOAD ==========
+local DownloadQueue = {}
+local DownloadCache = {}
 local DownloadedCount = 0
 local TotalAssets = 0
 local ActiveDownloads = 0
-local CancelFlag = false
+local DownloadFailed = 0
+local IsCancelled = false
 
-local function DownloadAssetAsync(id, subFolder, fileExt)
-    if CancelFlag then return false end
-    if AssetCache[id] then return true end
-
-    local data = FetchAsset(id)
+local function DownloadAsset(assetId, subFolder, fileExtension)
+    if IsCancelled then return false end
+    if DownloadCache[assetId] then return true end
+    
+    local data = FetchAsset(assetId)
     if data then
-        local folderPath = DumpFolder .. subFolder .. "/"
-        if not isfolder(folderPath) then makefolder(folderPath) end
-        local fullPath = folderPath .. tostring(id) .. fileExt
-        writefile(fullPath, data)
-        AssetCache[id] = fullPath
+        local folderPath = CONFIG.OutputFolder .. subFolder .. "/"
+        if not isfolder(folderPath) then
+            makefolder(folderPath)
+        end
+        local filePath = folderPath .. tostring(assetId) .. fileExtension
+        writefile(filePath, data)
+        DownloadCache[assetId] = filePath
         DownloadedCount = DownloadedCount + 1
         return true
+    else
+        DownloadCache[assetId] = false
+        DownloadFailed = DownloadFailed + 1
+        return false
     end
-    AssetCache[id] = false
+end
+
+local function ProcessDownloadQueue()
+    while #DownloadQueue > 0 and ActiveDownloads < CONFIG.MaxConcurrentDownloads and not IsCancelled do
+        local job = table.remove(DownloadQueue, 1)
+        ActiveDownloads = ActiveDownloads + 1
+        task.spawn(function()
+            DownloadAsset(job.id, job.folder, job.ext)
+            ActiveDownloads = ActiveDownloads - 1
+            ProcessDownloadQueue()
+        end)
+    end
+end
+
+-- ========== EXTRAÇÃO DE ASSETS ==========
+local function ExtractAssetIdsFromString(text)
+    local ids = {}
+    if type(text) == "string" then
+        for id in string.gmatch(text, "rbxassetid://(%d+)") do
+            ids[tonumber(id)] = true
+        end
+        local numericId = tonumber(text)
+        if numericId and numericId > 0 then
+            ids[numericId] = true
+        end
+    elseif type(text) == "number" and text > 0 then
+        ids[text] = true
+    end
+    return ids
+end
+
+local function ScanInstanceForAssets(instance, depth)
+    if depth > 200 or not instance then return end
+    
+    -- Propriedades que podem conter IDs de assets
+    local assetProperties = {
+        MeshId = { folder = "Meshes", ext = ".mesh", enabled = CONFIG.SaveMeshes },
+        Texture = { folder = "Textures", ext = ".png", enabled = CONFIG.SaveTextures },
+        SoundId = { folder = "Sounds", ext = ".mp3", enabled = CONFIG.SaveSounds },
+        AnimationId = { folder = "Animations", ext = ".rbxm", enabled = CONFIG.SaveAnimations },
+        Decal = { folder = "Textures", ext = ".png", enabled = CONFIG.SaveTextures },
+        Image = { folder = "Textures", ext = ".png", enabled = CONFIG.SaveTextures },
+        ModelId = { folder = "Models", ext = ".rbxm", enabled = CONFIG.SaveModels },
+        Face = { folder = "Textures", ext = ".png", enabled = CONFIG.SaveTextures },
+        Portrait = { folder = "Textures", ext = ".png", enabled = CONFIG.SaveTextures },
+        Thumbnail = { folder = "Textures", ext = ".png", enabled = CONFIG.SaveTextures },
+        Icon = { folder = "Textures", ext = ".png", enabled = CONFIG.SaveTextures },
+    }
+    
+    for propName, propConfig in pairs(assetProperties) do
+        if propConfig.enabled then
+            local success, value = pcall(function() return instance[propName] end)
+            if success and value then
+                local ids = ExtractAssetIdsFromString(value)
+                for assetId, _ in pairs(ids) do
+                    if not DownloadCache[assetId] then
+                        table.insert(DownloadQueue, {
+                            id = assetId,
+                            folder = propConfig.folder,
+                            ext = propConfig.ext
+                        })
+                        DownloadCache[assetId] = false
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Salvar scripts locais
+    if CONFIG.SaveScripts and (instance:IsA("LocalScript") or instance:IsA("ModuleScript")) then
+        local scriptSource = ""
+        local success, result = pcall(function()
+            if getsourcestring then
+                return getsourcestring(instance)
+            else
+                return instance.Source
+            end
+        end)
+        if success and result then
+            scriptSource = result
+        else
+            scriptSource = "--[[ Script source not accessible or protected ]]--"
+        end
+        
+        local scriptPath = CONFIG.OutputFolder .. "Scripts/"
+        if not isfolder(scriptPath) then makefolder(scriptPath) end
+        
+        local scriptName = instance.Name:gsub("[^%w_]", "_")
+        local fullPath = scriptPath .. scriptName .. ".lua"
+        writefile(fullPath, scriptSource)
+    end
+    
+    -- Recursão nos filhos
+    for _, child in ipairs(instance:GetChildren()) do
+        ScanInstanceForAssets(child, depth + 1)
+    end
+end
+
+-- ========== SALVAR ESTRUTURA DO JOGO ==========
+local function SaveGameStructure()
+    if not CONFIG.SaveInstance then return end
+    
+    -- Tenta usar saveinstance se disponível (Synapse X)
+    local success, result = pcall(function()
+        if saveinstance then
+            saveinstance({
+                SafeMode = true,
+                Decompile = true,
+                ShowConsole = false
+            })
+            return true
+        end
+        return false
+    end)
+    
+    if success and result then
+        return true
+    end
+    
+    -- Fallback: salvar manualmente via writefile (simplificado)
+    local structurePath = CONFIG.OutputFolder .. "game_info.txt"
+    local info = string.format([[
+JOGO: %s
+PLACE ID: %d
+JOB ID: %s
+DATA: %s
+================================
+Este jogo foi baixado usando Roblox Public Game Downloader.
+Para abrir a estrutura, use o Roblox Studio com o arquivo .rbxl
+se disponível, ou analise os assets extraídos.
+]], game.Name, game.PlaceId, game.JobId, os.date())
+    writefile(structurePath, info)
     return false
 end
 
-local function ProcessQueue()
-    while #AssetQueue > 0 and ActiveDownloads < MaxConcurrent and not CancelFlag do
-        local job = table.remove(AssetQueue, 1)
-        ActiveDownloads = ActiveDownloads + 1
-        task.spawn(function()
-            DownloadAssetAsync(job.id, job.folder, job.ext)
-            ActiveDownloads = ActiveDownloads - 1
-            ProcessQueue()
-        end)
-    end
-end
-
--- ========== EXTRAÇÃO DE IDs ==========
-local function ScanInstance(instance, depth)
-    depth = depth or 0
-    if depth > 200 then return end
-
-    local assetProps = {
-        "MeshId", "Texture", "SoundId", "AnimationId", "Decal", "Face",
-        "Portrait", "Image", "Thumbnail", "Icon", "ModelId"
-    }
-
-    for _, prop in ipairs(assetProps) do
-        local success, val = pcall(function() return instance[prop] end)
-        if success and val then
-            local ids = {}
-            if type(val) == "string" then
-                for id in string.gmatch(val, "rbxassetid://(%d+)") do
-                    ids[tonumber(id)] = true
-                end
-                local num = tonumber(val)
-                if num and num > 0 then ids[num] = true end
-            elseif type(val) == "number" and val > 0 then
-                ids[val] = true
-            end
-
-            for id, _ in pairs(ids) do
-                if not AssetCache[id] then
-                    local ext = ".rbxm"
-                    local folder = "Misc"
-                    if prop == "MeshId" then ext = ".mesh"; folder = "Meshes"
-                    elseif prop == "Texture" or prop == "Decal" or prop == "Image" then ext = ".png"; folder = "Textures"
-                    elseif prop == "SoundId" then ext = ".mp3"; folder = "Sounds"
-                    elseif prop == "AnimationId" then ext = ".rbxm"; folder = "Animations"
-                    elseif prop == "ModelId" then ext = ".rbxm"; folder = "Models"
-                    end
-                    table.insert(AssetQueue, {id = id, folder = folder, ext = ext})
-                    AssetCache[id] = false
-                end
-            end
-        end
-    end
-
-    for _, child in ipairs(instance:GetChildren()) do
-        ScanInstance(child, depth + 1)
-    end
-end
-
--- ========== CRIAÇÃO DA INTERFACE (CORRIGIDA) ==========
+-- ========== INTERFACE GRÁFICA PROFISSIONAL ==========
 local Player = game:GetService("Players").LocalPlayer
-local guiParent = game:GetService("CoreGui")
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "GameDownloaderGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- Fallback para PlayerGui se CoreGui estiver bloqueado
-local success, err = pcall(function()
-    return guiParent:FindFirstChild("MegaDumperGUI")
-end)
-if not success then
-    guiParent = Player:WaitForChild("PlayerGui")
-end
-
--- Destroi GUI antiga se existir
-local oldGui = guiParent:FindFirstChild("MegaDumperGUI")
-if oldGui then oldGui:Destroy() end
-
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "MegaDumperGUI"
-screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.DisplayOrder = 999
-screenGui.Parent = guiParent
-
--- Garantir que a GUI esteja visível
-task.wait(0.5)
-if not screenGui.Parent then
-    warn("Falha ao criar GUI no CoreGui/PlayerGui. Tentando novamente...")
-    screenGui.Parent = Player:WaitForChild("PlayerGui")
-end
+-- Tenta CoreGui, fallback para PlayerGui
+local guiParent = pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui") or Player:WaitForChild("PlayerGui")
+ScreenGui.Parent = guiParent
 
 -- Frame principal
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 560, 0, 420)
-mainFrame.Position = UDim2.new(0.5, -280, 0.5, -210)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-mainFrame.BorderSizePixel = 0
-mainFrame.ClipsDescendants = true
-mainFrame.Parent = screenGui
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 600, 0, 500)
+MainFrame.Position = UDim2.new(0.5, -300, 0.5, -250)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+MainFrame.BackgroundTransparency = 0.95
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = mainFrame
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 16)
+MainCorner.Parent = MainFrame
 
--- Barra de título (arrastável)
-local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 40)
-titleBar.BackgroundColor3 = Color3.fromRGB(40, 45, 65)
-titleBar.Parent = mainFrame
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 12)
-titleCorner.Parent = titleBar
+-- Barra de título
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 50)
+TitleBar.BackgroundColor3 = Color3.fromRGB(30, 35, 55)
+TitleBar.Parent = MainFrame
 
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -50, 1, 0)
-titleLabel.Position = UDim2.new(0, 15, 0, 0)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "🔥 MEGA DUMPER - ROBLOX ASSET EXTRACTOR"
-titleLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.TextSize = 16
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-titleLabel.Parent = titleBar
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 16)
+TitleCorner.Parent = TitleBar
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(1, -60, 1, 0)
+TitleLabel.Position = UDim2.new(0, 20, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "🎮 ROBLOX GAME DOWNLOADER - PROFESSIONAL"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextSize = 18
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TitleBar
 
 -- Botão fechar
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 30, 0, 30)
-closeBtn.Position = UDim2.new(1, -40, 0, 5)
-closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-closeBtn.Text = "✕"
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 18
-closeBtn.Parent = titleBar
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 6)
-btnCorner.Parent = closeBtn
-closeBtn.MouseButton1Click:Connect(function() screenGui:Destroy() end)
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 36, 0, 36)
+CloseBtn.Position = UDim2.new(1, -48, 0, 7)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseBtn.Text = "✕"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 20
+CloseBtn.Parent = TitleBar
 
--- Tornar a janela arrastável
-local dragging = false
-local dragStartPos = nil
-titleBar.InputBegan:Connect(function(input)
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 8)
+CloseCorner.Parent = CloseBtn
+
+CloseBtn.MouseButton1Click:Connect(function()
+    IsCancelled = true
+    ScreenGui:Destroy()
+end)
+
+-- Tornar janela arrastável
+local Dragging = false
+local DragStart = nil
+
+TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStartPos = input.Position
+        Dragging = true
+        DragStart = input.Position
     end
 end)
-titleBar.InputEnded:Connect(function(input)
+
+TitleBar.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-titleBar.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStartPos
-        mainFrame.Position = mainFrame.Position + UDim2.new(0, delta.X, 0, delta.Y)
-        dragStartPos = input.Position
+        Dragging = false
     end
 end)
 
--- Log (ScrollingFrame)
-local logFrame = Instance.new("ScrollingFrame")
-logFrame.Size = UDim2.new(0.94, 0, 0, 200)
-logFrame.Position = UDim2.new(0.03, 0, 0, 50)
-logFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 18)
-logFrame.BorderSizePixel = 0
-logFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-logFrame.ScrollBarThickness = 6
-logFrame.Parent = mainFrame
-local logCorner = Instance.new("UICorner")
-logCorner.CornerRadius = UDim.new(0, 8)
-logCorner.Parent = logFrame
+TitleBar.InputChanged:Connect(function(input)
+    if Dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local Delta = input.Position - DragStart
+        MainFrame.Position = MainFrame.Position + UDim2.new(0, Delta.X, 0, Delta.Y)
+    end
+end)
 
-local logList = Instance.new("UIListLayout")
-logList.Padding = UDim.new(0, 2)
-logList.SortOrder = Enum.SortOrder.LayoutOrder
-logList.Parent = logFrame
+-- Área de logs
+local LogFrame = Instance.new("ScrollingFrame")
+LogFrame.Size = UDim2.new(0.94, 0, 0, 220)
+LogFrame.Position = UDim2.new(0.03, 0, 0, 60)
+LogFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 16)
+LogFrame.BackgroundTransparency = 0.9
+LogFrame.BorderSizePixel = 0
+LogFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+LogFrame.ScrollBarThickness = 6
+LogFrame.Parent = MainFrame
 
-local function AddLog(text, color)
+local LogCorner = Instance.new("UICorner")
+LogCorner.CornerRadius = UDim.new(0, 8)
+LogCorner.Parent = LogFrame
+
+local LogList = Instance.new("UIListLayout")
+LogList.Padding = UDim.new(0, 3)
+LogList.SortOrder = Enum.SortOrder.LayoutOrder
+LogList.Parent = LogFrame
+
+local function AddLog(message, color)
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -10, 0, 18)
+    label.Size = UDim2.new(1, -10, 0, 20)
     label.BackgroundTransparency = 1
-    label.Text = text
+    label.Text = message
     label.TextColor3 = color or Color3.fromRGB(200, 200, 200)
     label.Font = Enum.Font.SourceSans
-    label.TextSize = 11
+    label.TextSize = 12
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = logFrame
-    task.wait()
-    logFrame.CanvasPosition = Vector2.new(0, logFrame.CanvasSize.Y.Offset)
+    label.Parent = LogFrame
+    task.wait(0.05)
+    LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
 end
 
+-- Info do jogo
+local GameInfoLabel = Instance.new("TextLabel")
+GameInfoLabel.Size = UDim2.new(0.94, 0, 0, 24)
+GameInfoLabel.Position = UDim2.new(0.03, 0, 0, 290)
+GameInfoLabel.BackgroundTransparency = 1
+GameInfoLabel.Text = "🎮 " .. game.Name .. " | ID: " .. game.PlaceId
+GameInfoLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+GameInfoLabel.Font = Enum.Font.GothamBold
+GameInfoLabel.TextSize = 13
+GameInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+GameInfoLabel.Parent = MainFrame
+
 -- Barra de progresso
-local progressBg = Instance.new("Frame")
-progressBg.Size = UDim2.new(0.9, 0, 0, 24)
-progressBg.Position = UDim2.new(0.05, 0, 0, 265)
-progressBg.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
-progressBg.BorderSizePixel = 0
-progressBg.Parent = mainFrame
-local progCorner = Instance.new("UICorner")
-progCorner.CornerRadius = UDim.new(0, 6)
-progCorner.Parent = progressBg
+local ProgressBg = Instance.new("Frame")
+ProgressBg.Size = UDim2.new(0.9, 0, 0, 30)
+ProgressBg.Position = UDim2.new(0.05, 0, 0, 325)
+ProgressBg.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+ProgressBg.BorderSizePixel = 0
+ProgressBg.Parent = MainFrame
 
-local progressFill = Instance.new("Frame")
-progressFill.Size = UDim2.new(0, 0, 1, 0)
-progressFill.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-progressFill.BorderSizePixel = 0
-progressFill.Parent = progressBg
-local fillCorner = Instance.new("UICorner")
-fillCorner.CornerRadius = UDim.new(0, 6)
-fillCorner.Parent = progressFill
+local ProgressCorner = Instance.new("UICorner")
+ProgressCorner.CornerRadius = UDim.new(0, 8)
+ProgressCorner.Parent = ProgressBg
 
-local percentText = Instance.new("TextLabel")
-percentText.Size = UDim2.new(1, 0, 1, 0)
-percentText.BackgroundTransparency = 1
-percentText.Text = "0%"
-percentText.TextColor3 = Color3.fromRGB(255, 255, 255)
-percentText.Font = Enum.Font.SourceSansBold
-percentText.TextSize = 12
-percentText.Parent = progressBg
+local ProgressFill = Instance.new("Frame")
+ProgressFill.Size = UDim2.new(0, 0, 1, 0)
+ProgressFill.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+ProgressFill.BorderSizePixel = 0
+ProgressFill.Parent = ProgressBg
 
-local statsLabel = Instance.new("TextLabel")
-statsLabel.Size = UDim2.new(0.9, 0, 0, 20)
-statsLabel.Position = UDim2.new(0.05, 0, 0, 295)
-statsLabel.BackgroundTransparency = 1
-statsLabel.Text = "Pronto para iniciar"
-statsLabel.TextColor3 = Color3.fromRGB(180, 180, 220)
-statsLabel.Font = Enum.Font.SourceSans
-statsLabel.TextSize = 12
-statsLabel.TextXAlignment = Enum.TextXAlignment.Left
-statsLabel.Parent = mainFrame
+local FillCorner = Instance.new("UICorner")
+FillCorner.CornerRadius = UDim.new(0, 8)
+FillCorner.Parent = ProgressFill
 
-local pathLabel = Instance.new("TextLabel")
-pathLabel.Size = UDim2.new(0.9, 0, 0, 40)
-pathLabel.Position = UDim2.new(0.05, 0, 0, 315)
-pathLabel.BackgroundTransparency = 1
-pathLabel.Text = ""
-pathLabel.TextColor3 = Color3.fromRGB(100, 255, 150)
-pathLabel.Font = Enum.Font.SourceSans
-pathLabel.TextSize = 10
-pathLabel.TextWrapped = true
-pathLabel.Parent = mainFrame
+local PercentText = Instance.new("TextLabel")
+PercentText.Size = UDim2.new(1, 0, 1, 0)
+PercentText.BackgroundTransparency = 1
+PercentText.Text = "0%"
+PercentText.TextColor3 = Color3.fromRGB(255, 255, 255)
+PercentText.Font = Enum.Font.GothamBold
+PercentText.TextSize = 13
+PercentText.Parent = ProgressBg
 
--- Botões
-local startBtn = Instance.new("TextButton")
-startBtn.Size = UDim2.new(0, 200, 0, 40)
-startBtn.Position = UDim2.new(0.5, -210, 0, 365)
-startBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 80)
-startBtn.Text = "🚀 INICIAR DUMP"
-startBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-startBtn.Font = Enum.Font.GothamBold
-startBtn.TextSize = 14
-startBtn.Parent = mainFrame
-local startCorner = Instance.new("UICorner")
-startCorner.CornerRadius = UDim.new(0, 8)
-startCorner.Parent = startBtn
+-- Status label
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(0.9, 0, 0, 25)
+StatusLabel.Position = UDim2.new(0.05, 0, 0, 365)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "✅ Pronto para iniciar"
+StatusLabel.TextColor3 = Color3.fromRGB(150, 255, 150)
+StatusLabel.Font = Enum.Font.SourceSans
+StatusLabel.TextSize = 12
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+StatusLabel.Parent = MainFrame
 
-local cancelBtn = Instance.new("TextButton")
-cancelBtn.Size = UDim2.new(0, 120, 0, 40)
-cancelBtn.Position = UDim2.new(0.5, 10, 0, 365)
-cancelBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
-cancelBtn.Text = "⛔ CANCELAR"
-cancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-cancelBtn.Font = Enum.Font.GothamBold
-cancelBtn.TextSize = 14
-cancelBtn.Visible = false
-cancelBtn.Parent = mainFrame
-local cancelCorner = Instance.new("UICorner")
-cancelCorner.CornerRadius = UDim.new(0, 8)
-cancelCorner.Parent = cancelBtn
+-- Path label
+local PathLabel = Instance.new("TextLabel")
+PathLabel.Size = UDim2.new(0.9, 0, 0, 35)
+PathLabel.Position = UDim2.new(0.05, 0, 0, 395)
+PathLabel.BackgroundTransparency = 1
+PathLabel.Text = ""
+PathLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+PathLabel.Font = Enum.Font.SourceSans
+PathLabel.TextSize = 10
+PathLabel.TextWrapped = true
+PathLabel.Parent = MainFrame
 
--- ========== LÓGICA PRINCIPAL ==========
-local function StartDump()
-    CancelFlag = false
-    AssetQueue = {}
-    AssetCache = {}
+-- Botão Iniciar
+local StartButton = Instance.new("TextButton")
+StartButton.Size = UDim2.new(0, 220, 0, 48)
+StartButton.Position = UDim2.new(0.5, -240, 0, 440)
+StartButton.BackgroundColor3 = Color3.fromRGB(0, 170, 85)
+StartButton.Text = "🚀 INICIAR DOWNLOAD"
+StartButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+StartButton.Font = Enum.Font.GothamBold
+StartButton.TextSize = 15
+StartButton.Parent = MainFrame
+
+local StartCorner = Instance.new("UICorner")
+StartCorner.CornerRadius = UDim.new(0, 10)
+StartCorner.Parent = StartButton
+
+-- Botão Cancelar
+local CancelButton = Instance.new("TextButton")
+CancelButton.Size = UDim2.new(0, 140, 0, 48)
+CancelButton.Position = UDim2.new(0.5, 10, 0, 440)
+CancelButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+CancelButton.Text = "⛔ CANCELAR"
+CancelButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CancelButton.Font = Enum.Font.GothamBold
+CancelButton.TextSize = 15
+CancelButton.Visible = false
+CancelButton.Parent = MainFrame
+
+local CancelCorner = Instance.new("UICorner")
+CancelCorner.CornerRadius = UDim.new(0, 10)
+CancelCorner.Parent = CancelButton
+
+-- ========== LÓGICA PRINCIPAL DO DOWNLOAD ==========
+local function StartDownload()
+    IsCancelled = false
+    DownloadQueue = {}
+    DownloadCache = {}
     DownloadedCount = 0
     TotalAssets = 0
     ActiveDownloads = 0
-
-    -- Recria pastas
-    if isfolder(DumpFolder) then delfolder(DumpFolder) end
-    makefolder(DumpFolder)
-    for _, f in ipairs({"Meshes","Textures","Sounds","Animations","Models","Misc"}) do
-        makefolder(DumpFolder .. f)
+    DownloadFailed = 0
+    
+    -- Limpar e criar pastas
+    if isfolder(CONFIG.OutputFolder) then
+        delfolder(CONFIG.OutputFolder)
+        task.wait(0.2)
     end
-
-    AddLog("🔥 Iniciando varredura do jogo...", Color3.fromRGB(255, 100, 100))
-    local scanStart = tick()
-    ScanInstance(game)
-    TotalAssets = #AssetQueue
-    AddLog(string.format("✅ Varredura concluída em %.1fs | %d assets encontrados.", tick()-scanStart, TotalAssets), Color3.fromRGB(100, 255, 100))
-
+    makefolder(CONFIG.OutputFolder)
+    
+    local folders = {"Meshes", "Textures", "Sounds", "Animations", "Models", "Scripts", "Misc"}
+    for _, f in ipairs(folders) do
+        makefolder(CONFIG.OutputFolder .. f)
+    end
+    
+    AddLog("🔍 Iniciando varredura do jogo...", Color3.fromRGB(255, 200, 100))
+    local scanStart = os.clock()
+    
+    -- Pontos de varredura (tudo que é possível acessar)
+    local scanRoots = {
+        game.Workspace,
+        game.ReplicatedStorage,
+        game.ServerStorage,
+        game.Lighting,
+        game.Players,
+        game.StarterGui,
+        game.StarterPack,
+        game.StarterPlayer,
+        game.Chat,
+        game.SoundService,
+        game.Teams
+    }
+    
+    for _, root in ipairs(scanRoots) do
+        if root then
+            pcall(ScanInstanceForAssets, root, 0)
+        end
+    end
+    
+    -- Varredura adicional do próprio game
+    pcall(ScanInstanceForAssets, game, 0)
+    
+    TotalAssets = #DownloadQueue
+    local scanTime = os.clock() - scanStart
+    
     if TotalAssets == 0 then
-        AddLog("⚠️ Nenhum asset detectado. O jogo pode usar referências ofuscadas.", Color3.fromRGB(255, 180, 80))
-        startBtn.Visible = true
-        cancelBtn.Visible = false
+        AddLog("⚠️ Nenhum asset encontrado. O jogo pode ter assets protegidos.", Color3.fromRGB(255, 150, 50))
+        AddLog("💡 Tentando salvar apenas a estrutura do jogo...", Color3.fromRGB(200, 200, 100))
+        SaveGameStructure()
+        AddLog("✅ Processo concluído (nenhum asset público detectado).", Color3.fromRGB(100, 255, 100))
+        StartButton.Visible = true
+        CancelButton.Visible = false
         return
     end
-
+    
+    AddLog(string.format("✅ Varredura concluída em %.1fs | %d assets encontrados", scanTime, TotalAssets), Color3.fromRGB(100, 255, 100))
     AddLog("🚀 Iniciando downloads paralelos...", Color3.fromRGB(100, 200, 255))
-    local dlStart = tick()
-    ProcessQueue()
-
-    -- Atualização da UI durante downloads
-    while (ActiveDownloads > 0 or #AssetQueue > 0) and not CancelFlag do
+    
+    local downloadStart = os.clock()
+    ProcessDownloadQueue()
+    
+    -- Loop de atualização da UI
+    while (ActiveDownloads > 0 or #DownloadQueue > 0) and not IsCancelled do
         local percent = (DownloadedCount / TotalAssets) * 100
-        progressFill.Size = UDim2.new(percent / 100, 0, 1, 0)
-        percentText.Text = string.format("%.1f%%", percent)
-        statsLabel.Text = string.format("📦 Baixados: %d / %d | 🚀 Ativos: %d", DownloadedCount, TotalAssets, ActiveDownloads)
+        ProgressFill.Size = UDim2.new(percent / 100, 0, 1, 0)
+        PercentText.Text = string.format("%.1f%%", percent)
+        StatusLabel.Text = string.format("📦 Baixados: %d / %d | ⚡ Ativos: %d | ❌ Falhas: %d", 
+            DownloadedCount, TotalAssets, ActiveDownloads, DownloadFailed)
         task.wait(0.3)
     end
-
-    local elapsed = tick() - dlStart
-    if CancelFlag then
-        AddLog("❌ Dump cancelado.", Color3.fromRGB(255, 50, 50))
+    
+    local downloadTime = os.clock() - downloadStart
+    
+    -- Salvar estrutura do jogo
+    AddLog("💾 Salvando estrutura do jogo...", Color3.fromRGB(200, 200, 100))
+    SaveGameStructure()
+    
+    if IsCancelled then
+        AddLog("❌ Download cancelado pelo usuário.", Color3.fromRGB(255, 80, 80))
     else
-        AddLog(string.format("✅ DUMP CONCLUÍDO! %d assets baixados em %.1fs.", DownloadedCount, elapsed), Color3.fromRGB(0, 255, 0))
+        AddLog(string.format("✅ DOWNLOAD CONCLUÍDO! %d/%d assets baixados em %.1fs", 
+            DownloadedCount, TotalAssets, downloadTime), Color3.fromRGB(0, 255, 0))
         
-        local absPath = DumpFolder
-        if syn and syn.get_executor_path then
-            absPath = syn.get_executor_path() .. "/" .. DumpFolder
-        elseif getexecutorname then
-            absPath = getexecutorname() .. "_workspace/" .. DumpFolder
+        if DownloadFailed > 0 then
+            AddLog(string.format("⚠️ %d assets falharam (podem ser privados ou inexistentes)", DownloadFailed), Color3.fromRGB(255, 150, 50))
         end
-        pathLabel.Text = "📁 Caminho: " .. absPath
         
-        -- Botão temporário de copiar
-        local copyBtn = Instance.new("TextButton")
-        copyBtn.Size = UDim2.new(0, 140, 0, 28)
-        copyBtn.Position = UDim2.new(0.5, -70, 0, 370)
-        copyBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 100)
-        copyBtn.Text = "📋 COPIAR"
-        copyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        copyBtn.Font = Enum.Font.Gotham
-        copyBtn.TextSize = 12
-        copyBtn.Parent = mainFrame
-        local copyCorner = Instance.new("UICorner")
-        copyCorner.CornerRadius = UDim.new(0, 6)
-        copyCorner.Parent = copyBtn
-        copyBtn.MouseButton1Click:Connect(function()
-            if setclipboard then setclipboard(absPath) end
-            AddLog("📋 Caminho copiado!", Color3.fromRGB(200, 200, 255))
-            copyBtn:Destroy()
+        -- Determinar caminho absoluto
+        local absolutePath = CONFIG.OutputFolder
+        if syn and syn.get_executor_path then
+            absolutePath = syn.get_executor_path() .. "/" .. CONFIG.OutputFolder
+        elseif getexecutorname then
+            absolutePath = getexecutorname() .. "_workspace/" .. CONFIG.OutputFolder
+        end
+        
+        PathLabel.Text = "📁 Arquivos salvos em: " .. absolutePath
+        
+        -- Botão copiar caminho
+        local CopyButton = Instance.new("TextButton")
+        CopyButton.Size = UDim2.new(0, 160, 0, 32)
+        CopyButton.Position = UDim2.new(0.5, -80, 0, 440)
+        CopyButton.BackgroundColor3 = Color3.fromRGB(60, 80, 120)
+        CopyButton.Text = "📋 COPIAR CAMINHO"
+        CopyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        CopyButton.Font = Enum.Font.Gotham
+        CopyButton.TextSize = 12
+        CopyButton.Parent = MainFrame
+        
+        local CopyCorner = Instance.new("UICorner")
+        CopyCorner.CornerRadius = UDim.new(0, 8)
+        CopyCorner.Parent = CopyButton
+        
+        CopyButton.MouseButton1Click:Connect(function()
+            if setclipboard then
+                setclipboard(absolutePath)
+                AddLog("📋 Caminho copiado para área de transferência!", Color3.fromRGB(200, 200, 255))
+            end
+            task.wait(2)
+            CopyButton:Destroy()
         end)
+        
+        StartButton.Visible = false
+        CancelButton.Visible = false
+        return
     end
-
-    startBtn.Visible = true
-    cancelBtn.Visible = false
+    
+    StartButton.Visible = true
+    CancelButton.Visible = false
 end
 
-startBtn.MouseButton1Click:Connect(function()
-    startBtn.Visible = false
-    cancelBtn.Visible = true
-    task.spawn(StartDump)
+-- Eventos dos botões
+StartButton.MouseButton1Click:Connect(function()
+    StartButton.Visible = false
+    CancelButton.Visible = true
+    task.spawn(StartDownload)
 end)
 
-cancelBtn.MouseButton1Click:Connect(function()
-    CancelFlag = true
-    AddLog("Cancelando... aguarde.", Color3.fromRGB(255, 150, 50))
-    cancelBtn.Visible = false
+CancelButton.MouseButton1Click:Connect(function()
+    IsCancelled = true
+    AddLog("Cancelando... aguardando downloads ativos finalizarem.", Color3.fromRGB(255, 150, 50))
+    CancelButton.Visible = false
 end)
 
-AddLog("✅ Interface carregada. Clique em INICIAR DUMP.", Color3.fromRGB(100, 255, 100))
+-- Mensagem inicial
+AddLog("🎮 ROBLOX GAME DOWNLOADER - Versão Profissional", Color3.fromRGB(255, 100, 100))
+AddLog("📌 Clique em INICIAR DOWNLOAD para começar", Color3.fromRGB(200, 200, 200))
+AddLog("🎯 Jogo atual: " .. game.Name, Color3.fromRGB(255, 200, 100))
