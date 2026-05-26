@@ -1,42 +1,40 @@
 --[[
-    SCRIPT: HEAD SIT FIXED - Attachment Mode
-    Seu personagem fica COLADO na cabeça do alvo e se move com ele
-    Funciona como um acessório: segue rotação, movimento, pulo, tudo
-    EXECUTOR: Synapse X, Krnl, ScriptWare, Fluxus
+    SCRIPT: GIFT SYSTEM - Player Item Requester
+    FUNÇÕES: Lista players, seleciona alvo, envia pedido de itens (simulado)
+    ATENÇÃO: Não é possível forçar outro jogador a dar itens sem consentimento.
+    Este script apenas demonstra a interface e envia uma solicitação.
 --]]
 
 -- ========== CONFIGURAÇÕES ==========
-local REFRESH_INTERVAL = 2
-local HEAD_OFFSET = Vector3.new(0, 2.8, 0)  -- Altura exata da cabeça
+local REFRESH_INTERVAL = 3          -- Atualiza lista de players a cada 3 segundos
 
 -- ========== VARIÁVEIS ==========
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ChatService = game:GetService("Chat")
+local TextChatService = game:GetService("TextChatService") -- para novo sistema de chat
 
 local targetPlayer = nil
-local isAttached = false
-local currentAttachment = nil
-local currentWeld = nil
-local originalRootPart = nil
-local originalCFrame = nil
+local selectedPlayer = nil
 
--- ========== LIMPAR GUI ANTIGA ==========
-local oldGui = LocalPlayer.PlayerGui:FindFirstChild("HeadSitGUI")
+-- ========== INTERFACE PROFISSIONAL ==========
+local oldGui = LocalPlayer.PlayerGui:FindFirstChild("GiftSystemGUI")
 if oldGui then oldGui:Destroy() end
 
--- ========== INTERFACE ==========
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "HeadSitGUI"
+screenGui.Name = "GiftSystemGUI"
 screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
+-- Frame principal
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 360, 0, 480)
-mainFrame.Position = UDim2.new(0.5, -180, 0.5, -240)
-mainFrame.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
+mainFrame.Size = UDim2.new(0, 380, 0, 520)
+mainFrame.Position = UDim2.new(0.5, -190, 0.5, -260)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 22, 32)
 mainFrame.BackgroundTransparency = 0.05
 mainFrame.BorderSizePixel = 0
 mainFrame.ClipsDescendants = true
@@ -48,8 +46,8 @@ mainCorner.Parent = mainFrame
 
 -- Barra de título
 local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 45)
-titleBar.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
+titleBar.Size = UDim2.new(1, 0, 0, 48)
+titleBar.BackgroundColor3 = Color3.fromRGB(40, 45, 65)
 titleBar.BorderSizePixel = 0
 titleBar.Parent = mainFrame
 
@@ -59,18 +57,19 @@ titleCorner.Parent = titleBar
 
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, -50, 1, 0)
-titleLabel.Position = UDim2.new(0, 15, 0, 0)
+titleLabel.Position = UDim2.new(0, 18, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "👑 HEAD SIT - ATTACHMENT MODE"
+titleLabel.Text = "🎁 GIFT SYSTEM"
 titleLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
 titleLabel.Font = Enum.Font.GothamBold
-titleLabel.TextSize = 14
+titleLabel.TextSize = 16
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Parent = titleBar
 
+-- Botão fechar
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0, 32, 0, 32)
-closeBtn.Position = UDim2.new(1, -40, 0, 6)
+closeBtn.Position = UDim2.new(1, -40, 0, 8)
 closeBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
 closeBtn.Text = "✕"
 closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -107,8 +106,8 @@ end)
 
 -- Conteúdo
 local contentFrame = Instance.new("Frame")
-contentFrame.Size = UDim2.new(1, -20, 1, -60)
-contentFrame.Position = UDim2.new(0, 10, 0, 55)
+contentFrame.Size = UDim2.new(1, -20, 1, -65)
+contentFrame.Position = UDim2.new(0, 10, 0, 58)
 contentFrame.BackgroundTransparency = 1
 contentFrame.Parent = mainFrame
 
@@ -125,13 +124,13 @@ statusCorner.Parent = statusFrame
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Size = UDim2.new(1, 0, 1, 0)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "🔴 Status: Aguardando..."
+statusLabel.Text = "🔴 Status: Aguardando seleção"
 statusLabel.TextColor3 = Color3.fromRGB(255, 150, 150)
 statusLabel.Font = Enum.Font.GothamBold
 statusLabel.TextSize = 13
 statusLabel.Parent = statusFrame
 
--- Alvo
+-- Alvo atual
 local targetLabel = Instance.new("TextLabel")
 targetLabel.Size = UDim2.new(1, 0, 0, 25)
 targetLabel.Position = UDim2.new(0, 0, 0, 55)
@@ -143,7 +142,7 @@ targetLabel.TextSize = 12
 targetLabel.TextXAlignment = Enum.TextXAlignment.Left
 targetLabel.Parent = contentFrame
 
--- Lista
+-- Título da lista
 local listLabel = Instance.new("TextLabel")
 listLabel.Size = UDim2.new(1, 0, 0, 20)
 listLabel.Position = UDim2.new(0, 0, 0, 85)
@@ -155,8 +154,9 @@ listLabel.TextSize = 12
 listLabel.TextXAlignment = Enum.TextXAlignment.Left
 listLabel.Parent = contentFrame
 
+-- Scrolling frame para lista
 local playerListFrame = Instance.new("ScrollingFrame")
-playerListFrame.Size = UDim2.new(1, 0, 0, 230)
+playerListFrame.Size = UDim2.new(1, 0, 0, 220)
 playerListFrame.Position = UDim2.new(0, 0, 0, 108)
 playerListFrame.BackgroundColor3 = Color3.fromRGB(12, 14, 22)
 playerListFrame.BackgroundTransparency = 0.5
@@ -173,208 +173,99 @@ playerListLayout.Padding = UDim.new(0, 4)
 playerListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 playerListLayout.Parent = playerListFrame
 
--- Botões
-local attachBtn = Instance.new("TextButton")
-attachBtn.Size = UDim2.new(1, 0, 0, 45)
-attachBtn.Position = UDim2.new(0, 0, 0, 348)
-attachBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 200)
-attachBtn.Text = "🔗 FIXAR NA CABEÇA"
-attachBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-attachBtn.Font = Enum.Font.GothamBold
-attachBtn.TextSize = 14
-attachBtn.Parent = contentFrame
-local attachCorner = Instance.new("UICorner")
-attachCorner.CornerRadius = UDim.new(0, 10)
-attachCorner.Parent = attachBtn
-
-local detachBtn = Instance.new("TextButton")
-detachBtn.Size = UDim2.new(1, 0, 0, 40)
-detachBtn.Position = UDim2.new(0, 0, 0, 400)
-detachBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-detachBtn.Text = "🔓 DESFIXAR"
-detachBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-detachBtn.Font = Enum.Font.GothamBold
-detachBtn.TextSize = 14
-detachBtn.Visible = false
-detachBtn.Parent = contentFrame
-local detachCorner = Instance.new("UICorner")
-detachCorner.CornerRadius = UDim.new(0, 10)
-detachCorner.Parent = detachBtn
+-- Botão GIFT
+local giftBtn = Instance.new("TextButton")
+giftBtn.Size = UDim2.new(1, 0, 0, 48)
+giftBtn.Position = UDim2.new(0, 0, 0, 340)
+giftBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 100)
+giftBtn.Text = "🎁 ENVIAR PEDIDO DE GIFT"
+giftBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+giftBtn.Font = Enum.Font.GothamBold
+giftBtn.TextSize = 14
+giftBtn.Parent = contentFrame
+local giftCorner = Instance.new("UICorner")
+giftCorner.CornerRadius = UDim.new(0, 10)
+giftCorner.Parent = giftBtn
 
 -- Instruções
 local instrLabel = Instance.new("TextLabel")
-instrLabel.Size = UDim2.new(1, 0, 0, 40)
-instrLabel.Position = UDim2.new(0, 0, 0, 445)
+instrLabel.Size = UDim2.new(1, 0, 0, 60)
+instrLabel.Position = UDim2.new(0, 0, 0, 400)
 instrLabel.BackgroundTransparency = 1
-instrLabel.Text = "💡 Seu boneco ficará PRESO na cabeça do alvo\n   e se moverá junto com ele automaticamente"
+instrLabel.Text = "💡 Selecione um jogador e clique em ENVIAR PEDIDO.\n   O script enviará uma mensagem solicitando itens.\n   Não é possível forçar ninguém a dar itens."
 instrLabel.TextColor3 = Color3.fromRGB(130, 130, 170)
 instrLabel.Font = Enum.Font.SourceSans
 instrLabel.TextSize = 10
 instrLabel.TextXAlignment = Enum.TextXAlignment.Left
 instrLabel.Parent = contentFrame
 
--- ========== LÓGICA PRINCIPAL DO HEAD SIT ==========
-
--- Destroçar welds antigos e restaurar o personagem
-local function destroyAttachments()
-    if currentWeld and currentWeld.Parent then
-        currentWeld:Destroy()
-    end
-    if currentAttachment and currentAttachment.Parent then
-        currentAttachment:Destroy()
-    end
-    
-    -- Restaurar o personagem para a posição original
-    local char = LocalPlayer.Character
-    if char and originalRootPart and originalCFrame then
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if root then
-            root.CFrame = originalCFrame
+-- ========== FUNÇÕES DE CHAT (enviar mensagem para o alvo) ==========
+local function sendPrivateMessage(player, message)
+    -- Tenta usar o novo sistema TextChatService
+    local success = false
+    if TextChatService and TextChatService.TextChannels then
+        local textChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+        if textChannel and textChannel:FindFirstChild("SendAsync") then
+            success = pcall(function()
+                textChannel:SendAsync(message)
+            end)
         end
     end
     
-    -- Restaurar o Humanoid (remover PlatformStand se foi ativado)
-    local char = LocalPlayer.Character
-    if char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.PlatformStand = false
-            hum.Sit = false
+    -- Fallback: usar o antigo Chat
+    if not success then
+        local chatFrame = ChatService and ChatService.ChatWindow
+        if chatFrame and chatFrame:FindFirstChild("TextChannel") then
+            pcall(function()
+                chatFrame.TextChannel:SendMessage(message)
+            end)
+        else
+            -- Último recurso: enviar mensagem no chat geral mencionando o player
+            pcall(function()
+                ChatService:Chat(message, "All")
+            end)
         end
     end
-    
-    currentWeld = nil
-    currentAttachment = nil
 end
 
--- Função principal: fixar na cabeça do alvo
-local function attachToTarget(target)
-    if not target then return false end
+-- ========== FUNÇÃO PRINCIPAL DE "GIFT" ==========
+local function requestGiftFrom(target)
+    if not target then
+        statusLabel.Text = "⚠️ Nenhum alvo selecionado!"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 150, 100)
+        task.wait(2)
+        statusLabel.Text = "🔴 Status: Aguardando seleção"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 150, 150)
+        return
+    end
     
-    local targetChar = target.Character
-    if not targetChar then return false end
+    -- Mensagem personalizada (pode ser alterada)
+    local giftMessage = string.format("🎁 Olá %s, você poderia me dar alguns itens do seu inventário? (Pedido via Gift System)", target.Name)
     
-    local localChar = LocalPlayer.Character
-    if not localChar then return false end
+    -- Enviar mensagem privada (se possível) ou geral
+    sendPrivateMessage(target, giftMessage)
     
-    local targetHead = targetChar:FindFirstChild("Head")
-    if not targetHead then return false end
+    -- Também exibe no chat local (para você ver)
+    ChatService:Chat("🎁 Pedido de gift enviado para " .. target.Name .. "!", "All")
     
-    local localRoot = localChar:FindFirstChild("HumanoidRootPart")
-    if not localRoot then return false end
-    
-    local localHumanoid = localChar:FindFirstChildOfClass("Humanoid")
-    if not localHumanoid then return false end
-    
-    -- Salvar posição original (para restaurar depois)
-    originalRootPart = localRoot
-    originalCFrame = localRoot.CFrame
-    
-    -- Congelar o personagem local para ele não cair
-    localHumanoid.PlatformStand = true
-    localHumanoid.AutoRotate = false
-    
-    -- Criar um Attachment na cabeça do alvo
-    local targetAttachment = Instance.new("Attachment")
-    targetAttachment.Name = "HeadSitAttachment"
-    targetAttachment.Parent = targetHead
-    targetAttachment.Position = HEAD_OFFSET
-    
-    -- Criar um Attachment no Root do jogador local
-    local localAttachment = Instance.new("Attachment")
-    localAttachment.Name = "HeadSitAttachment"
-    localAttachment.Parent = localRoot
-    localAttachment.Position = Vector3.new(0, 0, 0)
-    
-    -- Criar Weld entre os dois attachments
-    local weld = Instance.new("WeldConstraint")
-    weld.Part0 = targetHead
-    weld.Part1 = localRoot
-    weld.Parent = targetHead
-    
-    -- Ajustar o CFrame do jogador para ficar exatamente na posição da cabeça
-    localRoot.CFrame = targetHead.CFrame * CFrame.new(HEAD_OFFSET)
-    
-    -- Armazenar referências
-    currentAttachment = targetAttachment
-    currentWeld = weld
-    
-    -- Efeito visual: deixar o jogador invisível? (opcional, remova se não quiser)
-    -- localHumanoid.BreakJointsOnDeath = false
-    
-    statusLabel.Text = "✅ FIXADO em: " .. target.Name
+    -- Feedback visual na interface
+    statusLabel.Text = "✅ Pedido enviado para " .. target.Name
     statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-    targetLabel.Text = "🎯 FIXADO em: " .. target.Name
-    attachBtn.Visible = false
-    detachBtn.Visible = true
-    
-    return true
-end
-
--- Função para desfixar
-local function detachFromTarget()
-    destroyAttachments()
-    
-    local localChar = LocalPlayer.Character
-    if localChar then
-        local hum = localChar:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.PlatformStand = false
-            hum.AutoRotate = true
-        end
-    end
-    
-    statusLabel.Text = "🔴 Status: Desfixado"
+    task.wait(3)
+    statusLabel.Text = "🔴 Status: Aguardando seleção"
     statusLabel.TextColor3 = Color3.fromRGB(255, 150, 150)
-    targetLabel.Text = "🎯 Alvo: Nenhum"
-    attachBtn.Visible = true
-    detachBtn.Visible = false
-    targetPlayer = nil
-    isAttached = false
 end
-
--- Verificar se o alvo ainda existe e está válido
-local function checkTargetAlive()
-    if not isAttached then return true end
-    if not targetPlayer then
-        detachFromTarget()
-        return false
-    end
-    
-    local targetChar = targetPlayer.Character
-    if not targetChar or not targetChar:FindFirstChild("Head") then
-        statusLabel.Text = "⚠️ Alvo desapareceu! Desfixando..."
-        task.wait(1)
-        detachFromTarget()
-        return false
-    end
-    
-    -- Verificar se o weld ainda existe
-    if currentWeld and not currentWeld.Parent then
-        detachFromTarget()
-        return false
-    end
-    
-    return true
-end
-
--- Loop de verificação
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        if isAttached then
-            checkTargetAlive()
-        end
-    end
-end)
 
 -- ========== LISTA DE JOGADORES ==========
 local playerButtons = {}
 local selectedPlayer = nil
 
 local function updatePlayerList()
+    -- Limpar botões antigos
     for _, btn in pairs(playerButtons) do
-        if btn and btn.Parent then btn:Destroy() end
+        if btn and btn.Parent then
+            btn:Destroy()
+        end
     end
     playerButtons = {}
     
@@ -384,7 +275,7 @@ local function updatePlayerList()
     for _, player in ipairs(players) do
         if player ~= LocalPlayer then
             local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(1, -10, 0, 38)
+            btn.Size = UDim2.new(1, -10, 0, 42)
             btn.BackgroundColor3 = Color3.fromRGB(25, 28, 38)
             btn.Text = "👤 " .. player.Name
             btn.TextColor3 = Color3.fromRGB(220, 220, 240)
@@ -397,48 +288,54 @@ local function updatePlayerList()
             btnCorner.CornerRadius = UDim.new(0, 8)
             btnCorner.Parent = btn
             
+            -- Destaque se for o selecionado
             if selectedPlayer == player then
                 btn.BackgroundColor3 = Color3.fromRGB(70, 90, 140)
                 btn.TextColor3 = Color3.fromRGB(255, 200, 100)
             end
             
             btn.MouseButton1Click:Connect(function()
+                -- Remover destaque anterior
                 for _, b in pairs(playerButtons) do
                     if b then
                         b.BackgroundColor3 = Color3.fromRGB(25, 28, 38)
                         b.TextColor3 = Color3.fromRGB(220, 220, 240)
                     end
                 end
+                -- Destacar atual
                 btn.BackgroundColor3 = Color3.fromRGB(70, 90, 140)
                 btn.TextColor3 = Color3.fromRGB(255, 200, 100)
                 selectedPlayer = player
                 targetLabel.Text = "🎯 Alvo: " .. player.Name
                 statusLabel.Text = "✅ Alvo selecionado"
                 statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+                task.wait(2)
+                statusLabel.Text = "🔴 Status: Aguardando seleção"
+                statusLabel.TextColor3 = Color3.fromRGB(255, 150, 150)
             end)
             
             playerButtons[player] = btn
-            totalHeight = totalHeight + 42
+            totalHeight = totalHeight + 46
         end
     end
     
     playerListFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight + 10)
     
     if totalHeight == 0 then
-        local empty = Instance.new("TextLabel")
-        empty.Size = UDim2.new(1, -10, 0, 40)
-        empty.BackgroundTransparency = 1
-        empty.Text = "🎮 Nenhum outro jogador online"
-        empty.TextColor3 = Color3.fromRGB(150, 150, 180)
-        empty.Font = Enum.Font.Gotham
-        empty.TextSize = 12
-        empty.Parent = playerListFrame
-        playerButtons["empty"] = empty
+        local emptyLabel = Instance.new("TextLabel")
+        emptyLabel.Size = UDim2.new(1, -10, 0, 40)
+        emptyLabel.BackgroundTransparency = 1
+        emptyLabel.Text = "🎮 Nenhum outro jogador online"
+        emptyLabel.TextColor3 = Color3.fromRGB(150, 150, 180)
+        emptyLabel.Font = Enum.Font.Gotham
+        emptyLabel.TextSize = 12
+        emptyLabel.Parent = playerListFrame
+        playerButtons["empty"] = emptyLabel
         playerListFrame.CanvasSize = UDim2.new(0, 0, 0, 50)
     end
 end
 
--- Atualizar lista periodicamente
+-- ========== ATUALIZAÇÃO PERIÓDICA DA LISTA ==========
 task.spawn(function()
     while true do
         if screenGui and screenGui.Parent then
@@ -450,39 +347,24 @@ task.spawn(function()
     end
 end)
 
--- ========== EVENTOS DOS BOTÕES ==========
-attachBtn.MouseButton1Click:Connect(function()
-    if not selectedPlayer then
+-- ========== EVENTO DO BOTÃO GIFT ==========
+giftBtn.MouseButton1Click:Connect(function()
+    if selectedPlayer then
+        requestGiftFrom(selectedPlayer)
+    else
         statusLabel.Text = "⚠️ Selecione um jogador primeiro!"
         statusLabel.TextColor3 = Color3.fromRGB(255, 150, 100)
         task.wait(2)
-        statusLabel.Text = "🔴 Status: Aguardando..."
+        statusLabel.Text = "🔴 Status: Aguardando seleção"
         statusLabel.TextColor3 = Color3.fromRGB(255, 150, 150)
-        return
-    end
-    
-    targetPlayer = selectedPlayer
-    isAttached = true
-    
-    local success = attachToTarget(targetPlayer)
-    if not success then
-        statusLabel.Text = "❌ Falhou! Alvo sem cabeça ou personagem inválido"
-        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-        isAttached = false
-        targetPlayer = nil
     end
 end)
 
-detachBtn.MouseButton1Click:Connect(function()
-    detachFromTarget()
-end)
-
+-- Fechar GUI
 closeBtn.MouseButton1Click:Connect(function()
-    detachFromTarget()
     screenGui:Destroy()
 end)
 
 -- Inicialização
 updatePlayerList()
-statusLabel.Text = "🔴 Status: Aguardando seleção..."
-print("[HeadSit] Script carregado! Selecione um jogador e clique em FIXAR.")
+print("[GiftSystem] Script carregado. Interface pronta.")
