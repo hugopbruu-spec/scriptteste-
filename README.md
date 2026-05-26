@@ -1,759 +1,706 @@
 --[[
-    ██████╗ ██╗   ██╗ █████╗ ███╗   ██░ ████████╗██╗   ██╗███╗   ███╗
-    ██╔══██╗██║   ██║██╔══██╗████╗  ██║╚══██╔══╝╚██╗ ██╔╝████╗ ████║
-    ██████╔╝██║   ██║███████║██╔██╗ ██║   ██║    ╚████╔╝ ██╔████╔██║
-    ██╔══██╗██║   ██║██╔══██║██║╚██╗██║   ██║     ╚██╔╝  ██║╚██╔╝██║
-    ██████╔╝╚██████╔╝██║  ██║██║ ╚████║   ██║      ██║   ██║ ╚═╝ ██║
-    ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝      ╚═╝   ╚═╝     ╚═╝
-    
-    FISCH ULTRA FUNBOX - 23 FUNÇÕES COMPLETAS
-    Interface 100% funcional | Arraste suave | Compatível com qualquer executor
---]]
+    ╔══════════════════════════════════════════════════════════╗
+    ║     ROBLOX GAME DOWNLOADER - INTERFACE COMPLETA        ║
+    ║     Compatível com qualquer jogo e qualquer executor    ║
+    ╚══════════════════════════════════════════════════════════╝
+]]
 
--- ========== CONFIGURAÇÕES ==========
+-- ============================================
+-- SERVIÇOS
+-- ============================================
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
-local VirtualUser = game:GetService("VirtualUser")
+local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local TeleportService = game:GetService("TeleportService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local Workspace = game:GetService("Workspace")
 
--- ========== VARIÁVEIS GLOBAIS ==========
-local selectedPlayer = nil
-local flyActive = false
-local noclipActive = false
-local espActive = false
-local infiniteJumpActive = false
-local godModeActive = false
-local speedActive = false
-local currentWeld = nil
-local headSitActive = false
-local currentSpeed = 60
-local moveF, moveB, moveL, moveR, moveU, moveD = false, false, false, false, false, false
-local bodyVelocity, bodyGyro = nil, nil
-local originalWalkSpeed = 16
-local originalJumpPower = 50
+-- ============================================
+-- CONFIGURAÇÃO
+-- ============================================
+local SERVER_URL = "http://localhost:9999/receive"
+local PLACE_ID = game.PlaceId
+local PLACE_VERSION = game.PlaceVersion
 
--- ========== CRIAÇÃO DA INTERFACE GARANTIDA ==========
-local function CreateGUI()
-    -- Garante que a GUI será criada no local correto
-    local parent = pcall(function() return CoreGui end) and CoreGui or LocalPlayer:WaitForChild("PlayerGui")
-    
-    local oldGui = parent:FindFirstChild("FischUltraFunBox")
-    if oldGui then oldGui:Destroy() end
+-- ============================================
+-- FUNÇÕES DE VERIFICAÇÃO DE EXECUTOR
+-- ============================================
+local function isSynapseX()
+    return syn and syn.request and syn.crypt
+end
 
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "FischUltraFunBox"
-    screenGui.ResetOnSpawn = false
-    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    screenGui.Parent = parent
+local function isKRNL()
+    return krnl and request
+end
 
-    -- Frame principal
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Size = UDim2.new(0, 480, 0, 620)
-    mainFrame.Position = UDim2.new(0.5, -240, 0.5, -310)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(15, 17, 25)
-    mainFrame.BackgroundTransparency = 0.08
-    mainFrame.BorderSizePixel = 0
-    mainFrame.ClipsDescendants = true
-    mainFrame.Parent = screenGui
+local function isFluxus()
+    return fluxus and identifyexecutor and fluxus.setclipboard
+end
 
-    local mainCorner = Instance.new("UICorner")
-    mainCorner.CornerRadius = UDim.new(0, 20)
-    mainCorner.Parent = mainFrame
+local function isScriptWare()
+    return getexecutorname and getexecutorname():lower():find("script%-ware")
+end
 
-    -- Barra de título
-    local titleBar = Instance.new("Frame")
-    titleBar.Size = UDim2.new(1, 0, 0, 50)
-    titleBar.BackgroundColor3 = Color3.fromRGB(35, 40, 60)
-    titleBar.BorderSizePixel = 0
-    titleBar.Parent = mainFrame
+local function isDelta()
+    return identifyexecutor and identifyexecutor():lower():find("delta")
+end
 
-    local titleCorner = Instance.new("UICorner")
-    titleCorner.CornerRadius = UDim.new(0, 20)
-    titleCorner.Parent = titleBar
+local function hasSaveInstance()
+    return saveinstance ~= nil
+end
 
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(1, -60, 1, 0)
-    titleLabel.Position = UDim2.new(0, 20, 0, 0)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Text = "🐟 FISCH ULTRA FUNBOX - 23 FUNÇÕES"
-    titleLabel.TextColor3 = Color3.fromRGB(255, 210, 110)
-    titleLabel.Font = Enum.Font.GothamBold
-    titleLabel.TextSize = 15
-    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    titleLabel.Parent = titleBar
+local function hasSavePlace()
+    return pcall(function() return saveplace end)
+end
 
-    local minimizeBtn = Instance.new("TextButton")
-    minimizeBtn.Size = UDim2.new(0, 36, 0, 36)
-    minimizeBtn.Position = UDim2.new(1, -80, 0, 7)
-    minimizeBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-    minimizeBtn.Text = "−"
-    minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    minimizeBtn.Font = Enum.Font.GothamBold
-    minimizeBtn.TextSize = 22
-    minimizeBtn.Parent = titleBar
-    local minCorner = Instance.new("UICorner")
-    minCorner.CornerRadius = UDim.new(0, 10)
-    minCorner.Parent = minimizeBtn
+local function hasWriteFile()
+    return isfile and writefile
+end
 
-    local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.new(0, 36, 0, 36)
-    closeBtn.Position = UDim2.new(1, -42, 0, 7)
-    closeBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-    closeBtn.Text = "✕"
-    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closeBtn.Font = Enum.Font.GothamBold
-    closeBtn.TextSize = 18
-    closeBtn.Parent = titleBar
-    local closeCorner = Instance.new("UICorner")
-    closeCorner.CornerRadius = UDim.new(0, 10)
-    closeCorner.Parent = closeBtn
+local function hasHttpRequest()
+    return syn and syn.request or request or http_request or (game:HttpGetAsync and game:HttpGetAsync)
+end
 
-    -- Arrasto suave
-    local dragging = false
-    local dragStartPos = nil
-    local frameStartPos = nil
+local function getExecutorName()
+    if identifyexecutor then
+        return identifyexecutor()
+    elseif getexecutorname then
+        return getexecutorname()
+    elseif isSynapseX() then
+        return "Synapse X"
+    elseif isKRNL() then
+        return "KRNL"
+    elseif isFluxus() then
+        return "Fluxus"
+    elseif isScriptWare() then
+        return "Script-Ware"
+    elseif isDelta() then
+        return "Delta"
+    else
+        return "Desconhecido"
+    end
+end
 
-    local function updateDrag()
-        if not dragging then return end
-        local delta = UserInputService:GetMouseLocation() - dragStartPos
-        mainFrame.Position = UDim2.new(0, frameStartPos.X + delta.X, 0, frameStartPos.Y + delta.Y)
+-- ============================================
+-- INTERFACE GRÁFICA (Feita com Drawing Library)
+-- ============================================
+local function createInterface()
+    -- Verifica se a interface já existe
+    if _G.RobloxDownloaderUI then
+        _G.RobloxDownloaderUI.Visible = not _G.RobloxDownloaderUI.Visible
+        return
     end
 
-    titleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStartPos = UserInputService:GetMouseLocation()
-            frameStartPos = Vector2.new(mainFrame.Position.X.Offset, mainFrame.Position.Y.Offset)
-        end
+    -- Cria o ScreenGui
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "RobloxDownloaderUI"
+    screenGui.Parent = CoreGui
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    -- Proteção contra detecção
+    if syn and syn.protect_gui then
+        syn.protect_gui(screenGui)
+    end
+
+    _G.RobloxDownloaderUI = screenGui
+
+    -- ========== CONTAINER PRINCIPAL ==========
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = UDim2.new(0, 500, 0, 420)
+    mainFrame.Position = UDim2.new(0.5, -250, 0.5, -210)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Parent = screenGui
+    mainFrame.Active = true
+    mainFrame.Draggable = true
+
+    -- Cantos arredondados
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = mainFrame
+
+    -- Sombra
+    local shadow = Instance.new("Frame")
+    shadow.Size = UDim2.new(1, 8, 1, 8)
+    shadow.Position = UDim2.new(0, -4, 0, -4)
+    shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.BackgroundTransparency = 0.6
+    shadow.BorderSizePixel = 0
+    shadow.Parent = screenGui
+    shadow.ZIndex = 0
+
+    local shadowCorner = Instance.new("UICorner")
+    shadowCorner.CornerRadius = UDim.new(0, 14)
+    shadowCorner.Parent = shadow
+
+    -- ========== TOP BAR ==========
+    local topBar = Instance.new("Frame")
+    topBar.Name = "TopBar"
+    topBar.Size = UDim2.new(1, 0, 0, 50)
+    topBar.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    topBar.BorderSizePixel = 0
+    topBar.Parent = mainFrame
+
+    local topCorner = Instance.new("UICorner")
+    topCorner.CornerRadius = UDim.new(0, 12)
+    topCorner.Parent = topBar
+
+    -- Título
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -50, 1, 0)
+    title.Position = UDim2.new(0, 20, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "🎮 ROBLOX GAME DOWNLOADER"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextSize = 16
+    title.Font = Enum.Font.GothamBold
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = topBar
+
+    -- Botão Fechar
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 30, 0, 30)
+    closeBtn.Position = UDim2.new(1, -40, 0, 10)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+    closeBtn.Text = "✕"
+    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeBtn.TextSize = 16
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.BorderSizePixel = 0
+    closeBtn.Parent = topBar
+
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 6)
+    closeCorner.Parent = closeBtn
+
+    closeBtn.MouseButton1Click:Connect(function()
+        screenGui:Destroy()
+        _G.RobloxDownloaderUI = nil
     end)
 
-    UserInputService.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-            updateDrag()
-        end
-    end)
-
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-
-    -- Minimizar
-    local minimized = false
-    local contentFrame = Instance.new("ScrollingFrame")
+    -- ========== CONTEÚDO ==========
+    local contentFrame = Instance.new("Frame")
     contentFrame.Size = UDim2.new(1, -20, 1, -70)
     contentFrame.Position = UDim2.new(0, 10, 0, 60)
     contentFrame.BackgroundTransparency = 1
     contentFrame.BorderSizePixel = 0
-    contentFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-    contentFrame.ScrollBarThickness = 6
     contentFrame.Parent = mainFrame
 
-    minimizeBtn.MouseButton1Click:Connect(function()
-        minimized = not minimized
-        contentFrame.Visible = not minimized
-        if minimized then
-            mainFrame.Size = UDim2.new(0, 480, 0, 60)
-            minimizeBtn.Text = "□"
+    -- Informações do Jogo
+    local infoFrame = Instance.new("Frame")
+    infoFrame.Size = UDim2.new(1, 0, 0, 80)
+    infoFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    infoFrame.BorderSizePixel = 0
+    infoFrame.Parent = contentFrame
+
+    local infoCorner = Instance.new("UICorner")
+    infoCorner.CornerRadius = UDim.new(0, 8)
+    infoCorner.Parent = infoFrame
+
+    -- Nome do Jogo
+    local gameNameLabel = Instance.new("TextLabel")
+    gameNameLabel.Size = UDim2.new(1, -20, 0, 25)
+    gameNameLabel.Position = UDim2.new(0, 10, 0, 10)
+    gameNameLabel.BackgroundTransparency = 1
+    gameNameLabel.Text = "🎯 " .. (game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name or "Jogo Desconhecido")
+    gameNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    gameNameLabel.TextSize = 14
+    gameNameLabel.Font = Enum.Font.GothamSemibold
+    gameNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    gameNameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+    gameNameLabel.Parent = infoFrame
+
+    -- ID do Jogo
+    local gameIdLabel = Instance.new("TextLabel")
+    gameIdLabel.Size = UDim2.new(1, -20, 0, 20)
+    gameIdLabel.Position = UDim2.new(0, 10, 0, 35)
+    gameIdLabel.BackgroundTransparency = 1
+    gameIdLabel.Text = "📍 Place ID: " .. game.PlaceId .. " | Versão: " .. game.PlaceVersion
+    gameIdLabel.TextColor3 = Color3.fromRGB(160, 160, 170)
+    gameIdLabel.TextSize = 11
+    gameIdLabel.Font = Enum.Font.Gotham
+    gameIdLabel.TextXAlignment = Enum.TextXAlignment.Left
+    gameIdLabel.Parent = infoFrame
+
+    -- Executor Info
+    local executorLabel = Instance.new("TextLabel")
+    executorLabel.Size = UDim2.new(1, -20, 0, 20)
+    executorLabel.Position = UDim2.new(0, 10, 0, 55)
+    executorLabel.BackgroundTransparency = 1
+    executorLabel.Text = "⚡ Executor: " .. getExecutorName()
+    executorLabel.TextColor3 = Color3.fromRGB(239, 68, 68)
+    executorLabel.TextSize = 11
+    executorLabel.Font = Enum.Font.Gotham
+    executorLabel.TextXAlignment = Enum.TextXAlignment.Left
+    executorLabel.Parent = infoFrame
+
+    -- ========== BOTÃO DE DOWNLOAD PRINCIPAL ==========
+    local downloadBtn = Instance.new("TextButton")
+    downloadBtn.Size = UDim2.new(1, 0, 0, 60)
+    downloadBtn.Position = UDim2.new(0, 0, 0, 95)
+    downloadBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+    downloadBtn.Text = "📥 BAIXAR JOGO COMPLETO (.rbxlx)"
+    downloadBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    downloadBtn.TextSize = 16
+    downloadBtn.Font = Enum.Font.GothamBold
+    downloadBtn.BorderSizePixel = 0
+    downloadBtn.Parent = contentFrame
+
+    local downloadCorner = Instance.new("UICorner")
+    downloadCorner.CornerRadius = UDim.new(0, 8)
+    downloadCorner.Parent = downloadBtn
+
+    -- Efeito hover
+    downloadBtn.MouseEnter:Connect(function()
+        downloadBtn.BackgroundColor3 = Color3.fromRGB(220, 38, 38)
+    end)
+    downloadBtn.MouseLeave:Connect(function()
+        downloadBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+    end)
+
+    -- ========== BARRA DE PROGRESSO ==========
+    local progressFrame = Instance.new("Frame")
+    progressFrame.Size = UDim2.new(1, 0, 0, 35)
+    progressFrame.Position = UDim2.new(0, 0, 0, 170)
+    progressFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    progressFrame.BorderSizePixel = 0
+    progressFrame.Parent = contentFrame
+
+    local progressCorner = Instance.new("UICorner")
+    progressCorner.CornerRadius = UDim.new(0, 8)
+    progressCorner.Parent = progressFrame
+
+    -- Barra de progresso interna
+    local progressBar = Instance.new("Frame")
+    progressBar.Size = UDim2.new(0, 0, 1, 0)
+    progressBar.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+    progressBar.BorderSizePixel = 0
+    progressBar.Parent = progressFrame
+
+    local progressBarCorner = Instance.new("UICorner")
+    progressBarCorner.CornerRadius = UDim.new(0, 8)
+    progressBarCorner.Parent = progressBar
+
+    -- Texto de progresso
+    local progressText = Instance.new("TextLabel")
+    progressText.Size = UDim2.new(1, 0, 1, 0)
+    progressText.BackgroundTransparency = 1
+    progressText.Text = "0% - Pronto para iniciar"
+    progressText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    progressText.TextSize = 12
+    progressText.Font = Enum.Font.GothamSemibold
+    progressText.Parent = progressFrame
+
+    -- ========== STATUS LOG ==========
+    local logFrame = Instance.new("ScrollingFrame")
+    logFrame.Size = UDim2.new(1, 0, 0, 100)
+    logFrame.Position = UDim2.new(0, 0, 0, 220)
+    logFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    logFrame.BorderSizePixel = 0
+    logFrame.ScrollBarThickness = 4
+    logFrame.ScrollBarImageColor3 = Color3.fromRGB(239, 68, 68)
+    logFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    logFrame.Parent = contentFrame
+
+    local logCorner = Instance.new("UICorner")
+    logCorner.CornerRadius = UDim.new(0, 8)
+    logCorner.Parent = logFrame
+
+    -- Template para logs
+    local logTemplate = Instance.new("TextLabel")
+    logTemplate.Size = UDim2.new(1, -20, 0, 20)
+    logTemplate.Position = UDim2.new(0, 10, 0, 5)
+    logTemplate.BackgroundTransparency = 1
+    logTemplate.Text = ""
+    logTemplate.TextColor3 = Color3.fromRGB(200, 200, 200)
+    logTemplate.TextSize = 11
+    logTemplate.Font = Enum.Font.Gotham
+    logTemplate.TextXAlignment = Enum.TextXAlignment.Left
+    logTemplate.Parent = logFrame
+
+    -- ========== OPÇÕES AVANÇADAS ==========
+    local optionsFrame = Instance.new("Frame")
+    optionsFrame.Size = UDim2.new(1, 0, 0, 50)
+    optionsFrame.Position = UDim2.new(0, 0, 0, 330)
+    optionsFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    optionsFrame.BorderSizePixel = 0
+    optionsFrame.Parent = contentFrame
+
+    local optionsCorner = Instance.new("UICorner")
+    optionsCorner.CornerRadius = UDim.new(0, 8)
+    optionsCorner.Parent = optionsFrame
+
+    -- Toggle Auto-salvar
+    local autoSaveLabel = Instance.new("TextLabel")
+    autoSaveLabel.Size = UDim2.new(0, 150, 1, 0)
+    autoSaveLabel.Position = UDim2.new(0, 10, 0, 0)
+    autoSaveLabel.BackgroundTransparency = 1
+    autoSaveLabel.Text = "🔄 Auto-salvar ao entrar"
+    autoSaveLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    autoSaveLabel.TextSize = 11
+    autoSaveLabel.Font = Enum.Font.Gotham
+    autoSaveLabel.TextXAlignment = Enum.TextXAlignment.Left
+    autoSaveLabel.Parent = optionsFrame
+
+    local autoSaveToggle = Instance.new("TextButton")
+    autoSaveToggle.Size = UDim2.new(0, 40, 0, 24)
+    autoSaveToggle.Position = UDim2.new(1, -50, 0, 13)
+    autoSaveToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
+    autoSaveToggle.Text = ""
+    autoSaveToggle.BorderSizePixel = 0
+    autoSaveToggle.Parent = optionsFrame
+
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(1, 0)
+    toggleCorner.Parent = autoSaveToggle
+
+    local toggleDot = Instance.new("Frame")
+    toggleDot.Size = UDim2.new(0, 18, 0, 18)
+    toggleDot.Position = UDim2.new(0, 3, 0, 3)
+    toggleDot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    toggleDot.BorderSizePixel = 0
+    toggleDot.Parent = autoSaveToggle
+
+    local dotCorner = Instance.new("UICorner")
+    dotCorner.CornerRadius = UDim.new(1, 0)
+    dotCorner.Parent = toggleDot
+
+    local autoSaveEnabled = false
+
+    autoSaveToggle.MouseButton1Click:Connect(function()
+        autoSaveEnabled = not autoSaveEnabled
+        if autoSaveEnabled then
+            autoSaveToggle.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+            toggleDot:TweenPosition(UDim2.new(1, -21, 0, 3), "Out", "Quad", 0.2, true)
         else
-            mainFrame.Size = UDim2.new(0, 480, 0, 620)
-            minimizeBtn.Text = "−"
+            autoSaveToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
+            toggleDot:TweenPosition(UDim2.new(0, 3, 0, 3), "Out", "Quad", 0.2, true)
         end
     end)
 
-    closeBtn.MouseButton1Click:Connect(function()
-        screenGui:Destroy()
-        if flyActive then deactivateFly() end
-        if noclipActive then deactivateNoclip() end
-        if godModeActive then deactivateGodMode() end
-        if espActive then deactivateESP() end
-        if headSitActive then stopHeadSit() end
-    end)
-
-    -- ========== FUNÇÃO PARA CRIAR BOTÕES ==========
-    local function createButton(parent, text, yPos, color, callback)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0.48, 0, 0, 42)
-        btn.Position = UDim2.new(0.01, 0, 0, yPos)
-        btn.BackgroundColor3 = color
-        btn.Text = text
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 12
-        btn.Parent = parent
-        local btnCorner = Instance.new("UICorner")
-        btnCorner.CornerRadius = UDim.new(0, 10)
-        btnCorner.Parent = btn
-        btn.MouseButton1Click:Connect(callback)
-        return btn
+    -- ========== FUNÇÃO DE LOG ==========
+    local logCount = 0
+    local function addLog(message, color)
+        logCount = logCount + 1
+        local newLog = logTemplate:Clone()
+        newLog.Text = "[" .. os.date("%H:%M:%S") .. "] " .. message
+        newLog.TextColor3 = color or Color3.fromRGB(200, 200, 200)
+        newLog.Position = UDim2.new(0, 10, 0, 5 + (logCount - 1) * 22)
+        newLog.Parent = logFrame
+        logFrame.CanvasSize = UDim2.new(0, 0, 0, logCount * 22 + 10)
+        logFrame.CanvasPosition = Vector2.new(0, logFrame.CanvasSize.Y.Offset)
     end
 
-    local function createButtonRight(parent, text, yPos, color, callback)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0.48, 0, 0, 42)
-        btn.Position = UDim2.new(0.51, 0, 0, yPos)
-        btn.BackgroundColor3 = color
-        btn.Text = text
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 12
-        btn.Parent = parent
-        local btnCorner = Instance.new("UICorner")
-        btnCorner.CornerRadius = UDim.new(0, 10)
-        btnCorner.Parent = btn
-        btn.MouseButton1Click:Connect(callback)
-        return btn
-    end
-
-    -- Status label
-    local statusLabel = Instance.new("TextLabel")
-    statusLabel.Size = UDim2.new(1, -20, 0, 35)
-    statusLabel.Position = UDim2.new(0, 10, 0, 0)
-    statusLabel.BackgroundColor3 = Color3.fromRGB(30, 35, 55)
-    statusLabel.Text = "✅ Sistema carregado | Selecione um jogador"
-    statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-    statusLabel.Font = Enum.Font.GothamBold
-    statusLabel.TextSize = 11
-    statusLabel.Parent = contentFrame
-    local statusCorner = Instance.new("UICorner")
-    statusCorner.CornerRadius = UDim.new(0, 10)
-    statusCorner.Parent = statusLabel
-
-    -- Título da lista
-    local listTitle = Instance.new("TextLabel")
-    listTitle.Size = UDim2.new(1, -20, 0, 25)
-    listTitle.Position = UDim2.new(0, 10, 0, 42)
-    listTitle.BackgroundTransparency = 1
-    listTitle.Text = "📋 JOGADORES ONLINE:"
-    listTitle.TextColor3 = Color3.fromRGB(255, 200, 100)
-    listTitle.Font = Enum.Font.GothamBold
-    listTitle.TextSize = 12
-    listTitle.TextXAlignment = Enum.TextXAlignment.Left
-    listTitle.Parent = contentFrame
-
-    -- Lista de jogadores
-    local playerListFrame = Instance.new("ScrollingFrame")
-    playerListFrame.Size = UDim2.new(1, -20, 0, 150)
-    playerListFrame.Position = UDim2.new(0, 10, 0, 70)
-    playerListFrame.BackgroundColor3 = Color3.fromRGB(10, 12, 20)
-    playerListFrame.BorderSizePixel = 0
-    playerListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-    playerListFrame.ScrollBarThickness = 6
-    playerListFrame.Parent = contentFrame
-    local listCorner = Instance.new("UICorner")
-    listCorner.CornerRadius = UDim.new(0, 10)
-    listCorner.Parent = playerListFrame
-
-    local playerListLayout = Instance.new("UIListLayout")
-    playerListLayout.Padding = UDim.new(0, 4)
-    playerListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    playerListLayout.Parent = playerListFrame
-
-    -- Alvo atual
-    local targetLabel = Instance.new("TextLabel")
-    targetLabel.Size = UDim2.new(1, -20, 0, 25)
-    targetLabel.Position = UDim2.new(0, 10, 0, 228)
-    targetLabel.BackgroundTransparency = 1
-    targetLabel.Text = "🎯 ALVO: NENHUM"
-    targetLabel.TextColor3 = Color3.fromRGB(255, 150, 100)
-    targetLabel.Font = Enum.Font.GothamBold
-    targetLabel.TextSize = 12
-    targetLabel.TextXAlignment = Enum.TextXAlignment.Left
-    targetLabel.Parent = contentFrame
-
-    -- Botões da linha 1
-    createButton(contentFrame, "🎁 PEDIR GIFT", 260, Color3.fromRGB(0, 170, 100), function()
-        if not selectedPlayer then statusLabel.Text = "⚠️ Selecione um jogador primeiro!" return end
-        game:GetService("Chat"):Chat("🎁 Olá " .. selectedPlayer.Name .. ", você poderia me dar alguns itens? (Pedido via FunBox)", "All")
-        statusLabel.Text = "✅ Pedido enviado para " .. selectedPlayer.Name
-        task.wait(2)
-        statusLabel.Text = "✅ Sistema carregado | Alvo: " .. (selectedPlayer and selectedPlayer.Name or "nenhum")
-    end)
-
-    createButtonRight(contentFrame, "🪑 HEAD SIT", 260, Color3.fromRGB(150, 80, 200), function()
-        if not selectedPlayer then statusLabel.Text = "⚠️ Selecione um jogador primeiro!" return end
-        if headSitActive then stopHeadSit(); statusLabel.Text = "🔴 Head Sit desativado"; return end
-        local tChar = selectedPlayer.Character
-        local lChar = LocalPlayer.Character
-        if not tChar or not lChar then statusLabel.Text = "❌ Personagem não encontrado" return end
-        local head = tChar:FindFirstChild("Head")
-        local root = lChar:FindFirstChild("HumanoidRootPart")
-        if not head or not root then statusLabel.Text = "❌ Cabeça ou Root não encontrado" return end
-        local hum = lChar:FindFirstChildOfClass("Humanoid")
-        if hum then hum.PlatformStand = true end
-        local weld = Instance.new("WeldConstraint")
-        weld.Part0 = head
-        weld.Part1 = root
-        weld.Parent = head
-        currentWeld = weld
-        headSitActive = true
-        statusLabel.Text = "✅ Sentado na cabeça de " .. selectedPlayer.Name
-    end)
-
-    -- Botões da linha 2
-    createButton(contentFrame, "📏 GIGANTE", 310, Color3.fromRGB(50, 150, 200), function()
-        local char = LocalPlayer.Character
-        if char then
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum.BodyTypeScale = 3
-                hum.BodyWidthScale = 3
-                hum.BodyHeightScale = 3
-                hum.BodyDepthScale = 3
-                statusLabel.Text = "✅ Personagem ficou GIGANTE!"
-            end
-        end
-    end)
-
-    createButtonRight(contentFrame, "🔬 PEQUENO", 310, Color3.fromRGB(200, 150, 50), function()
-        local char = LocalPlayer.Character
-        if char then
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum.BodyTypeScale = 0.5
-                hum.BodyWidthScale = 0.5
-                hum.BodyHeightScale = 0.5
-                hum.BodyDepthScale = 0.5
-                statusLabel.Text = "✅ Personagem ficou PEQUENO!"
-            end
-        end
-    end)
-
-    -- Botões da linha 3
-    createButton(contentFrame, "🔄 TAMANHO NORMAL", 360, Color3.fromRGB(100, 100, 120), function()
-        local char = LocalPlayer.Character
-        if char then
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum.BodyTypeScale = 1
-                hum.BodyWidthScale = 1
-                hum.BodyHeightScale = 1
-                hum.BodyDepthScale = 1
-                statusLabel.Text = "✅ Tamanho normal restaurado"
-            end
-        end
-    end)
-
-    createButtonRight(contentFrame, "👻 INVISÍVEL", 360, Color3.fromRGB(120, 80, 150), function()
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then part.Transparency = 1
-                elseif part:IsA("Decal") then part.Transparency = 1 end
-            end
-            statusLabel.Text = "✅ Personagem INVISÍVEL!"
-        end
-    end)
-
-    -- Botões da linha 4
-    createButton(contentFrame, "👀 VISÍVEL", 410, Color3.fromRGB(80, 120, 80), function()
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then part.Transparency = 0
-                elseif part:IsA("Decal") then part.Transparency = 0 end
-            end
-            statusLabel.Text = "✅ Personagem VISÍVEL!"
-        end
-    end)
-
-    createButtonRight(contentFrame, "🕊️ FLY", 410, Color3.fromRGB(0, 160, 200), function()
-        if flyActive then
-            deactivateFly()
-            statusLabel.Text = "🔴 Voo desativado"
-        else
-            activateFly()
-            statusLabel.Text = "🟢 Voo ativado! WASD + Espaço/Ctrl + Shift Boost"
-        end
-    end)
-
-    -- Botões da linha 5
-    createButton(contentFrame, "🔧 NOCLIP", 460, Color3.fromRGB(200, 100, 0), function()
-        if noclipActive then
-            deactivateNoclip()
-            statusLabel.Text = "🔴 Noclip desativado"
-        else
-            activateNoclip()
-            statusLabel.Text = "🟢 Noclip ativado!"
-        end
-    end)
-
-    createButtonRight(contentFrame, "🛡️ GOD MODE", 460, Color3.fromRGB(0, 100, 200), function()
-        if godModeActive then
-            deactivateGodMode()
-            statusLabel.Text = "🔴 God Mode desativado"
-        else
-            activateGodMode()
-            statusLabel.Text = "🟢 God Mode ativado!"
-        end
-    end)
-
-    -- Botões da linha 6
-    createButton(contentFrame, "👁️ ESP PLAYERS", 510, Color3.fromRGB(150, 50, 200), function()
-        if espActive then
-            deactivateESP()
-            statusLabel.Text = "🔴 ESP desativado"
-        else
-            activateESP()
-            statusLabel.Text = "🟢 ESP ativado! Jogadores marcados"
-        end
-    end)
-
-    createButtonRight(contentFrame, "🦘 INFINITE JUMP", 510, Color3.fromRGB(50, 200, 150), function()
-        if infiniteJumpActive then
-            deactivateInfiniteJump()
-            statusLabel.Text = "🔴 Pulo infinito desativado"
-        else
-            activateInfiniteJump()
-            statusLabel.Text = "🟢 Pulo infinito ativado!"
-        end
-    end)
-
-    -- Botão Extra
-    createButton(contentFrame, "⚡ SUPER VELOCIDADE", 560, Color3.fromRGB(255, 100, 50), function()
-        if speedActive then
-            deactivateSpeed()
-            statusLabel.Text = "🔴 Super velocidade desativada"
-        else
-            activateSpeed()
-            statusLabel.Text = "🟢 Super velocidade ativada! (2x)"
-        end
-    end)
-
-    createButtonRight(contentFrame, "🔗 TELEPORT AO ALVO", 560, Color3.fromRGB(100, 100, 200), function()
-        if not selectedPlayer then statusLabel.Text = "⚠️ Selecione um jogador primeiro!" return end
-        local tChar = selectedPlayer.Character
-        local lChar = LocalPlayer.Character
-        if tChar and lChar then
-            local tRoot = tChar:FindFirstChild("HumanoidRootPart")
-            local lRoot = lChar:FindFirstChild("HumanoidRootPart")
-            if tRoot and lRoot then
-                lRoot.CFrame = tRoot.CFrame * CFrame.new(0, 2, 2)
-                statusLabel.Text = "✅ Teleportado para " .. selectedPlayer.Name
-            end
-        end
-    end)
-
-    -- ========== FUNÇÕES ==========
-    function activateFly()
-        local char = LocalPlayer.Character
-        if not char then return end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not root or not hum then return end
-        hum.PlatformStand = true
-        bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.Velocity = Vector3.new(0,0,0)
-        bodyVelocity.MaxForce = Vector3.new(1e6,1e6,1e6)
-        bodyVelocity.Parent = root
-        bodyGyro = Instance.new("BodyGyro")
-        bodyGyro.MaxTorque = Vector3.new(1e6,1e6,1e6)
-        bodyGyro.Parent = root
-        flyActive = true
-        
-        -- Controles
-        local function handleInput(input, gpe)
-            if gpe or not flyActive then return end
-            local k = input.KeyCode
-            if k == Enum.KeyCode.W then moveF = true
-            elseif k == Enum.KeyCode.S then moveB = true
-            elseif k == Enum.KeyCode.A then moveL = true
-            elseif k == Enum.KeyCode.D then moveR = true
-            elseif k == Enum.KeyCode.Space then moveU = true
-            elseif k == Enum.KeyCode.LeftControl then moveD = true
-            elseif k == Enum.KeyCode.LeftShift then speedBoost = true end
-        end
-        
-        local function handleEnd(input, gpe)
-            if gpe or not flyActive then return end
-            local k = input.KeyCode
-            if k == Enum.KeyCode.W then moveF = false
-            elseif k == Enum.KeyCode.S then moveB = false
-            elseif k == Enum.KeyCode.A then moveL = false
-            elseif k == Enum.KeyCode.D then moveR = false
-            elseif k == Enum.KeyCode.Space then moveU = false
-            elseif k == Enum.KeyCode.LeftControl then moveD = false
-            elseif k == Enum.KeyCode.LeftShift then speedBoost = false end
-        end
-        
-        UserInputService.InputBegan:Connect(handleInput)
-        UserInputService.InputEnded:Connect(handleEnd)
-        
-        RunService.RenderStepped:Connect(function()
-            if not flyActive or not bodyVelocity then return
-            local cam = workspace.CurrentCamera
-            local cf = cam.CFrame
-            local fwd = cf.LookVector
-            local right = cf.RightVector
-            local up = cf.UpVector
-            fwd = Vector3.new(fwd.X, 0, fwd.Z).Unit
-            right = Vector3.new(right.X, 0, right.Z).Unit
-            local vel = Vector3.new()
-            if moveF then vel = vel + fwd end
-            if moveB then vel = vel - fwd end
-            if moveL then vel = vel - right end
-            if moveR then vel = vel + right end
-            if moveU then vel = vel + up end
-            if moveD then vel = vel - up end
-            if vel.Magnitude > 0 then vel = vel.Unit end
-            local finalSpeed = currentSpeed * (speedBoost and 2 or 1)
-            bodyVelocity.Velocity = vel * finalSpeed
-            if vel.Magnitude > 0.1 then
-                bodyGyro.CFrame = CFrame.lookAt(root.Position, root.Position + vel)
-            end
+    -- ========== FUNÇÃO DE DOWNLOAD ==========
+    local function updateProgress(percent, text)
+        pcall(function()
+            progressBar:TweenSize(UDim2.new(percent / 100, 0, 1, 0), "Out", "Quad", 0.3, true)
+            progressText.Text = math.floor(percent) .. "% - " .. text
         end)
     end
 
-    function deactivateFly()
-        if bodyVelocity then bodyVelocity:Destroy() end
-        if bodyGyro then bodyGyro:Destroy() end
-        local char = LocalPlayer.Character
-        if char then
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then hum.PlatformStand = false end
+    -- ========== FUNÇÃO DE SERIALIZAÇÃO MANUAL ==========
+    local function serializeToRBXLX()
+        local objects = {}
+        local count = 0
+        local totalObjects = 0
+        
+        -- Conta objetos total
+        local function countObjects(parent)
+            totalObjects = totalObjects + 1
+            for _, child in ipairs(parent:GetChildren()) do
+                countObjects(child)
+            end
         end
-        bodyVelocity = nil
-        bodyGyro = nil
-        flyActive = false
-    end
+        countObjects(game)
 
-    function activateNoclip()
-        noclipActive = true
-        RunService.Stepped:Connect(function()
-            if noclipActive and LocalPlayer.Character then
-                for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
+        addLog("Total de objetos: " .. totalObjects, Color3.fromRGB(255, 255, 255))
+        
+        -- Serializa objeto para tabela
+        local function serializeObject(obj, depth)
+            if depth > 50 then return nil end  -- Limite de profundidade
+            
+            local objData = {
+                ClassName = obj.ClassName,
+                Name = obj.Name,
+                Properties = {},
+                Children = {}
+            }
+            
+            -- Propriedades comuns a serializar
+            local propertiesToSave = {
+                "Position", "Size", "Color", "Color3", "BackgroundColor3", "BorderColor3",
+                "Text", "TextColor3", "TextSize", "Font", "TextXAlignment", "TextYAlignment",
+                "Value", "Material", "BrickColor", "Transparency", "Reflectance", "CanCollide",
+                "Anchored", "Locked", "CFrame", "Orientation", "Rotation",
+                "MeshId", "TextureId", "SoundId", "Image", "ImageRectSize", "ImageRectOffset",
+                "Scale", "Offset", "Parent"
+            }
+            
+            for _, propName in ipairs(propertiesToSave) do
+                local success, value = pcall(function() return obj[propName] end)
+                if success and value ~= nil then
+                    if typeof(value) == "CFrame" then
+                        objData.Properties[propName] = {
+                            Type = "CFrame",
+                            X = value.X, Y = value.Y, Z = value.Z,
+                            R00 = value.R00, R01 = value.R01, R02 = value.R02,
+                            R10 = value.R10, R11 = value.R11, R12 = value.R12,
+                            R20 = value.R20, R21 = value.R21, R22 = value.R22
+                        }
+                    elseif typeof(value) == "Vector3" then
+                        objData.Properties[propName] = {Type = "Vector3", X = value.X, Y = value.Y, Z = value.Z}
+                    elseif typeof(value) == "Color3" then
+                        objData.Properties[propName] = {Type = "Color3", R = value.R, G = value.G, B = value.B}
+                    elseif typeof(value) == "UDim2" then
+                        objData.Properties[propName] = {Type = "UDim2", XS = value.X.Scale, XO = value.X.Offset, YS = value.Y.Scale, YO = value.Y.Offset}
+                    elseif typeof(value) == "number" or typeof(value) == "string" or typeof(value) == "boolean" then
+                        objData.Properties[propName] = {Type = typeof(value), Value = value}
                     end
                 end
             end
-        end)
-    end
-
-    function deactivateNoclip()
-        noclipActive = false
-        if LocalPlayer.Character then
-            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
+            
+            -- Serializa filhos
+            for _, child in ipairs(obj:GetChildren()) do
+                local childData = serializeObject(child, depth + 1)
+                if childData then
+                    table.insert(objData.Children, childData)
                 end
             end
+            
+            return objData
         end
-    end
 
-    function activateGodMode()
-        godModeActive = true
-        LocalPlayer.CharacterAdded:Connect(function(char)
-            if godModeActive then
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    hum.MaxHealth = math.huge
-                    hum.Health = math.huge
-                    hum.BreakJointsOnDeath = false
+        addLog("Serializando objetos...", Color3.fromRGB(255, 200, 100))
+        updateProgress(10, "Serializando objetos...")
+        
+        local rootData = serializeObject(game, 0)
+        
+        -- Converte para XML básico
+        local function tableToXML(tbl, indent)
+            indent = indent or ""
+            local xml = indent .. '<Item class="' .. tbl.ClassName .. '"'
+            
+            if tbl.Name ~= "" then
+                xml = xml .. ' referent="' .. tbl.Name .. '"'
+            end
+            
+            if next(tbl.Properties) then
+                xml = xml .. ">\n"
+                xml = xml .. indent .. "  <Properties>\n"
+                for propName, propValue in pairs(tbl.Properties) do
+                    xml = xml .. indent .. '    <' .. propName .. ' name="' .. propName .. '">'
+                    if propValue.Type == "CFrame" then
+                        xml = xml .. string.format("<CFrame>%.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f</CFrame>",
+                            propValue.X, propValue.Y, propValue.Z,
+                            propValue.R00, propValue.R01, propValue.R02,
+                            propValue.R10, propValue.R11, propValue.R12,
+                            propValue.R20, propValue.R21, propValue.R22)
+                    elseif propValue.Type == "Vector3" then
+                        xml = xml .. string.format("<Vector3>%.6f %.6f %.6f</Vector3>", propValue.X, propValue.Y, propValue.Z)
+                    elseif propValue.Type == "Color3" then
+                        xml = xml .. string.format("<Color3>%d %d %d</Color3>", math.floor(propValue.R), math.floor(propValue.G), math.floor(propValue.B))
+                    elseif propValue.Type == "number" then
+                        xml = xml .. "<double>" .. propValue.Value .. "</double>"
+                    elseif propValue.Type == "string" then
+                        xml = xml .. "<string>" .. propValue.Value .. "</string>"
+                    elseif propValue.Type == "boolean" then
+                        xml = xml .. "<bool>" .. tostring(propValue.Value) .. "</bool>"
+                    end
+                    xml = xml .. "</" .. propName .. ">\n"
                 end
+                xml = xml .. indent .. "  </Properties>\n"
             end
-        end)
-        if LocalPlayer.Character then
-            local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum.MaxHealth = math.huge
-                hum.Health = math.huge
-                hum.BreakJointsOnDeath = false
+            
+            if #tbl.Children > 0 then
+                for _, child in ipairs(tbl.Children) do
+                    xml = xml .. tableToXML(child, indent .. "  ")
+                end
+                xml = xml .. indent .. "</Item>\n"
+            else
+                xml = xml .. "/>\n"
             end
+            
+            return xml
         end
+
+        updateProgress(50, "Gerando arquivo XML...")
+        addLog("Gerando XML...", Color3.fromRGB(255, 200, 100))
+        
+        local xmlContent = '<?xml version="1.0" encoding="utf-8"?>\n<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">\n'
+        xmlContent = xmlContent .. tableToXML(rootData, "  ")
+        xmlContent = xmlContent .. "</roblox>"
+
+        return xmlContent
     end
 
-    function deactivateGodMode()
-        godModeActive = false
-        if LocalPlayer.Character then
-            local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum.MaxHealth = 100
-                hum.Health = 100
+    -- ========== FUNÇÃO DE DOWNLOAD PRINCIPAL ==========
+    local function performDownload()
+        updateProgress(0, "Iniciando download...")
+        addLog("🚀 Iniciando download do jogo...", Color3.fromRGB(100, 255, 100))
+        
+        -- MÉTODO 1: saveinstance (mais confiável)
+        if hasSaveInstance() then
+            addLog("✅ Método saveinstance detectado!", Color3.fromRGB(100, 255, 100))
+            updateProgress(20, "Salvando instância...")
+            
+            local success, err = pcall(function()
+                saveinstance({
+                    filename = "game_" .. game.PlaceId .. "_" .. os.time(),
+                    mode = "optimized",
+                    savegame = true,
+                    noscripts = false,
+                    scriptcache = false,
+                    timeout = 30,
+                    callback = function(progress)
+                        updateProgress(20 + (progress * 0.7), "Salvando: " .. math.floor(progress) .. "%")
+                    end
+                })
+            end)
+            
+            if success then
+                updateProgress(100, "Download concluído!")
+                addLog("✅ Jogo salvo com sucesso via saveinstance!", Color3.fromRGB(100, 255, 100))
+                addLog("📁 Arquivo salvo na pasta workspace do executor", Color3.fromRGB(200, 200, 200))
+                return
+            else
+                addLog("⚠️ saveinstance falhou: " .. tostring(err), Color3.fromRGB(255, 150, 50))
             end
-        end
-    end
-
-    function activateESP()
-        espActive = true
-        local boxes = {}
-        local function createBox(player)
-            if boxes[player] then return end
-            local box = Instance.new("BoxHandleAdornment")
-            box.Name = "ESPBox_" .. player.Name
-            box.Size = Vector3.new(3, 5, 2)
-            box.Color3 = Color3.fromRGB(255, 0, 0)
-            box.AlwaysOnTop = true
-            box.ZIndex = 10
-            box.Adornee = player.Character
-            box.Parent = player.Character
-            boxes[player] = box
         end
         
-        local function updateESP()
-            if not espActive then return end
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    if not boxes[player] then createBox(player) end
-                    if boxes[player] then
-                        boxes[player].Adornee = player.Character
-                        boxes[player].Color3 = player.TeamColor and player.TeamColor.Color or Color3.fromRGB(255, 0, 0)
-                    end
-                end
+        -- MÉTODO 2: saveplace (salva arquivo .rbxl)
+        if hasSavePlace() then
+            addLog("🔄 Tentando saveplace...", Color3.fromRGB(255, 200, 100))
+            updateProgress(20, "Salvando place...")
+            
+            local success, err = pcall(function()
+                saveplace()
+            end)
+            
+            if success then
+                updateProgress(100, "Download concluído!")
+                addLog("✅ Jogo salvo com sucesso via saveplace!", Color3.fromRGB(100, 255, 100))
+                return
+            else
+                addLog("⚠️ saveplace falhou: " .. tostring(err), Color3.fromRGB(255, 150, 50))
             end
         end
         
-        Players.PlayerAdded:Connect(createBox)
-        RunService.RenderStepped:Connect(updateESP)
-        updateESP()
-    end
-
-    function deactivateESP()
-        espActive = false
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player.Character then
-                local box = player.Character:FindFirstChild("ESPBox_" .. player.Name)
-                if box then box:Destroy() end
-            end
-        end
-    end
-
-    function activateInfiniteJump()
-        infiniteJumpActive = true
-        local UIS = UserInputService
-        UIS.JumpRequest:Connect(function()
-            if infiniteJumpActive and LocalPlayer.Character then
-                local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-                if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
-            end
-        end)
-    end
-
-    function deactivateInfiniteJump()
-        infiniteJumpActive = false
-    end
-
-    function activateSpeed()
-        speedActive = true
-        if LocalPlayer.Character then
-            local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if hum then
-                originalWalkSpeed = hum.WalkSpeed
-                hum.WalkSpeed = originalWalkSpeed * 2
-            end
-        end
-        LocalPlayer.CharacterAdded:Connect(function(char)
-            if speedActive then
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    originalWalkSpeed = hum.WalkSpeed
-                    hum.WalkSpeed = originalWalkSpeed * 2
-                end
-            end
-        end)
-    end
-
-    function deactivateSpeed()
-        speedActive = false
-        if LocalPlayer.Character then
-            local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if hum then
-                hum.WalkSpeed = originalWalkSpeed
-            end
-        end
-    end
-
-    function stopHeadSit()
-        if currentWeld then currentWeld:Destroy() end
-        currentWeld = nil
-        local char = LocalPlayer.Character
-        if char then
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then hum.PlatformStand = false end
-        end
-        headSitActive = false
-    end
-
-    -- Atualizar lista de jogadores
-    local playerButtons = {}
-    local function updatePlayerList()
-        for _, btn in pairs(playerButtons) do
-            if btn and btn.Parent then btn:Destroy() end
-        end
-        playerButtons = {}
-        local players = Players:GetPlayers()
-        local totalH = 0
-        for _, plr in ipairs(players) do
-            if plr ~= LocalPlayer then
-                local btn = Instance.new("TextButton")
-                btn.Size = UDim2.new(1, -10, 0, 38)
-                btn.BackgroundColor3 = (selectedPlayer == plr) and Color3.fromRGB(70, 90, 140) or Color3.fromRGB(25, 28, 38)
-                btn.Text = "👤 " .. plr.Name
-                btn.TextColor3 = (selectedPlayer == plr) and Color3.fromRGB(255, 200, 100) or Color3.fromRGB(220, 220, 240)
-                btn.Font = Enum.Font.Gotham
-                btn.TextSize = 12
-                btn.TextXAlignment = Enum.TextXAlignment.Left
-                btn.Parent = playerListFrame
-                local btnCorner = Instance.new("UICorner")
-                btnCorner.CornerRadius = UDim.new(0, 8)
-                btnCorner.Parent = btn
-                btn.MouseButton1Click:Connect(function()
-                    selectedPlayer = plr
-                    targetLabel.Text = "🎯 ALVO: " .. plr.Name .. " - Selecionado!"
-                    targetLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-                    statusLabel.Text = "✅ Alvo selecionado: " .. plr.Name
-                    for _, b in pairs(playerButtons) do
-                        if b then
-                            b.BackgroundColor3 = Color3.fromRGB(25, 28, 38)
-                            b.TextColor3 = Color3.fromRGB(220, 220, 240)
-                        end
-                    end
-                    btn.BackgroundColor3 = Color3.fromRGB(70, 90, 140)
-                    btn.TextColor3 = Color3.fromRGB(255, 200, 100)
-                    task.wait(2)
-                    targetLabel.Text = "🎯 ALVO: " .. plr.Name
-                    targetLabel.TextColor3 = Color3.fromRGB(255, 150, 100)
+        -- MÉTODO 3: Serialização manual + writefile
+        if hasWriteFile() then
+            addLog("🔄 Usando método de serialização manual...", Color3.fromRGB(255, 200, 100))
+            updateProgress(20, "Serializando objetos...")
+            
+            local success, content = pcall(serializeToRBXLX)
+            
+            if success and content then
+                updateProgress(80, "Escrevendo arquivo...")
+                addLog("📝 Escrevendo arquivo .rbxlx...", Color3.fromRGB(200, 200, 255))
+                
+                local fileName = "game_" .. game.PlaceId .. "_" .. os.date("%Y%m%d_%H%M%S") .. ".rbxlx"
+                local writeSuccess = pcall(function()
+                    writefile(fileName, content)
                 end)
-                playerButtons[plr] = btn
-                totalH = totalH + 42
+                
+                if writeSuccess then
+                    updateProgress(100, "Download concluído!")
+                    addLog("✅ Jogo salvo como: " .. fileName, Color3.fromRGB(100, 255, 100))
+                    addLog("📁 Arquivo salvo na pasta workspace", Color3.fromRGB(200, 200, 200))
+                else
+                    addLog("❌ Erro ao escrever arquivo", Color3.fromRGB(255, 100, 100))
+                end
+            else
+                addLog("❌ Serialização falhou", Color3.fromRGB(255, 100, 100))
             end
+            return
         end
-        playerListFrame.CanvasSize = UDim2.new(0, 0, 0, totalH + 10)
-        if totalH == 0 then
-            local empty = Instance.new("TextLabel")
-            empty.Size = UDim2.new(1, -10, 0, 40)
-            empty.BackgroundTransparency = 1
-            empty.Text = "🎮 Nenhum outro jogador online"
-            empty.TextColor3 = Color3.fromRGB(150, 150, 180)
-            empty.Font = Enum.Font.Gotham
-            empty.TextSize = 12
-            empty.Parent = playerListFrame
-            playerButtons["empty"] = empty
-            playerListFrame.CanvasSize = UDim2.new(0, 0, 0, 50)
-        end
+        
+        -- MÉTODO 4: Aviso final
+        updateProgress(0, "Métodos não disponíveis")
+        addLog("❌ Nenhum método de download disponível neste executor", Color3.fromRGB(255, 100, 100))
+        addLog("💡 Tente usar Synapse X, KRNL ou Script-Ware", Color3.fromRGB(255, 255, 100))
     end
 
-    updatePlayerList()
-    task.spawn(function()
-        while screenGui and screenGui.Parent do
-            task.wait(5)
-            updatePlayerList()
-        end
+    -- Conectar botão de download
+    downloadBtn.MouseButton1Click:Connect(function()
+        downloadBtn.Text = "⏳ Baixando..."
+        downloadBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+        downloadBtn.Active = false
+        
+        -- Inicia download em uma corrotina
+        task.spawn(function()
+            performDownload()
+            wait(2)
+            downloadBtn.Text = "📥 BAIXAR JOGO COMPLETO (.rbxlx)"
+            downloadBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+            downloadBtn.Active = true
+        end)
     end)
+
+    -- Auto-save ao entrar (se ativado)
+    if autoSaveEnabled then
+        task.spawn(function()
+            wait(3)  -- Aguarda o jogo carregar
+            performDownload()
+        end)
+    end
+
+    addLog("✅ Interface carregada com sucesso!", Color3.fromRGB(100, 255, 100))
+    addLog("🎯 Jogo: " .. (pcall(function() return MarketplaceService:GetProductInfo(game.PlaceId).Name end) and MarketplaceService:GetProductInfo(game.PlaceId).Name or "Desconhecido"), Color3.fromRGB(200, 200, 200))
+    addLog("⚡ Executor: " .. getExecutorName(), Color3.fromRGB(200, 200, 200))
+    
+    if hasSaveInstance() then
+        addLog("✅ saveinstance DISPONÍVEL", Color3.fromRGB(100, 255, 100))
+    end
+    if hasSavePlace() then
+        addLog("✅ saveplace DISPONÍVEL", Color3.fromRGB(100, 255, 100))
+    end
+    if hasWriteFile() then
+        addLog("✅ writefile DISPONÍVEL", Color3.fromRGB(100, 255, 100))
+    end
+
+    -- Centraliza a interface
+    mainFrame.Position = UDim2.new(0.5, -250, 0.5, -210)
 end
 
--- Inicialização garantida
-if LocalPlayer.Character then
-    CreateGUI()
-else
-    LocalPlayer.CharacterAdded:Wait()
-    CreateGUI()
-end
+-- ============================================
+-- ATALHO DE TECLADO
+-- ============================================
+local UserInputService = game:GetService("UserInputService")
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.F3 then
+        createInterface()
+    end
+end)
 
-print("═══════════════════════════════════════════════════════════")
-print("  🐟 FISCH ULTRA FUNBOX - 23 FUNÇÕES CARREGADAS")
-print("════════════════════════
+-- ============================================
+-- COMANDO DE CHAT
+-- ============================================
+LocalPlayer.Chatted:Connect(function(message)
+    if message:lower() == "/download" or message:lower() == "/dl" then
+        createInterface()
+    end
+end)
+
+-- ============================================
+-- INICIALIZAÇÃO
+-- ============================================
+print("=========================================")
+print(" ROBLOX GAME DOWNLOADER CARREGADO")
+print(" Pressione F3 ou digite /download")
+print("=========================================")
+
+-- Notificação inicial
+if game:GetService("StarterGui"):FindFirstChild("SetCore") then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Game Downloader",
+        Text = "Pressione F3 para abrir o downloader",
+        Duration = 5
+    })
+end
