@@ -1,8 +1,9 @@
 --[[
-    ╔══════════════════════════════════════════════════════════╗
-    ║   ROBLOX GAME DOWNLOADER – SALVAMENTO DIRETO NO PC    ║
-    ║          via servidor Python local                     ║
-    ╚══════════════════════════════════════════════════════════╝
+    ╔══════════════════════════════════════════════════════════════╗
+    ║     ROBLOX GAME DOWNLOADER – SALVAMENTO DIRETO NO PC      ║
+    ║   Arquivo salvo em:                                       ║
+    ║   C:\Users\Administrator\AppData\Local\Temp\...\workspace ║
+    ╚══════════════════════════════════════════════════════════════╝
 ]]
 
 -- ============================================
@@ -18,11 +19,11 @@ local UserInputService = game:GetService("UserInputService")
 -- ============================================
 -- CONFIGURAÇÃO
 -- ============================================
-local SERVER_URL = "http://localhost:9999/receive"  -- Servidor Python
+local SERVER_URL = "http://localhost:9999/receive"
 local PLACE_ID = game.PlaceId
 
 -- ============================================
--- DETECÇÃO DE EXECUTOR
+-- DETECÇÃO DO EXECUTOR
 -- ============================================
 local function getExecutorName()
     local ok, name = pcall(function() return identifyexecutor() end)
@@ -37,8 +38,12 @@ local function getExecutorName()
     return "Desconhecido"
 end
 
-local function hasHttpRequest()
+local function hasHttp()
     return (syn and syn.request) or request or http_request or pcall(function() game:HttpGetAsync("http://localhost:9999") end)
+end
+
+local function hasSaveInstance()
+    return saveinstance ~= nil
 end
 
 -- ============================================
@@ -46,23 +51,23 @@ end
 -- ============================================
 local function removeOldUI()
     for _, obj in ipairs(CoreGui:GetChildren()) do
-        if obj.Name == "RobloxDownloaderUI" then obj:Destroy() end
+        if obj.Name == "GameDownloaderUI" then obj:Destroy() end
     end
-    if _G.RobloxDownloaderUI then
-        pcall(function() _G.RobloxDownloaderUI:Destroy() end)
-        _G.RobloxDownloaderUI = nil
+    if _G.GameDownloaderUI then
+        pcall(function() _G.GameDownloaderUI:Destroy() end)
+        _G.GameDownloaderUI = nil
     end
 end
 removeOldUI()
 
 -- ============================================
--- INTERFACE GRÁFICA (MELHORADA)
+-- INTERFACE GRÁFICA PREMIUM
 -- ============================================
-local function createInterface()
+local function createUI()
     removeOldUI()
 
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "RobloxDownloaderUI"
+    screenGui.Name = "GameDownloaderUI"
     screenGui.ResetOnSpawn = false
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.DisplayOrder = 9999
@@ -70,43 +75,52 @@ local function createInterface()
     pcall(function() if syn and syn.protect_gui then syn.protect_gui(screenGui) end end)
     pcall(function() if gethui then screenGui.Parent = gethui() end end)
 
-    _G.RobloxDownloaderUI = screenGui
+    _G.GameDownloaderUI = screenGui
 
-    -- ========== PAINEL PRINCIPAL ==========
-    local main = Instance.new("Frame")
-    main.Size = UDim2.new(0, 500, 0, 480)
-    main.Position = UDim2.new(0.5, -250, 0.5, -240)
-    main.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
-    main.BorderSizePixel = 0
-    main.Active = true
-    main.Draggable = true
-    main.Parent = screenGui
+    -- ========== FUNDO COM GRADIENTE ==========
+    local bg = Instance.new("Frame")
+    bg.Size = UDim2.new(0, 520, 0, 460)
+    bg.Position = UDim2.new(0.5, -260, 0.5, -230)
+    bg.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+    bg.BorderSizePixel = 0
+    bg.Active = true
+    bg.Draggable = true
+    bg.Parent = screenGui
 
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 14)
-    corner.Parent = main
+    corner.CornerRadius = UDim.new(0, 16)
+    corner.Parent = bg
 
     local stroke = Instance.new("UIStroke")
     stroke.Thickness = 1
-    stroke.Color = Color3.fromRGB(50, 50, 55)
-    stroke.Parent = main
+    stroke.Color = Color3.fromRGB(40, 40, 50)
+    stroke.Parent = bg
+
+    -- Gradiente decorativo
+    local gradient = Instance.new("ImageLabel")
+    gradient.Size = UDim2.new(1, 0, 0, 4)
+    gradient.Position = UDim2.new(0, 0, 0, 0)
+    gradient.BackgroundTransparency = 1
+    gradient.Image = "rbxassetid://9968344105"
+    gradient.ImageColor3 = Color3.fromRGB(239, 68, 68)
+    gradient.ScaleType = Enum.ScaleType.Fit
+    gradient.Parent = bg
 
     -- ========== TOP BAR ==========
     local top = Instance.new("Frame")
     top.Size = UDim2.new(1, 0, 0, 48)
-    top.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+    top.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
     top.BorderSizePixel = 0
-    top.Parent = main
-
+    top.Parent = bg
     local topCorner = Instance.new("UICorner")
-    topCorner.CornerRadius = UDim.new(0, 14)
+    topCorner.CornerRadius = UDim.new(0, 16)
     topCorner.Parent = top
 
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -90, 1, 0)
+    title.Size = UDim2.new(1, -80, 1, 0)
     title.Position = UDim2.new(0, 16, 0, 0)
     title.BackgroundTransparency = 1
-    title.Text = "🎮 GAME DOWNLOADER"
+    title.Text = "🎮 GAME DOWNLOADER PRO"
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
     title.TextSize = 16
     title.Font = Enum.Font.GothamBold
@@ -126,9 +140,9 @@ local function createInterface()
     local closeCorner = Instance.new("UICorner")
     closeCorner.CornerRadius = UDim.new(0, 8)
     closeCorner.Parent = closeBtn
-    closeBtn.MouseButton1Click:Connect(function() screenGui:Destroy() _G.RobloxDownloaderUI = nil end)
+    closeBtn.MouseButton1Click:Connect(function() screenGui:Destroy() _G.GameDownloaderUI = nil end)
 
-    -- ========== CONTEÚDO COM SCROLL ==========
+    -- ========== CONTEÚDO ==========
     local scroll = Instance.new("ScrollingFrame")
     scroll.Size = UDim2.new(1, -16, 1, -64)
     scroll.Position = UDim2.new(0, 8, 0, 56)
@@ -137,26 +151,26 @@ local function createInterface()
     scroll.ScrollBarThickness = 4
     scroll.ScrollBarImageColor3 = Color3.fromRGB(239, 68, 68)
     scroll.CanvasSize = UDim2.new(0, 0, 0, 420)
-    scroll.Parent = main
+    scroll.Parent = bg
 
     local listLayout = Instance.new("UIListLayout")
     listLayout.Padding = UDim.new(0, 10)
     listLayout.Parent = scroll
 
-    -- ====== CARD: INFO ======
-    local cardInfo = Instance.new("Frame")
-    cardInfo.Size = UDim2.new(1, 0, 0, 80)
-    cardInfo.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
-    cardInfo.BorderSizePixel = 0
-    cardInfo.Parent = scroll
-    local c1 = Instance.new("UICorner"); c1.CornerRadius = UDim.new(0, 10); c1.Parent = cardInfo
+    -- ========== CARD DE INFORMAÇÕES ==========
+    local info = Instance.new("Frame")
+    info.Size = UDim2.new(1, 0, 0, 85)
+    info.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+    info.BorderSizePixel = 0
+    info.Parent = scroll
+    local infoCorner = Instance.new("UICorner"); infoCorner.CornerRadius = UDim.new(0, 10); infoCorner.Parent = info
 
-    local gameName = "Carregando..."
+    local gameName = "Desconhecido"
     pcall(function() gameName = MarketplaceService:GetProductInfo(PLACE_ID).Name end)
 
     local lblName = Instance.new("TextLabel")
     lblName.Size = UDim2.new(1, -20, 0, 24)
-    lblName.Position = UDim2.new(0, 10, 0, 6)
+    lblName.Position = UDim2.new(0, 10, 0, 8)
     lblName.BackgroundTransparency = 1
     lblName.Text = "🎯 " .. gameName
     lblName.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -164,94 +178,95 @@ local function createInterface()
     lblName.Font = Enum.Font.GothamBold
     lblName.TextXAlignment = Enum.TextXAlignment.Left
     lblName.TextTruncate = Enum.TextTruncate.AtEnd
-    lblName.Parent = cardInfo
+    lblName.Parent = info
 
-    local lblInfo = Instance.new("TextLabel")
-    lblInfo.Size = UDim2.new(1, -20, 0, 20)
-    lblInfo.Position = UDim2.new(0, 10, 0, 32)
-    lblInfo.BackgroundTransparency = 1
-    lblInfo.Text = "📍 Place ID: " .. PLACE_ID .. " | Executor: " .. getExecutorName()
-    lblInfo.TextColor3 = Color3.fromRGB(160, 160, 170)
-    lblInfo.TextSize = 11
-    lblInfo.Font = Enum.Font.Gotham
-    lblInfo.TextXAlignment = Enum.TextXAlignment.Left
-    lblInfo.Parent = cardInfo
+    local lblID = Instance.new("TextLabel")
+    lblID.Size = UDim2.new(1, -20, 0, 20)
+    lblID.Position = UDim2.new(0, 10, 0, 33)
+    lblID.BackgroundTransparency = 1
+    lblID.Text = "📍 Place ID: " .. PLACE_ID
+    lblID.TextColor3 = Color3.fromRGB(160, 160, 170)
+    lblID.TextSize = 11
+    lblID.Font = Enum.Font.Gotham
+    lblID.TextXAlignment = Enum.TextXAlignment.Left
+    lblID.Parent = info
 
-    local lblServer = Instance.new("TextLabel")
-    lblServer.Size = UDim2.new(1, -20, 0, 20)
-    lblServer.Position = UDim2.new(0, 10, 0, 54)
-    lblServer.BackgroundTransparency = 1
-    lblServer.Text = "🌐 Servidor: " .. (hasHttpRequest() and "ONLINE" or "OFFLINE")
-    lblServer.TextColor3 = hasHttpRequest() and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
-    lblServer.TextSize = 11
-    lblServer.Font = Enum.Font.GothamSemibold
-    lblServer.TextXAlignment = Enum.TextXAlignment.Left
-    lblServer.Parent = cardInfo
+    local lblExec = Instance.new("TextLabel")
+    lblExec.Size = UDim2.new(1, -20, 0, 20)
+    lblExec.Position = UDim2.new(0, 10, 0, 55)
+    lblExec.BackgroundTransparency = 1
+    lblExec.Text = "⚡ Executor: " .. getExecutorName()
+    lblExec.TextColor3 = Color3.fromRGB(239, 68, 68)
+    lblExec.TextSize = 11
+    lblExec.Font = Enum.Font.GothamSemibold
+    lblExec.TextXAlignment = Enum.TextXAlignment.Left
+    lblExec.Parent = info
 
-    -- ====== CARD: PROGRESSO ======
-    local cardProg = Instance.new("Frame")
-    cardProg.Size = UDim2.new(1, 0, 0, 50)
-    cardProg.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
-    cardProg.BorderSizePixel = 0
-    cardProg.Parent = scroll
-    local c2 = Instance.new("UICorner"); c2.CornerRadius = UDim.new(0, 10); c2.Parent = cardProg
+    -- ========== BOTÃO PRINCIPAL (SERVIDOR) ==========
+    local btnServer = Instance.new("TextButton")
+    btnServer.Size = UDim2.new(1, 0, 0, 50)
+    btnServer.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+    btnServer.Text = "📥 BAIXAR E SALVAR NO PC (VIA SERVIDOR)"
+    btnServer.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnServer.TextSize = 13
+    btnServer.Font = Enum.Font.GothamBold
+    btnServer.BorderSizePixel = 0
+    btnServer.Parent = scroll
+    local btnSCorner = Instance.new("UICorner"); btnSCorner.CornerRadius = UDim.new(0, 10); btnSCorner.Parent = btnServer
+
+    -- ========== BOTÃO LOCAL (FALLBACK) ==========
+    local btnLocal = Instance.new("TextButton")
+    btnLocal.Size = UDim2.new(1, 0, 0, 40)
+    btnLocal.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+    btnLocal.Text = "💾 SALVAR NA PASTA DO EXECUTOR (saveinstance)"
+    btnLocal.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btnLocal.TextSize = 12
+    btnLocal.Font = Enum.Font.Gotham
+    btnLocal.BorderSizePixel = 0
+    btnLocal.Parent = scroll
+    local btnLCorner = Instance.new("UICorner"); btnLCorner.CornerRadius = UDim.new(0, 10); btnLCorner.Parent = btnLocal
+
+    -- ========== BARRA DE PROGRESSO ==========
+    local progressCard = Instance.new("Frame")
+    progressCard.Size = UDim2.new(1, 0, 0, 45)
+    progressCard.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+    progressCard.BorderSizePixel = 0
+    progressCard.Parent = scroll
+    local progCorner = Instance.new("UICorner"); progCorner.CornerRadius = UDim.new(0, 10); progCorner.Parent = progressCard
 
     local barBg = Instance.new("Frame")
-    barBg.Size = UDim2.new(1, -20, 0, 12)
-    barBg.Position = UDim2.new(0, 10, 0, 10)
+    barBg.Size = UDim2.new(1, -20, 0, 10)
+    barBg.Position = UDim2.new(0, 10, 0, 8)
     barBg.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
     barBg.BorderSizePixel = 0
-    barBg.Parent = cardProg
-    local bbgCorner = Instance.new("UICorner"); bbgCorner.CornerRadius = UDim.new(0, 6); bbgCorner.Parent = barBg
+    barBg.Parent = progressCard
+    local bbgCorner = Instance.new("UICorner"); bbgCorner.CornerRadius = UDim.new(0, 5); bbgCorner.Parent = barBg
 
     local barFill = Instance.new("Frame")
     barFill.Size = UDim2.new(0, 0, 1, 0)
     barFill.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
     barFill.BorderSizePixel = 0
     barFill.Parent = barBg
-    local bfCorner = Instance.new("UICorner"); bfCorner.CornerRadius = UDim.new(0, 6); bfCorner.Parent = barFill
+    local bfCorner = Instance.new("UICorner"); bfCorner.CornerRadius = UDim.new(0, 5); bfCorner.Parent = barFill
 
     local progText = Instance.new("TextLabel")
-    progText.Size = UDim2.new(1, -20, 0, 22)
-    progText.Position = UDim2.new(0, 10, 0, 26)
+    progText.Size = UDim2.new(1, -20, 0, 20)
+    progText.Position = UDim2.new(0, 10, 0, 22)
     progText.BackgroundTransparency = 1
-    progText.Text = "Pronto. Configure o servidor Python."
+    progText.Text = "Aguardando ação..."
     progText.TextColor3 = Color3.fromRGB(200, 200, 200)
     progText.TextSize = 11
     progText.Font = Enum.Font.Gotham
     progText.TextXAlignment = Enum.TextXAlignment.Left
-    progText.Parent = cardProg
+    progText.Parent = progressCard
 
-    -- ====== BOTÕES ======
-    local btnDownload = Instance.new("TextButton")
-    btnDownload.Size = UDim2.new(1, 0, 0, 50)
-    btnDownload.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
-    btnDownload.Text = "📥 BAIXAR VIA SERVIDOR (salva no PC)"
-    btnDownload.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btnDownload.TextSize = 14
-    btnDownload.Font = Enum.Font.GothamBold
-    btnDownload.BorderSizePixel = 0
-    btnDownload.Parent = scroll
-    local c3 = Instance.new("UICorner"); c3.CornerRadius = UDim.new(0, 10); c3.Parent = btnDownload
-
-    local btnLocal = Instance.new("TextButton")
-    btnLocal.Size = UDim2.new(1, 0, 0, 38)
-    btnLocal.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
-    btnLocal.Text = "💾 Salvar na pasta do executor (modo clássico)"
-    btnLocal.TextColor3 = Color3.fromRGB(200, 200, 200)
-    btnLocal.TextSize = 12
-    btnLocal.Font = Enum.Font.Gotham
-    btnLocal.BorderSizePixel = 0
-    btnLocal.Parent = scroll
-    local c4 = Instance.new("UICorner"); c4.CornerRadius = UDim.new(0, 10); c4.Parent = btnLocal
-
-    -- ====== CARD: LOGS ======
-    local cardLog = Instance.new("Frame")
-    cardLog.Size = UDim2.new(1, 0, 0, 160)
-    cardLog.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
-    cardLog.BorderSizePixel = 0
-    cardLog.Parent = scroll
-    local c5 = Instance.new("UICorner"); c5.CornerRadius = UDim.new(0, 10); c5.Parent = cardLog
+    -- ========== LOGS ==========
+    local logCard = Instance.new("Frame")
+    logCard.Size = UDim2.new(1, 0, 0, 150)
+    logCard.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+    logCard.BorderSizePixel = 0
+    logCard.Parent = scroll
+    local logCorner = Instance.new("UICorner"); logCorner.CornerRadius = UDim.new(0, 10); logCorner.Parent = logCard
 
     local logScroll = Instance.new("ScrollingFrame")
     logScroll.Size = UDim2.new(1, -16, 1, -16)
@@ -261,12 +276,12 @@ local function createInterface()
     logScroll.ScrollBarThickness = 3
     logScroll.ScrollBarImageColor3 = Color3.fromRGB(239, 68, 68)
     logScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    logScroll.Parent = cardLog
+    logScroll.Parent = logCard
     local logList = Instance.new("UIListLayout")
     logList.Padding = UDim.new(0, 4)
     logList.Parent = logScroll
 
-    -- ========== FUNÇÕES AUXILIARES ==========
+    -- ========== FUNÇÕES ==========
     local logCount = 0
     local function addLog(msg, color)
         logCount = logCount + 1
@@ -288,13 +303,14 @@ local function createInterface()
         progText.Text = math.floor(percent) .. "% - " .. (text or "")
     end
 
-    -- ========== SERIALIZAÇÃO PARA XML ==========
-    local function serializeToRBXLX()
+    -- Serialização manual para .rbxlx
+    local function serializeGame()
         local function serializeObj(obj, depth)
             if depth > 150 then return nil end
             local ok, data = pcall(function()
                 local o = {ClassName = obj.ClassName, Name = obj.Name, Properties = {}, Children = {}}
-                local props = {"Position","Size","CFrame","Color","BackgroundColor3","Text","TextColor3","Value","Material","CanCollide","Anchored","Transparency","MeshId","TextureId","Image"}
+                local props = {"Position","Size","CFrame","Color","BackgroundColor3","Text","TextColor3",
+                               "Value","Material","CanCollide","Anchored","Transparency","MeshId","TextureId","Image"}
                 for _,p in ipairs(props) do
                     local s,v = pcall(function() return obj[p] end)
                     if s and v ~= nil then o.Properties[p] = tostring(v) end
@@ -325,151 +341,134 @@ local function createInterface()
             return xml
         end
 
-        updateProgress(10, "Serializando objetos...")
-        addLog("🔍 Serializando estrutura do jogo...")
+        updateProgress(10, "Serializando...")
+        addLog("🔍 Lendo estrutura do jogo...")
         local root = serializeObj(game, 0)
         if not root then
             addLog("❌ Falha ao serializar", Color3.fromRGB(255,100,100))
             return nil
         end
-
-        updateProgress(50, "Gerando XML...")
-        addLog("📝 Gerando arquivo .rbxlx...")
+        updateProgress(40, "Gerando XML...")
+        addLog("📝 Construindo arquivo .rbxlx...")
         local xml = '<?xml version="1.0" encoding="utf-8"?>\n<roblox version="4">\n'
         xml = xml .. toXML(root, "  ") .. '</roblox>'
-        updateProgress(80, "XML pronto")
+        updateProgress(70, "XML pronto")
         return xml
     end
 
-    -- ========== ENVIO PARA SERVIDOR PYTHON ==========
+    -- Envio HTTP
     local function sendToServer(filename, content)
-        if not hasHttpRequest() then
-            addLog("❌ HTTP Request não disponível neste executor!", Color3.fromRGB(255,100,100))
+        if not hasHttp() then
+            addLog("❌ HTTP indisponível", Color3.fromRGB(255,100,100))
             return false
         end
-        local payload = HttpService:JSONEncode({
-            filename = filename,
-            content = content
-        })
-        local success, err = pcall(function()
-            local resp = (syn and syn.request) and syn.request({
-                Url = SERVER_URL,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = payload
-            }) or request({
+        local payload = HttpService:JSONEncode({filename = filename, content = content})
+        local success, resp = pcall(function()
+            local req = (syn and syn.request) or request
+            return req({
                 Url = SERVER_URL,
                 Method = "POST",
                 Headers = {["Content-Type"] = "application/json"},
                 Body = payload
             })
-            return resp
         end)
-        if success and err and err.StatusCode == 200 then
+        if success and resp and resp.StatusCode == 200 then
             return true
         else
-            addLog("❌ Servidor offline ou recusou a conexão", Color3.fromRGB(255,100,100))
+            addLog("❌ Servidor não respondeu", Color3.fromRGB(255,100,100))
             return false
         end
     end
 
-    -- ========== AÇÃO DE DOWNLOAD ==========
-    local function performServerDownload()
-        btnDownload.Text = "⏳ Processando..."
-        btnDownload.BackgroundColor3 = Color3.fromRGB(100,100,100)
-        btnDownload.Active = false
+    -- ========== AÇÕES ==========
+    local function downloadViaServer()
+        btnServer.Text = "⏳ Enviando para o servidor..."
+        btnServer.BackgroundColor3 = Color3.fromRGB(100,100,100)
+        btnServer.Active = false
 
-        local xmlContent = serializeToRBXLX()
-        if not xmlContent then
-            updateProgress(0, "Falha na serialização")
-            btnDownload.Text = "📥 BAIXAR VIA SERVIDOR"
-            btnDownload.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
-            btnDownload.Active = true
+        local xml = serializeGame()
+        if not xml then
+            updateProgress(0, "Erro")
+            btnServer.Text = "📥 BAIXAR E SALVAR NO PC (VIA SERVIDOR)"
+            btnServer.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+            btnServer.Active = true
             return
         end
 
-        updateProgress(90, "Enviando ao servidor...")
-        addLog("📡 Enviando para " .. SERVER_URL .. " ...")
-        local filename = "game_" .. PLACE_ID .. "_" .. os.date("%Y%m%d_%H%M%S") .. ".rbxlx"
-        local ok = sendToServer(filename, xmlContent)
-        if ok then
-            updateProgress(100, "Arquivo salvo no PC!")
-            addLog("✅ Sucesso! Arquivo: " .. filename, Color3.fromRGB(100,255,100))
-            addLog("📁 Local: pasta do server.py")
+        updateProgress(85, "Enviando...")
+        addLog("📡 Conectando ao servidor Python...")
+        local fname = "game_" .. PLACE_ID .. "_" .. os.date("%Y%m%d_%H%M%S") .. ".rbxlx"
+        if sendToServer(fname, xml) then
+            updateProgress(100, "Salvo no PC!")
+            addLog("✅ Arquivo salvo em:", Color3.fromRGB(100,255,100))
+            addLog("📁 C:\\Users\\...\\workspace\\" .. fname)
         else
-            updateProgress(0, "Erro no envio")
-            addLog("❌ Verifique se o server.py está rodando", Color3.fromRGB(255,150,50))
+            updateProgress(0, "Falha")
         end
 
         wait(2)
-        btnDownload.Text = "📥 BAIXAR VIA SERVIDOR"
-        btnDownload.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
-        btnDownload.Active = true
+        btnServer.Text = "📥 BAIXAR E SALVAR NO PC (VIA SERVIDOR)"
+        btnServer.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+        btnServer.Active = true
     end
 
-    local function performLocalSave()
-        btnLocal.Text = "⏳ Salvando..."
+    local function downloadLocal()
+        btnLocal.Text = "⏳ Salvando localmente..."
         btnLocal.BackgroundColor3 = Color3.fromRGB(100,100,100)
         btnLocal.Active = false
 
-        if not (writefile and isfile) then
-            addLog("❌ writefile não disponível", Color3.fromRGB(255,100,100))
-            btnLocal.Text = "💾 Salvar na pasta do executor"
-            btnLocal.BackgroundColor3 = Color3.fromRGB(50,50,55)
-            btnLocal.Active = true
-            return
+        if hasSaveInstance() then
+            updateProgress(0, "Usando saveinstance...")
+            addLog("🔄 Executando saveinstance (pasta padrão do executor)...")
+            pcall(function()
+                saveinstance({filename = "game_" .. PLACE_ID .. "_" .. os.time()})
+            end)
+            updateProgress(100, "Concluído")
+            addLog("✅ saveinstance executado", Color3.fromRGB(100,255,100))
+            addLog("📁 Verifique a pasta workspace do executor")
+        else
+            addLog("❌ saveinstance não disponível", Color3.fromRGB(255,100,100))
         end
 
-        local xmlContent = serializeToRBXLX()
-        if xmlContent then
-            local fname = "game_" .. PLACE_ID .. "_" .. os.date("%Y%m%d_%H%M%S") .. ".rbxlx"
-            pcall(function() writefile(fname, xmlContent) end)
-            addLog("✅ Salvo localmente: " .. fname, Color3.fromRGB(100,255,100))
-            addLog("📁 Caminho: pasta do executor")
-        end
-
-        wait(1)
-        btnLocal.Text = "💾 Salvar na pasta do executor"
-        btnLocal.BackgroundColor3 = Color3.fromRGB(50,50,55)
+        wait(2)
+        btnLocal.Text = "💾 SALVAR NA PASTA DO EXECUTOR (saveinstance)"
+        btnLocal.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
         btnLocal.Active = true
     end
 
-    btnDownload.MouseButton1Click:Connect(performServerDownload)
-    btnLocal.MouseButton1Click:Connect(performLocalSave)
+    btnServer.MouseButton1Click:Connect(downloadViaServer)
+    btnLocal.MouseButton1Click:Connect(downloadLocal)
 
-    -- ========== LOGS INICIAIS ==========
-    addLog("✅ Interface pronta", Color3.fromRGB(100,255,100))
+    -- Logs iniciais
+    addLog("✅ Interface carregada", Color3.fromRGB(100,255,100))
     addLog("🎯 " .. gameName)
-    if hasHttpRequest() then
-        addLog("🌐 Servidor HTTP disponível")
-    else
-        addLog("⚠️ HTTP não disponível – use o modo local")
-    end
+    if hasHttp() then addLog("🌐 Servidor HTTP disponível") else addLog("⚠️ HTTP indisponível") end
+    addLog("Clique no botão para iniciar o download")
 end
 
 -- ============================================
--- ABRIR INTERFACE AUTOMATICAMENTE
+-- INICIALIZAÇÃO AUTOMÁTICA
 -- ============================================
 task.wait(0.5)
-createInterface()
+createUI()
 
--- Atalhos
+-- Atalhos (F3 e comando /download)
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.F3 then
         removeOldUI()
-        createInterface()
+        createUI()
     end
 end)
 
 LocalPlayer.Chatted:Connect(function(msg)
     if msg:lower() == "/download" or msg:lower() == "/dl" then
         removeOldUI()
-        createInterface()
+        createUI()
     end
 end)
 
 print("=========================================")
-print(" GAME DOWNLOADER CARREGADO")
-print(" Interface aberta – use F3 ou /download")
+print(" GAME DOWNLOADER PRONTO")
+print(" Interface aberta – F3 ou /download")
 print("=========================================")
