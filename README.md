@@ -1,84 +1,93 @@
 --[[
-    SCRIPT: FLY SYSTEM + INTERFACE PROFISSIONAL
-    FUNÇÃO: Ativar/desativar voo com WASD + Space + Ctrl
-    INTERFACE: GUI moderna com botão, barra de velocidade e indicador
+    SCRIPT: HEAD SIT SYSTEM - Complete Edition
+    FUNÇÃO: Listar jogadores online, selecionar alvo, sentar na cabeça do jogador
+    CONTROLES: Interface própria com lista de players e botões de ação
     EXECUTOR: Synapse X, Krnl, ScriptWare, Fluxus
 --]]
 
 -- ========== CONFIGURAÇÕES ==========
-local SPEED_NORMAL = 50        -- Velocidade base
-local SPEED_BOOST = 150        -- Velocidade ao segurar Shift
-local DEFAULT_SPEED = 80       -- Velocidade padrão personalizável
+local REFRESH_INTERVAL = 2        -- Atualiza a lista de players a cada 2 segundos
+local FOLLOW_DISTANCE = 2.5       -- Distância de follow (ajuste fino)
+local SIT_OFFSET = 2.5            -- Altura do assento em relação à cabeça
 
--- ========== CRIAÇÃO DA INTERFACE ==========
+-- ========== VARIÁVEIS GLOBAIS ==========
 local Player = game:GetService("Players").LocalPlayer
 local Mouse = Player:GetMouse()
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
--- Verificar se já existe GUI antiga
-local oldGui = Player.PlayerGui:FindFirstChild("FlySystemGUI")
+local targetPlayer = nil
+local headSitActive = false
+local currentSeatPart = nil
+local currentWeld = nil
+local currentHumanoid = nil
+local lastTargetPosition = nil
+
+-- ========== LIMPAR GUI ANTIGA ==========
+local oldGui = Player.PlayerGui:FindFirstChild("HeadSitGUI")
 if oldGui then oldGui:Destroy() end
 
--- Criar ScreenGui
+-- ========== CRIAÇÃO DA INTERFACE PRINCIPAL ==========
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "FlySystemGUI"
+screenGui.Name = "HeadSitGUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = Player:WaitForChild("PlayerGui")
 
 -- Frame principal
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 320, 0, 220)
-mainFrame.Position = UDim2.new(0.5, -160, 0.5, -110)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-mainFrame.BackgroundTransparency = 0.08
+mainFrame.Size = UDim2.new(0, 380, 0, 520)
+mainFrame.Position = UDim2.new(0.5, -190, 0.5, -260)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 22, 32)
+mainFrame.BackgroundTransparency = 0.05
 mainFrame.BorderSizePixel = 0
 mainFrame.ClipsDescendants = true
 mainFrame.Parent = screenGui
 
--- Arredondar bordas
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 16)
-corner.Parent = mainFrame
-
--- Sombra (opcional)
-local shadow = Instance.new("Frame")
-shadow.Size = UDim2.new(1, 0, 1, 0)
-shadow.Position = UDim2.new(0, 0, 0, 0)
-shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-shadow.BackgroundTransparency = 0.6
-shadow.BorderSizePixel = 0
-shadow.ZIndex = -1
-shadow.Parent = mainFrame
-local shadowCorner = Instance.new("UICorner")
-shadowCorner.CornerRadius = UDim.new(0, 16)
-shadowCorner.Parent = shadow
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 16)
+mainCorner.Parent = mainFrame
 
 -- Barra de título
 local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 45)
-titleBar.BackgroundColor3 = Color3.fromRGB(45, 55, 75)
+titleBar.Size = UDim2.new(1, 0, 0, 48)
+titleBar.BackgroundColor3 = Color3.fromRGB(35, 40, 55)
 titleBar.BorderSizePixel = 0
 titleBar.Parent = mainFrame
+
 local titleCorner = Instance.new("UICorner")
 titleCorner.CornerRadius = UDim.new(0, 16)
 titleCorner.Parent = titleBar
 
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -40, 1, 0)
-titleLabel.Position = UDim2.new(0, 15, 0, 0)
+titleLabel.Size = UDim2.new(1, -50, 1, 0)
+titleLabel.Position = UDim2.new(0, 18, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "🕊️ FLY SYSTEM PRO"
-titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Text = "👑 HEAD SIT SYSTEM"
+titleLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
 titleLabel.Font = Enum.Font.GothamBold
 titleLabel.TextSize = 16
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Parent = titleBar
 
+-- Botão minimizar
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 32, 0, 32)
+minimizeBtn.Position = UDim2.new(1, -70, 0, 8)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+minimizeBtn.Text = "−"
+minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.TextSize = 20
+minimizeBtn.Parent = titleBar
+local minCorner = Instance.new("UICorner")
+minCorner.CornerRadius = UDim.new(0, 8)
+minCorner.Parent = minimizeBtn
+
 -- Botão fechar
 local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 30, 0, 30)
-closeBtn.Position = UDim2.new(1, -40, 0, 7)
+closeBtn.Size = UDim2.new(0, 32, 0, 32)
+closeBtn.Position = UDim2.new(1, -38, 0, 8)
 closeBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
 closeBtn.Text = "✕"
 closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -88,14 +97,6 @@ closeBtn.Parent = titleBar
 local closeCorner = Instance.new("UICorner")
 closeCorner.CornerRadius = UDim.new(0, 8)
 closeCorner.Parent = closeBtn
-
-closeBtn.MouseButton1Click:Connect(function()
-    screenGui:Destroy()
-    -- Desativar voo se estiver ativo
-    if flyActive then
-        toggleFly()
-    end
-end)
 
 -- Tornar janela arrastável
 local dragging = false
@@ -124,349 +125,413 @@ end)
 -- ========== CONTEÚDO DA INTERFACE ==========
 local contentFrame = Instance.new("Frame")
 contentFrame.Size = UDim2.new(1, -20, 1, -65)
-contentFrame.Position = UDim2.new(0, 10, 0, 55)
+contentFrame.Position = UDim2.new(0, 10, 0, 58)
 contentFrame.BackgroundTransparency = 1
 contentFrame.Parent = mainFrame
 
--- Status do voo
+-- Status atual
 local statusFrame = Instance.new("Frame")
-statusFrame.Size = UDim2.new(1, 0, 0, 40)
-statusFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+statusFrame.Size = UDim2.new(1, 0, 0, 45)
+statusFrame.BackgroundColor3 = Color3.fromRGB(35, 38, 50)
 statusFrame.BorderSizePixel = 0
 statusFrame.Parent = contentFrame
 local statusCorner = Instance.new("UICorner")
 statusCorner.CornerRadius = UDim.new(0, 10)
 statusCorner.Parent = statusFrame
 
+local statusIcon = Instance.new("TextLabel")
+statusIcon.Size = UDim2.new(0, 35, 1, 0)
+statusIcon.BackgroundTransparency = 1
+statusIcon.Text = "🪑"
+statusIcon.TextColor3 = Color3.fromRGB(255, 200, 100)
+statusIcon.Font = Enum.Font.GothamBold
+statusIcon.TextSize = 18
+statusIcon.Parent = statusFrame
+
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, 0, 1, 0)
+statusLabel.Size = UDim2.new(1, -45, 1, 0)
+statusLabel.Position = UDim2.new(0, 40, 0, 0)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "🔴 VOO: DESATIVADO"
-statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-statusLabel.Font = Enum.Font.GothamBold
-statusLabel.TextSize = 14
+statusLabel.Text = "Status: Aguardando..."
+statusLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextSize = 13
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.Parent = statusFrame
 
--- Botão toggle voo
-local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(1, 0, 0, 45)
-toggleBtn.Position = UDim2.new(0, 0, 0, 55)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 200)
-toggleBtn.Text = "🦅 ATIVAR VOO"
-toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.TextSize = 15
-toggleBtn.Parent = contentFrame
-local toggleCorner = Instance.new("UICorner")
-toggleCorner.CornerRadius = UDim.new(0, 10)
-toggleCorner.Parent = toggleBtn
+-- Label do alvo selecionado
+local targetLabel = Instance.new("TextLabel")
+targetLabel.Size = UDim2.new(1, 0, 0, 25)
+targetLabel.Position = UDim2.new(0, 0, 0, 55)
+targetLabel.BackgroundTransparency = 1
+targetLabel.Text = "🎯 Alvo: Nenhum"
+targetLabel.TextColor3 = Color3.fromRGB(150, 150, 200)
+targetLabel.Font = Enum.Font.Gotham
+targetLabel.TextSize = 12
+targetLabel.TextXAlignment = Enum.TextXAlignment.Left
+targetLabel.Parent = contentFrame
 
--- Slider de velocidade
-local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(1, 0, 0, 20)
-speedLabel.Position = UDim2.new(0, 0, 0, 115)
-speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "VELOCIDADE: " .. DEFAULT_SPEED
-speedLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
-speedLabel.Font = Enum.Font.Gotham
-speedLabel.TextSize = 12
-speedLabel.Parent = contentFrame
+-- Lista de jogadores
+local playerListLabel = Instance.new("TextLabel")
+playerListLabel.Size = UDim2.new(1, 0, 0, 20)
+playerListLabel.Position = UDim2.new(0, 0, 0, 85)
+playerListLabel.BackgroundTransparency = 1
+playerListLabel.Text = "📋 JOGADORES ONLINE:"
+playerListLabel.TextColor3 = Color3.fromRGB(180, 180, 220)
+playerListLabel.Font = Enum.Font.GothamBold
+playerListLabel.TextSize = 12
+playerListLabel.TextXAlignment = Enum.TextXAlignment.Left
+playerListLabel.Parent = contentFrame
 
-local speedSlider = Instance.new("Frame")
-speedSlider.Size = UDim2.new(1, 0, 0, 6)
-speedSlider.Position = UDim2.new(0, 0, 0, 140)
-speedSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-speedSlider.BorderSizePixel = 0
-speedSlider.Parent = contentFrame
-local sliderCorner = Instance.new("UICorner")
-sliderCorner.CornerRadius = UDim.new(0, 3)
-sliderCorner.Parent = speedSlider
+local playerListFrame = Instance.new("ScrollingFrame")
+playerListFrame.Size = UDim2.new(1, 0, 0, 250)
+playerListFrame.Position = UDim2.new(0, 0, 0, 108)
+playerListFrame.BackgroundColor3 = Color3.fromRGB(15, 17, 25)
+playerListFrame.BackgroundTransparency = 0.5
+playerListFrame.BorderSizePixel = 0
+playerListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+playerListFrame.ScrollBarThickness = 6
+playerListFrame.Parent = contentFrame
+local listCorner = Instance.new("UICorner")
+listCorner.CornerRadius = UDim.new(0, 10)
+listCorner.Parent = playerListFrame
 
-local speedFill = Instance.new("Frame")
-speedFill.Size = UDim2.new((DEFAULT_SPEED - 20) / 230, 0, 1, 0)
-speedFill.BackgroundColor3 = Color3.fromRGB(0, 180, 220)
-speedFill.BorderSizePixel = 0
-speedFill.Parent = speedSlider
-local fillCorner = Instance.new("UICorner")
-fillCorner.CornerRadius = UDim.new(0, 3)
-fillCorner.Parent = speedFill
+local playerListLayout = Instance.new("UIListLayout")
+playerListLayout.Padding = UDim.new(0, 4)
+playerListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+playerListLayout.Parent = playerListFrame
 
--- Controle do slider (clicar e arrastar)
-local sliderButton = Instance.new("TextButton")
-sliderButton.Size = UDim2.new(0, 14, 0, 14)
-sliderButton.Position = UDim2.new((DEFAULT_SPEED - 20) / 230, -7, 0, -4)
-sliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-sliderButton.Text = ""
-sliderButton.Parent = speedSlider
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 7)
-btnCorner.Parent = sliderButton
+-- Botões de ação
+local sitBtn = Instance.new("TextButton")
+sitBtn.Size = UDim2.new(1, 0, 0, 45)
+sitBtn.Position = UDim2.new(0, 0, 0, 368)
+sitBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 200)
+sitBtn.Text = "🪑 SENTAR NA CABEÇA"
+sitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+sitBtn.Font = Enum.Font.GothamBold
+sitBtn.TextSize = 14
+sitBtn.Parent = contentFrame
+local sitCorner = Instance.new("UICorner")
+sitCorner.CornerRadius = UDim.new(0, 10)
+sitCorner.Parent = sitBtn
 
--- Instruções
-local instrLabel = Instance.new("TextLabel")
-instrLabel.Size = UDim2.new(1, 0, 0, 45)
-instrLabel.Position = UDim2.new(0, 0, 0, 155)
-instrLabel.BackgroundTransparency = 1
-instrLabel.Text = "WASD → Movimento\nSpace → Subir | Ctrl → Descer\nShift → Acelerar (2x)"
-instrLabel.TextColor3 = Color3.fromRGB(150, 150, 180)
-instrLabel.Font = Enum.Font.SourceSans
-instrLabel.TextSize = 11
-instrLabel.TextXAlignment = Enum.TextXAlignment.Left
-instrLabel.Parent = contentFrame
+local stopBtn = Instance.new("TextButton")
+stopBtn.Size = UDim2.new(1, 0, 0, 40)
+stopBtn.Position = UDim2.new(0, 0, 0, 420)
+stopBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+stopBtn.Text = "⛔ PARAR DE SENTAR"
+stopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+stopBtn.Font = Enum.Font.GothamBold
+stopBtn.TextSize = 14
+stopBtn.Parent = contentFrame
+local stopCorner = Instance.new("UICorner")
+stopCorner.CornerRadius = UDim.new(0, 10)
+stopCorner.Parent = stopBtn
 
--- ========== LÓGICA DE VOO ==========
-local flyActive = false
-local currentSpeed = DEFAULT_SPEED
-local bodyVelocity = nil
-local bodyGyro = nil
-local character = nil
-local humanoid = nil
-local rootPart = nil
+stopBtn.Visible = false
 
--- Controles de movimento
-local moveForward = false
-local moveBackward = false
-local moveLeft = false
-local moveRight = false
-local moveUp = false
-local moveDown = false
-local boosting = false
+-- ========== FUNÇÕES DO HEAD SIT ==========
 
--- Atualizar slider visual
-local function updateSliderVisual(value)
-    local percent = (value - 20) / 230
-    percent = math.clamp(percent, 0, 1)
-    speedFill.Size = UDim2.new(percent, 0, 1, 0)
-    sliderButton.Position = UDim2.new(percent, -7, 0, -4)
-    speedLabel.Text = "VELOCIDADE: " .. math.floor(value)
+-- Criar um "assento" virtual (Part) na cabeça do alvo
+local function createHeadSeat(targetCharacter)
+    local head = targetCharacter:FindFirstChild("Head")
+    if not head then return nil end
+    
+    -- Criar uma parte invisível para servir de assento
+    local seat = Instance.new("Part")
+    seat.Size = Vector3.new(1.5, 0.5, 1.5)
+    seat.Shape = Enum.PartType.Block
+    seat.Transparency = 1
+    seat.CanCollide = false
+    seat.Anchored = false
+    seat.Parent = head
+    
+    -- Posicionar na cabeça
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = head
+    weld.Part1 = seat
+    weld.Parent = seat
+    
+    -- Ajustar posição relativa à cabeça
+    seat.CFrame = head.CFrame * CFrame.new(0, SIT_OFFSET, 0)
+    
+    return seat, weld
 end
 
--- Função para atualizar velocidade
-local function setSpeed(value)
-    currentSpeed = math.clamp(value, 20, 250)
-    updateSliderVisual(currentSpeed)
-    if bodyVelocity then
-        bodyVelocity.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+-- Função para sentar na cabeça do alvo
+local function sitOnHead(target)
+    if not target then
+        statusLabel.Text = "Status: ❌ Nenhum alvo selecionado!"
+        return false
     end
-end
-
--- Função para ativar/desativar voo
-local function activateFly()
-    character = Player.Character
-    if not character then return end
     
-    humanoid = character:FindFirstChildOfClass("Humanoid")
-    rootPart = character:FindFirstChild("HumanoidRootPart")
+    local targetCharacter = target.Character
+    if not targetCharacter then
+        statusLabel.Text = "Status: ❌ Personagem do alvo não encontrado!"
+        return false
+    end
     
-    if not humanoid or not rootPart then return end
+    local localCharacter = Player.Character
+    if not localCharacter then
+        statusLabel.Text = "Status: ❌ Seu personagem não foi encontrado!"
+        return false
+    end
     
-    -- Salvar estado original
-    humanoid.PlatformStand = true
+    local humanoid = localCharacter:FindFirstChildOfClass("Humanoid")
+    if not humanoid then
+        statusLabel.Text = "Status: ❌ Humanoid não encontrado!"
+        return false
+    end
     
-    -- Criar BodyVelocity
-    bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-    bodyVelocity.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-    bodyVelocity.Parent = rootPart
+    -- Criar assento na cabeça do alvo
+    local seat, weldConstraint = createHeadSeat(targetCharacter)
+    if not seat then
+        statusLabel.Text = "Status: ❌ Não foi possível criar o assento!"
+        return false
+    end
     
-    -- Criar BodyGyro para controle de rotação
-    bodyGyro = Instance.new("BodyGyro")
-    bodyGyro.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
-    bodyGyro.Parent = rootPart
-    bodyGyro.CFrame = rootPart.CFrame
+    -- Fazer o jogador sentar no assento
+    humanoid.Sit = true
+    task.wait(0.1)
     
-    flyActive = true
-    statusLabel.Text = "🟢 VOO: ATIVADO"
+    -- Teleportar o jogador para o assento
+    local rootPart = localCharacter:FindFirstChild("HumanoidRootPart")
+    if rootPart then
+        rootPart.CFrame = seat.CFrame * CFrame.new(0, -1.2, 0)
+    end
+    
+    -- Criar weld entre o jogador e o assento para seguir o alvo
+    local playerSeatWeld = Instance.new("WeldConstraint")
+    playerSeatWeld.Part0 = seat
+    playerSeatWeld.Part1 = rootPart
+    playerSeatWeld.Parent = seat
+    
+    -- Armazenar variáveis para limpeza posterior
+    currentSeatPart = seat
+    currentWeld = playerSeatWeld
+    currentHumanoid = humanoid
+    
+    statusLabel.Text = "✅ Sentado na cabeça de: " .. target.Name
     statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-    toggleBtn.Text = "🔴 DESATIVAR VOO"
-    toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+    sitBtn.Visible = false
+    stopBtn.Visible = true
+    
+    return true
 end
 
-local function deactivateFly()
-    if bodyVelocity then bodyVelocity:Destroy() end
-    if bodyGyro then bodyGyro:Destroy() end
-    if humanoid then
-        humanoid.PlatformStand = false
+-- Função para parar de sentar
+local function stopSitting()
+    -- Restaurar humanoid
+    if currentHumanoid then
+        currentHumanoid.Sit = false
+        currentHumanoid = nil
     end
     
-    bodyVelocity = nil
-    bodyGyro = nil
-    flyActive = false
-    statusLabel.Text = "🔴 VOO: DESATIVADO"
-    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    toggleBtn.Text = "🦅 ATIVAR VOO"
-    toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 200)
+    -- Destruir weld do jogador
+    if currentWeld then
+        currentWeld:Destroy()
+        currentWeld = nil
+    end
+    
+    -- Destruir assento e seus welds
+    if currentSeatPart then
+        currentSeatPart:Destroy()
+        currentSeatPart = nil
+    end
+    
+    statusLabel.Text = "Status: Aguardando..."
+    statusLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
+    sitBtn.Visible = true
+    stopBtn.Visible = false
+    headSitActive = false
 end
 
-function toggleFly()
-    if flyActive then
-        deactivateFly()
+-- Atualizar posição do jogador no assento (follow)
+local function updateSitPosition()
+    if not headSitActive then return end
+    if not targetPlayer then return end
+    
+    local targetCharacter = targetPlayer.Character
+    if not targetCharacter then
+        stopSitting()
+        return
+    end
+    
+    local head = targetCharacter:FindFirstChild("Head")
+    if not head then
+        stopSitting()
+        return
+    end
+    
+    if currentSeatPart and currentSeatPart.Parent then
+        -- Atualizar posição do assento (já é mantido pelo weld)
+        -- Garantir que o jogador continua sentado
+        if currentHumanoid then
+            currentHumanoid.Sit = true
+        end
     else
-        activateFly()
+        -- Se o assento foi destruído, parar
+        stopSitting()
     end
 end
 
--- Atualizar movimento a cada frame
+-- ========== ATUALIZAR LISTA DE JOGADORES ==========
+local playerButtons = {}
+local selectedPlayer = nil
+
+local function updatePlayerList()
+    -- Limpar lista atual
+    for _, btn in pairs(playerButtons) do
+        if btn and btn.Parent then
+            btn:Destroy()
+        end
+    end
+    playerButtons = {}
+    
+    local players = game:GetService("Players"):GetPlayers()
+    local totalHeight = 0
+    
+    for _, player in ipairs(players) do
+        if player ~= Player then
+            local button = Instance.new("TextButton")
+            button.Size = UDim2.new(1, -10, 0, 38)
+            button.BackgroundColor3 = Color3.fromRGB(25, 28, 38)
+            button.Text = "👤 " .. player.Name
+            button.TextColor3 = Color3.fromRGB(220, 220, 240)
+            button.Font = Enum.Font.Gotham
+            button.TextSize = 13
+            button.TextXAlignment = Enum.TextXAlignment.Left
+            button.Parent = playerListFrame
+            
+            local btnCorner = Instance.new("UICorner")
+            btnCorner.CornerRadius = UDim.new(0, 8)
+            btnCorner.Parent = button
+            
+            -- Destaque se for o selecionado
+            if selectedPlayer == player then
+                button.BackgroundColor3 = Color3.fromRGB(60, 80, 120)
+                button.TextColor3 = Color3.fromRGB(255, 200, 100)
+            end
+            
+            button.MouseButton1Click:Connect(function()
+                -- Remover destaque anterior
+                for _, btn in pairs(playerButtons) do
+                    if btn then
+                        btn.BackgroundColor3 = Color3.fromRGB(25, 28, 38)
+                        btn.TextColor3 = Color3.fromRGB(220, 220, 240)
+                    end
+                end
+                -- Destacar novo
+                button.BackgroundColor3 = Color3.fromRGB(60, 80, 120)
+                button.TextColor3 = Color3.fromRGB(255, 200, 100)
+                selectedPlayer = player
+                targetLabel.Text = "🎯 Alvo: " .. player.Name
+                statusLabel.Text = "Status: Alvo selecionado ✓"
+                statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            end)
+            
+            playerButtons[player] = button
+            totalHeight = totalHeight + 42
+        end
+    end
+    
+    playerListFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight + 10)
+    
+    if totalHeight == 0 then
+        local emptyLabel = Instance.new("TextLabel")
+        emptyLabel.Size = UDim2.new(1, -10, 0, 40)
+        emptyLabel.BackgroundTransparency = 1
+        emptyLabel.Text = "🎮 Nenhum outro jogador online"
+        emptyLabel.TextColor3 = Color3.fromRGB(150, 150, 180)
+        emptyLabel.Font = Enum.Font.Gotham
+        emptyLabel.TextSize = 12
+        emptyLabel.Parent = playerListFrame
+        playerButtons["empty"] = emptyLabel
+        playerListFrame.CanvasSize = UDim2.new(0, 0, 0, 50)
+    end
+end
+
+-- ========== LOOP DE ATUALIZAÇÃO ==========
+-- Atualizar posição do assento
 RunService.RenderStepped:Connect(function()
-    if not flyActive or not rootPart or not bodyVelocity then return end
-    
-    -- Calcular direção da câmera
-    local camera = workspace.CurrentCamera
-    local cameraCFrame = camera.CFrame
-    
-    -- Direções base
-    local forwardVector = cameraCFrame.LookVector
-    local rightVector = cameraCFrame.RightVector
-    local upVector = cameraCFrame.UpVector
-    
-    -- Remover componente Y para movimento horizontal (WASD não afeta altitude)
-    forwardVector = Vector3.new(forwardVector.X, 0, forwardVector.Z).Unit
-    rightVector = Vector3.new(rightVector.X, 0, rightVector.Z).Unit
-    
-    -- Calcular movimento
-    local moveDirection = Vector3.new(0, 0, 0)
-    
-    if moveForward then
-        moveDirection = moveDirection + forwardVector
-    end
-    if moveBackward then
-        moveDirection = moveDirection - forwardVector
-    end
-    if moveLeft then
-        moveDirection = moveDirection - rightVector
-    end
-    if moveRight then
-        moveDirection = moveDirection + rightVector
-    end
-    if moveUp then
-        moveDirection = moveDirection + upVector
-    end
-    if moveDown then
-        moveDirection = moveDirection - upVector
-    end
-    
-    -- Normalizar diagonal
-    if moveDirection.Magnitude > 0 then
-        moveDirection = moveDirection.Unit
-    end
-    
-    -- Velocidade atual (com boost)
-    local finalSpeed = currentSpeed
-    if boosting then
-        finalSpeed = currentSpeed * 2
-    end
-    
-    -- Aplicar velocidade
-    bodyVelocity.Velocity = moveDirection * finalSpeed
-    
-    -- Atualizar rotação do personagem (opcional, olhar para onde se move)
-    if moveDirection.Magnitude > 0.1 then
-        bodyGyro.CFrame = CFrame.lookAt(rootPart.Position, rootPart.Position + moveDirection)
+    if stopBtn.Visible then
+        updateSitPosition()
     end
 end)
 
--- ========== CAPTURA DE TECLAS ==========
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
+-- Atualizar lista periodicamente
+local function startPlayerListUpdater()
+    updatePlayerList()
+    while true do
+        task.wait(REFRESH_INTERVAL)
+        if screenGui and screenGui.Parent then
+            updatePlayerList()
+        else
+            break
+        end
+    end
+end
+
+-- ========== EVENTOS DOS BOTÕES ==========
+sitBtn.MouseButton1Click:Connect(function()
+    if not selectedPlayer then
+        statusLabel.Text = "Status: ⚠️ Selecione um jogador primeiro!"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 150, 100)
+        task.wait(2)
+        statusLabel.Text = "Status: Aguardando..."
+        statusLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
+        return
+    end
     
-    local key = input.KeyCode
+    headSitActive = true
+    targetPlayer = selectedPlayer
+    local success = sitOnHead(targetPlayer)
     
-    if key == Enum.KeyCode.W then
-        moveForward = true
-    elseif key == Enum.KeyCode.S then
-        moveBackward = true
-    elseif key == Enum.KeyCode.A then
-        moveLeft = true
-    elseif key == Enum.KeyCode.D then
-        moveRight = true
-    elseif key == Enum.KeyCode.Space then
-        moveUp = true
-    elseif key == Enum.KeyCode.LeftControl then
-        moveDown = true
-    elseif key == Enum.KeyCode.LeftShift then
-        boosting = true
+    if not success then
+        headSitActive = false
+        targetPlayer = nil
     end
 end)
 
-UserInputService.InputEnded:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
+stopBtn.MouseButton1Click:Connect(function()
+    stopSitting()
+    headSitActive = false
+    targetPlayer = nil
+    selectedPlayer = nil
+    targetLabel.Text = "🎯 Alvo: Nenhum"
     
-    local key = input.KeyCode
-    
-    if key == Enum.KeyCode.W then
-        moveForward = false
-    elseif key == Enum.KeyCode.S then
-        moveBackward = false
-    elseif key == Enum.KeyCode.A then
-        moveLeft = false
-    elseif key == Enum.KeyCode.D then
-        moveRight = false
-    elseif key == Enum.KeyCode.Space then
-        moveUp = false
-    elseif key == Enum.KeyCode.LeftControl then
-        moveDown = false
-    elseif key == Enum.KeyCode.LeftShift then
-        boosting = false
+    -- Remover destaque dos botões
+    for _, btn in pairs(playerButtons) do
+        if btn then
+            btn.BackgroundColor3 = Color3.fromRGB(25, 28, 38)
+            btn.TextColor3 = Color3.fromRGB(220, 220, 240)
+        end
     end
 end)
 
--- ========== SLIDER DE VELOCIDADE ==========
-local sliderDragging = false
-
-sliderButton.MouseButton1Down:Connect(function()
-    sliderDragging = true
+closeBtn.MouseButton1Click:Connect(function()
+    stopSitting()
+    screenGui:Destroy()
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        sliderDragging = false
+-- Minimizar
+local minimized = false
+local originalHeight = mainFrame.Size
+
+minimizeBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    if minimized then
+        mainFrame.Size = UDim2.new(0, 380, 0, 60)
+        minimizeBtn.Text = "□"
+        contentFrame.Visible = false
+    else
+        mainFrame.Size = UDim2.new(0, 380, 0, 520)
+        minimizeBtn.Text = "−"
+        contentFrame.Visible = true
     end
 end)
 
-Mouse.Move:Connect(function()
-    if sliderDragging then
-        local mousePos = Mouse.X
-        local sliderPos = speedSlider.AbsolutePosition.X
-        local sliderWidth = speedSlider.AbsoluteSize.X
-        local percent = math.clamp((mousePos - sliderPos) / sliderWidth, 0, 1)
-        local newSpeed = 20 + (percent * 230)
-        setSpeed(newSpeed)
-    end
-end)
-
--- Clique direto na barra
-speedSlider.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local mousePos = Mouse.X
-        local sliderPos = speedSlider.AbsolutePosition.X
-        local sliderWidth = speedSlider.AbsoluteSize.X
-        local percent = math.clamp((mousePos - sliderPos) / sliderWidth, 0, 1)
-        local newSpeed = 20 + (percent * 230)
-        setSpeed(newSpeed)
-        sliderDragging = true
-    end
-end)
-
--- ========== EVENTO DE TROCA DE PERSONAGEM ==========
-Player.CharacterAdded:Connect(function(newChar)
-    if flyActive then
-        deactivateFly()
-    end
-    character = newChar
-    if flyActive then
-        -- Pequeno delay para o personagem carregar completamente
-        task.wait(0.5)
-        activateFly()
-    end
-end)
-
--- ========== BOTÃO TOGGLE ==========
-toggleBtn.MouseButton1Click:Connect(function()
-    toggleFly()
-end)
-
--- Inicializar slider
-setSpeed(DEFAULT_SPEED)
-
--- Mensagem de inicialização
-print("[FlySystem] Script carregado! Interface criada.")
+-- ========== INICIALIZAÇÃO ==========
+task.spawn(startPlayerListUpdater)
+statusLabel.Text = "Status: Aguardando seleção..."
+print("[HeadSitSystem] Script carregado! Interface pronta.")
