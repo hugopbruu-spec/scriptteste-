@@ -1,24 +1,17 @@
 --[[
     ╔══════════════════════════════════════════════════════════════╗
-    ║              FISHING GOD MODE - VERSÃO NUCLEAR             ║
-    ║    Força o servidor a entregar SEMPRE o item mais raro     ║
-    ║    Hook em TODAS as camadas: Remotes, RNG, Módulos, GUI   ║
+    ║         PLAYTIME BOOSTER - 2 DIAS GARANTIDOS              ║
+    ║    Aumenta o tempo de jogo e SINCRONIZA com o servidor    ║
+    ║    para que TODOS os players vejam a alteração            ║
     ╚══════════════════════════════════════════════════════════════╝
 ]]
 
 -- ============================================
 -- CONFIGURAÇÃO
 -- ============================================
-local GOD_MODE = true
-local AUTO_FISH = false
-local INSTANT_CATCH = true
-local RARITY_KEYWORDS = {
-    "legendary", "lendário", "lendario", "mythic", "mítico", "mitico",
-    "exotic", "exótico", "exotico", "divine", "divino", "godly",
-    "supreme", "supremo", "ultimate", "mega", "omega", "alpha",
-    "transcendent", "eternal", "celestial", "rainbow", "dark",
-    "shiny", "secret", "secreto", "admin", "developer", "dev"
-}
+local TARGET_HOURS = 48  -- 2 dias = 48 horas
+local TARGET_MINUTES = TARGET_HOURS * 60
+local TARGET_SECONDS = TARGET_MINUTES * 60
 
 -- ============================================
 -- SERVIÇOS
@@ -26,25 +19,23 @@ local RARITY_KEYWORDS = {
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
 local CoreGui = game:GetService("CoreGui")
-local Workspace = game:GetService("Workspace")
 local HttpService = game:GetService("HttpService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- ============================================
--- INTERFACE GRÁFICA NUCLEAR
+-- INTERFACE GRÁFICA
 -- ============================================
 local function createUI()
-    if _G.FishGodNukeUI then
-        _G.FishGodNukeUI:Destroy()
-        _G.FishGodNukeUI = nil
+    if _G.PlaytimeUI then
+        _G.PlaytimeUI:Destroy()
+        _G.PlaytimeUI = nil
     end
 
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "FishGodNukeUI"
+    screenGui.Name = "PlaytimeUI"
     screenGui.ResetOnSpawn = false
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.DisplayOrder = 9999
@@ -55,766 +46,485 @@ local function createUI()
         if gethui then screenGui.Parent = gethui() end
     end)
 
-    _G.FishGodNukeUI = screenGui
+    _G.PlaytimeUI = screenGui
 
     local main = Instance.new("Frame")
-    main.Name = "Main"
-    main.Size = UDim2.new(0, 360, 0, 220)
-    main.Position = UDim2.new(1, -370, 0, 15)
-    main.BackgroundColor3 = Color3.fromRGB(10, 12, 16)
+    main.Size = UDim2.new(0, 300, 0, 160)
+    main.Position = UDim2.new(1, -310, 0, 15)
+    main.BackgroundColor3 = Color3.fromRGB(12, 15, 20)
     main.BorderSizePixel = 0
     main.Active = true
     main.Draggable = true
     main.Parent = screenGui
 
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 14)
+    corner.CornerRadius = UDim.new(0, 12)
     corner.Parent = main
 
     local stroke = Instance.new("UIStroke")
     stroke.Thickness = 2
-    stroke.Color = Color3.fromRGB(255, 215, 0)
-    stroke.LineJoinMode = Enum.LineJoinMode.Round
+    stroke.Color = Color3.fromRGB(59, 130, 246)
     stroke.Parent = main
 
     -- Cabeçalho
     local header = Instance.new("Frame")
-    header.Size = UDim2.new(1, 0, 0, 44)
-    header.BackgroundColor3 = Color3.fromRGB(16, 18, 24)
+    header.Size = UDim2.new(1, 0, 0, 40)
+    header.BackgroundColor3 = Color3.fromRGB(18, 22, 28)
     header.BorderSizePixel = 0
     header.Parent = main
     local hCorner = Instance.new("UICorner")
-    hCorner.CornerRadius = UDim.new(0, 14)
+    hCorner.CornerRadius = UDim.new(0, 12)
     hCorner.Parent = header
 
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -50, 1, 0)
+    title.Size = UDim2.new(1, -40, 1, 0)
     title.Position = UDim2.new(0, 14, 0, 0)
     title.BackgroundTransparency = 1
-    title.Text = "🎣 FISHING GOD (NUCLEAR)"
-    title.TextColor3 = Color3.fromRGB(255, 215, 0)
+    title.Text = "⏰ PLAYTIME BOOSTER"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
     title.TextSize = 14
     title.Font = Enum.Font.GothamBold
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = header
 
     local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.new(0, 28, 0, 28)
-    closeBtn.Position = UDim2.new(1, -36, 0, 8)
+    closeBtn.Size = UDim2.new(0, 26, 0, 26)
+    closeBtn.Position = UDim2.new(1, -34, 0, 7)
     closeBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
     closeBtn.Text = "✕"
     closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closeBtn.TextSize = 14
+    closeBtn.TextSize = 12
     closeBtn.Font = Enum.Font.GothamBold
     closeBtn.BorderSizePixel = 0
     closeBtn.Parent = header
     local cc = Instance.new("UICorner")
-    cc.CornerRadius = UDim.new(0, 7)
+    cc.CornerRadius = UDim.new(0, 6)
     cc.Parent = closeBtn
     closeBtn.MouseButton1Click:Connect(function()
         screenGui:Destroy()
-        _G.FishGodNukeUI = nil
+        _G.PlaytimeUI = nil
     end)
 
     -- Status
-    local statusBar = Instance.new("Frame")
-    statusBar.Size = UDim2.new(1, -16, 0, 24)
-    statusBar.Position = UDim2.new(0, 8, 0, 52)
-    statusBar.BackgroundColor3 = Color3.fromRGB(16, 18, 24)
-    statusBar.BorderSizePixel = 0
-    statusBar.Parent = main
-    local sbCorner = Instance.new("UICorner")
-    sbCorner.CornerRadius = UDim.new(0, 8)
-    sbCorner.Parent = statusBar
-
-    local statusDot = Instance.new("Frame")
-    statusDot.Name = "StatusDot"
-    statusDot.Size = UDim2.new(0, 10, 0, 10)
-    statusDot.Position = UDim2.new(0, 10, 0, 7)
-    statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
-    statusDot.BorderSizePixel = 0
-    statusDot.Parent = statusBar
-    local sdCorner = Instance.new("UICorner")
-    sdCorner.CornerRadius = UDim.new(1, 0)
-    sdCorner.Parent = statusDot
-
     local statusLabel = Instance.new("TextLabel")
     statusLabel.Name = "StatusLabel"
-    statusLabel.Size = UDim2.new(1, -30, 1, 0)
-    statusLabel.Position = UDim2.new(0, 26, 0, 0)
+    statusLabel.Size = UDim2.new(1, -20, 0, 20)
+    statusLabel.Position = UDim2.new(0, 10, 0, 50)
     statusLabel.BackgroundTransparency = 1
-    statusLabel.Text = "⚡ MODO NUCLEAR ATIVO"
-    statusLabel.TextColor3 = Color3.fromRGB(34, 197, 94)
-    statusLabel.TextSize = 11
-    statusLabel.Font = Enum.Font.GothamBold
+    statusLabel.Text = "⏳ Detectando sistema de tempo..."
+    statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    statusLabel.TextSize = 12
+    statusLabel.Font = Enum.Font.Gotham
     statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-    statusLabel.Parent = statusBar
+    statusLabel.Parent = main
 
-    -- Botões
-    local btnStyle = {
-        BackgroundColor3 = Color3.fromRGB(255, 215, 0),
-        TextColor3 = Color3.fromRGB(0, 0, 0),
-        TextSize = 13,
-        Font = Enum.Font.GothamBold,
-        BorderSizePixel = 0
-    }
+    -- Botão de aplicar
+    local applyBtn = Instance.new("TextButton")
+    applyBtn.Size = UDim2.new(1, -20, 0, 38)
+    applyBtn.Position = UDim2.new(0, 10, 0, 80)
+    applyBtn.BackgroundColor3 = Color3.fromRGB(59, 130, 246)
+    applyBtn.Text = "⚡ APLICAR 2 DIAS (48 HORAS)"
+    applyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    applyBtn.TextSize = 13
+    applyBtn.Font = Enum.Font.GothamBold
+    applyBtn.BorderSizePixel = 0
+    applyBtn.Parent = main
+    local bc = Instance.new("UICorner")
+    bc.CornerRadius = UDim.new(0, 8)
+    bc.Parent = applyBtn
 
-    local btn1 = Instance.new("TextButton")
-    btn1.Name = "BtnForce"
-    btn1.Size = UDim2.new(1, -16, 0, 38)
-    btn1.Position = UDim2.new(0, 8, 0, 84)
-    for k, v in pairs(btnStyle) do btn1[k] = v end
-    btn1.Text = "🔥 FORÇAR RARIDADE MÁXIMA"
-    btn1.Parent = main
-    local bc1 = Instance.new("UICorner")
-    bc1.CornerRadius = UDim.new(0, 8)
-    bc1.Parent = btn1
-
-    local btn2 = Instance.new("TextButton")
-    btn2.Name = "BtnAuto"
-    btn2.Size = UDim2.new(1, -16, 0, 32)
-    btn2.Position = UDim2.new(0, 8, 0, 128)
-    btn2.BackgroundColor3 = Color3.fromRGB(40, 42, 48)
-    btn2.Text = "🤖 AUTO PESCA: OFF"
-    btn2.TextColor3 = Color3.fromRGB(200, 200, 200)
-    btn2.TextSize = 12
-    btn2.Font = Enum.Font.Gotham
-    btn2.BorderSizePixel = 0
-    btn2.Parent = main
-    local bc2 = Instance.new("UICorner")
-    bc2.CornerRadius = UDim.new(0, 8)
-    bc2.Parent = btn2
-
-    local btn3 = Instance.new("TextButton")
-    btn3.Name = "BtnInstant"
-    btn3.Size = UDim2.new(1, -16, 0, 32)
-    btn3.Position = UDim2.new(0, 8, 0, 166)
-    btn3.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
-    btn3.Text = "⚡ PESCA INSTANTÂNEA: ON"
-    btn3.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn3.TextSize = 12)
-    btn3.Font = Enum.Font.Gotham
-    btn3.BorderSizePixel = 0
-    btn3.Parent = main
-    local bc3 = Instance.new("UICorner")
-    bc3.CornerRadius = UDim.new(0, 8)
-    bc3.Parent = btn3
-
-    -- Contador
-    local counter = Instance.new("TextLabel")
-    counter.Name = "Counter"
-    counter.Size = UDim2.new(1, -16, 0, 20)
-    counter.Position = UDim2.new(0, 8, 0, 204)
-    counter.BackgroundTransparency = 1
-    counter.Text = "🏆 Lendários: 0"
-    counter.TextColor3 = Color3.fromRGB(255, 215, 0)
-    counter.TextSize = 11
-    counter.Font = Enum.Font.GothamBold
-    counter.Parent = main
-
-    -- Handlers dos botões
-    btn1.MouseButton1Click:Connect(function()
-        forceMaxRarity()
-        statusLabel.Text = "🔥 RARIDADE FORÇADA!"
-        statusDot.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
-        task.wait(2)
-        statusLabel.Text = "⚡ MODO NUCLEAR ATIVO"
-        statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
-    end)
-
-    local autoFishEnabled = false
-    btn2.MouseButton1Click:Connect(function()
-        autoFishEnabled = not autoFishEnabled
-        AUTO_FISH = autoFishEnabled
-        if autoFishEnabled then
-            btn2.Text = "🤖 AUTO PESCA: ON"
-            btn2.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
-            autoFishLoop()
-        else
-            btn2.Text = "🤖 AUTO PESCA: OFF"
-            btn2.BackgroundColor3 = Color3.fromRGB(40, 42, 48)
-        end
-    end)
-
-    local instantEnabled = true
-    btn3.MouseButton1Click:Connect(function()
-        instantEnabled = not instantEnabled
-        INSTANT_CATCH = instantEnabled
-        if instantEnabled then
-            btn3.Text = "⚡ PESCA INSTANTÂNEA: ON"
-            btn3.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
-        else
-            btn3.Text = "⚡ PESCA INSTANTÂNEA: OFF"
-            btn3.BackgroundColor3 = Color3.fromRGB(40, 42, 48)
-        end
-    end)
+    -- Botão de recarregar
+    local refreshBtn = Instance.new("TextButton")
+    refreshBtn.Size = UDim2.new(1, -20, 0, 30)
+    refreshBtn.Position = UDim2.new(0, 10, 0, 124)
+    refreshBtn.BackgroundColor3 = Color3.fromRGB(40, 42, 48)
+    refreshBtn.Text = "🔄 Atualizar para todos verem"
+    refreshBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    refreshBtn.TextSize = 12
+    refreshBtn.Font = Enum.Font.Gotham
+    refreshBtn.BorderSizePixel = 0
+    refreshBtn.Parent = main
+    local rc = Instance.new("UICorner")
+    rc.CornerRadius = UDim.new(0, 8)
+    rc.Parent = refreshBtn
 
     return {
         statusLabel = statusLabel,
-        statusDot = statusDot,
-        counter = counter,
+        applyBtn = applyBtn,
+        refreshBtn = refreshBtn,
         main = main
     }
 end
 
-local ui = nil
-
 -- ============================================
--- SISTEMA DE RARIDADE FORÇADA (NUCLEAR)
+-- SISTEMA DE DETECÇÃO DE PLAYTIME
 -- ============================================
-local legendaryFishCount = 0
+local function detectPlaytimeSystem()
+    local systems = {}
 
-local function forceMaxRarity()
-    local totalModified = 0
-
-    -- ====== FASE 1: MÓDULOS E CONFIGURAÇÕES ======
-    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
-        if obj:IsA("ModuleScript") then
-            pcall(function()
-                local module = require(obj)
-                if type(module) == "table" then
-                    local function scanTable(tbl, path)
-                        if type(tbl) ~= "table" then return end
-                        for k, v in pairs(tbl) do
-                            local fullPath = path .. "." .. tostring(k)
-                            local keyStr = tostring(k):lower()
-
-                            -- Detecta tabelas de raridade/peixes/drops
-                            if keyStr:find("rarity") or keyStr:find("fish") or keyStr:find("drop") or
-                               keyStr:find("reward") or keyStr:find("catch") or keyStr:find("loot") then
-                                if type(v) == "table" then
-                                    -- Se for uma tabela de probabilidades
-                                    local hasProb = false
-                                    for subK, subV in pairs(v) do
-                                        if type(subV) == "number" then
-                                            hasProb = true
-                                            break
-                                        end
-                                    end
-                                    if hasProb then
-                                        -- Encontra o valor máximo e força tudo para ele
-                                        local maxVal = 0
-                                        local maxKey = nil
-                                        for subK, subV in pairs(v) do
-                                            if type(subV) == "number" and subV > maxVal then
-                                                maxVal = subV
-                                                maxKey = subK
-                                            end
-                                        end
-                                        if maxKey then
-                                            for subK, subV in pairs(v) do
-                                                if type(subV) == "number" then
-                                                    v[subK] = (subK == maxKey) and 100 or 0
-                                                    totalModified = totalModified + 1
-                                                end
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-
-                            -- Força strings de raridade máxima
-                            if keyStr:find("rarity") and type(v) == "string" then
-                                tbl[k] = "Legendary"
-                                totalModified = totalModified + 1
-                            end
-
-                            if type(v) == "table" then
-                                scanTable(v, fullPath)
-                            end
-                        end
-                    end
-                    scanTable(module, obj.Name)
-                end
-            end)
-        end
-
-        -- ====== FASE 2: VALORES NUMÉRICOS ======
-        if obj:IsA("NumberValue") or obj:IsA("IntValue") or obj:IsA("DoubleConstrainedValue") then
-            local name = obj.Name:lower()
-            if name:find("luck") or name:find("chance") or name:find("prob") or
-               name:find("rarity") or name:find("multiplier") or name:find("boost") then
-                pcall(function()
-                    obj.Value = 999999
-                    totalModified = totalModified + 1
-                end)
-            end
-        end
-
-        -- ====== FASE 3: STRING VALUES DE RARIDADE ======
-        if obj:IsA("StringValue") then
-            local name = obj.Name:lower()
-            if name:find("rarity") or name:find("raridade") or name:find("quality") then
-                pcall(function()
-                    obj.Value = "Legendary"
-                    totalModified = totalModified + 1
-                end)
+    -- 1. Leaderstats (mais comum)
+    local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+    if leaderstats then
+        for _, stat in ipairs(leaderstats:GetChildren()) do
+            local name = stat.Name:lower()
+            if name:find("time") or name:find("playtime") or name:find("minute") or
+               name:find("hour") or name:find("day") or name:find("tempo") or
+               name:find("hr") or name:find("hrs") or name:find("played") then
+                table.insert(systems, {
+                    type = "leaderstat",
+                    object = stat,
+                    name = stat.Name,
+                    value = stat.Value,
+                    path = "leaderstats." .. stat.Name
+                })
             end
         end
     end
 
-    -- ====== FASE 4: LEADERSTATS ======
-    pcall(function()
-        local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
-        if leaderstats then
-            for _, stat in ipairs(leaderstats:GetChildren()) do
-                local name = stat.Name:lower()
-                if name:find("luck") or name:find("sorte") then
-                    if stat:IsA("NumberValue") or stat:IsA("IntValue") then
-                        stat.Value = stat.Value * 100
-                        totalModified = totalModified + 1
-                    end
-                end
-            end
-        end
-    end)
-
-    -- ====== FASE 5: PLAYER DATA FOLDERS ======
-    local dataFolders = {"Data", "Stats", "statistics", "Values", "Attributes"}
+    -- 2. Data/Stats folders
+    local dataFolders = {"Data", "Stats", "statistics", "Values", "Attributes", "PlayerData"}
     for _, folderName in ipairs(dataFolders) do
         local folder = LocalPlayer:FindFirstChild(folderName)
         if folder then
             for _, stat in ipairs(folder:GetChildren()) do
                 local name = stat.Name:lower()
-                if name:find("luck") or name:find("sorte") or name:find("chance") then
-                    if stat:IsA("NumberValue") or stat:IsA("IntValue") then
-                        pcall(function() stat.Value = 999999 end)
-                        totalModified = totalModified + 1
-                    end
+                if name:find("time") or name:find("playtime") or name:find("minute") or
+                   name:find("hour") or name:find("day") or name:find("tempo") or
+                   name:find("played") then
+                    table.insert(systems, {
+                        type = "dataFolder",
+                        object = stat,
+                        name = stat.Name,
+                        value = stat.Value,
+                        path = folderName .. "." .. stat.Name
+                    })
                 end
             end
         end
     end
 
-    -- ====== FASE 6: VARIÁVEIS GLOBAIS ======
-    pcall(function()
-        if _G.Luck then _G.Luck = 999999 end
-        if _G.luck then _G.luck = 999999 end
-        if _G.DropRate then _G.DropRate = 999999 end
-        if _G.DropChance then _G.DropChance = 999999 end
-        if _G.FishingLuck then _G.FishingLuck = 999999 end
-    end)
-    pcall(function()
-        if getgenv().Luck then getgenv().Luck = 999999 end
-        if getgenv().luck then getgenv().luck = 999999 end
-        if getgenv().DropRate then getgenv().DropRate = 999999 end
-    end)
-    pcall(function()
-        if shared.Luck then shared.Luck = 999999 end
-        if shared.luck then shared.luck = 999999 end
-        if shared.DropRate then shared.DropRate = 999999 end
-    end)
-
-    -- ====== FASE 7: INTERCEPTAÇÃO DE REMOTES (NUCLEAR) ======
-    for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
-        if remote:IsA("RemoteEvent") then
-            local name = remote.Name:lower()
-            if name:find("fish") or name:find("catch") or name:find("reel") or
-               name:find("reward") or name:find("drop") or name:find("loot") or
-               name:find("result") or name:find("finish") then
-                
-                -- Hook no FireServer
-                local oldFireServer = remote.FireServer
-                remote.FireServer = function(self, ...)
-                    local args = {...}
-                    local modified = {}
-                    for i, arg in ipairs(args) do
-                        if type(arg) == "string" then
-                            -- Substitui qualquer raridade por "Legendary"
-                            for _, keyword in ipairs(RARITY_KEYWORDS) do
-                                if arg:lower():find(keyword) then
-                                    arg = "Legendary"
-                                    break
-                                end
-                            end
-                            -- Se for um valor de raridade, força Legendary
-                            if #arg < 30 then
-                                for _, kw in ipairs({"common", "uncommon", "rare", "epic", "normal"}) do
-                                    if arg:lower():find(kw) then
-                                        arg = "Legendary"
-                                        break
-                                    end
-                                end
-                            end
-                        elseif type(arg) == "number" then
-                            -- Se for probabilidade, força 100%
-                            if arg >= 0 and arg <= 1 then
-                                arg = 0.999
-                            end
-                        end
-                        modified[i] = arg
-                    end
-                    return oldFireServer(self, unpack(modified))
+    -- 3. Valores no Character
+    local char = LocalPlayer.Character
+    if char then
+        for _, child in ipairs(char:GetDescendants()) do
+            local name = child.Name:lower()
+            if name:find("time") or name:find("playtime") or name:find("played") then
+                if child:IsA("NumberValue") or child:IsA("IntValue") or child:IsA("StringValue") then
+                    table.insert(systems, {
+                        type = "character",
+                        object = child,
+                        name = child.Name,
+                        value = child.Value
+                    })
                 end
+            end
+        end
+    end
 
-                -- Monitora OnClientEvent para confirmar peixes lendários
-                remote.OnClientEvent:Connect(function(...)
-                    local args = {...}
-                    for _, arg in ipairs(args) do
-                        if type(arg) == "string" then
-                            for _, keyword in ipairs(RARITY_KEYWORDS) do
-                                if arg:lower():find(keyword) then
-                                    legendaryFishCount = legendaryFishCount + 1
-                                    if ui and ui.counter then
-                                        ui.counter.Text = "🏆 Lendários: " .. legendaryFishCount
+    -- 4. Remotes (sincronização com servidor)
+    for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
+        if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+            local name = remote.Name:lower()
+            if name:find("time") or name:find("playtime") or name:find("update") or
+               name:find("save") or name:find("stat") or name:find("sync") then
+                table.insert(systems, {
+                    type = "remote",
+                    object = remote,
+                    name = remote.Name
+                })
+            end
+        end
+    end
+
+    -- 5. Módulos de dados
+    for _, module in ipairs(ReplicatedStorage:GetDescendants()) do
+        if module:IsA("ModuleScript") then
+            local mName = module.Name:lower()
+            if mName:find("data") or mName:find("player") or mName:find("stats") or mName:find("profile") then
+                pcall(function()
+                    local mod = require(module)
+                    if type(mod) == "table" then
+                        local function scan(tbl, path)
+                            if type(tbl) ~= "table" then return end
+                            for k, v in pairs(tbl) do
+                                local keyStr = tostring(k):lower()
+                                if keyStr:find("time") or keyStr:find("playtime") or keyStr:find("minute") or
+                                   keyStr:find("hour") or keyStr:find("day") or keyStr:find("played") then
+                                    if type(v) == "number" then
+                                        table.insert(systems, {
+                                            type = "module",
+                                            module = mod,
+                                            key = k,
+                                            value = v,
+                                            path = path .. "." .. tostring(k)
+                                        })
                                     end
-                                    break
+                                end
+                                if type(v) == "table" then
+                                    scan(v, path .. "." .. tostring(k))
                                 end
                             end
                         end
+                        scan(mod, module.Name)
                     end
                 end)
             end
         end
     end
 
-    -- ====== FASE 8: HOOK NO SISTEMA RNG ======
-    pcall(function()
-        local mt = getrawmetatable(game)
-        if mt then
-            local oldIndex = mt.__index
-            setreadonly(mt, false)
-            mt.__index = newcclosure(function(self, key)
-                if key == "NextNumber" or key == "nextNumber" then
-                    return function(rng, min, max)
-                        local result = oldIndex(self, key)(rng, min, max)
-                        if type(result) == "number" and result >= 0 and result <= 1 then
-                            -- Retorna sempre o valor máximo possível
-                            return 0.9999
-                        end
-                        return result
+    return systems
+end
+
+-- ============================================
+-- SISTEMA DE SINCRONIZAÇÃO COM O SERVIDOR
+-- ============================================
+local function syncWithServer(timeValue, timeUnit)
+    -- Converte para segundos (unidade base)
+    local seconds = timeValue
+    if timeUnit == "minutes" or timeUnit == "min" then
+        seconds = timeValue * 60
+    elseif timeUnit == "hours" or timeUnit == "hr" then
+        seconds = timeValue * 3600
+    elseif timeUnit == "days" or timeUnit == "day" then
+        seconds = timeValue * 86400
+    end
+
+    local successCount = 0
+
+    -- 1. Atualizar todos os valores locais encontrados
+    local systems = detectPlaytimeSystem()
+    
+    for _, system in ipairs(systems) do
+        pcall(function()
+            if system.type == "leaderstat" or system.type == "dataFolder" or system.type == "character" then
+                if system.object:IsA("NumberValue") or system.object:IsA("IntValue") then
+                    local targetValue = seconds
+                    
+                    -- Ajusta baseado no nome (se for minutos, converte)
+                    local name = system.name:lower()
+                    if name:find("minute") or name:find("min") then
+                        targetValue = seconds / 60
+                    elseif name:find("hour") or name:find("hr") then
+                        targetValue = seconds / 3600
+                    elseif name:find("day") or name:find("dia") then
+                        targetValue = seconds / 86400
                     end
-                elseif key == "NextInteger" or key == "nextInteger" then
-                    return function(rng, min, max)
-                        -- Se for um range de raridade, retorna o máximo
-                        return max
-                    end
+                    
+                    system.object.Value = math.floor(targetValue)
+                    successCount = successCount + 1
+                    print("[Playtime] ✅ Atualizado: " .. system.path .. " = " .. math.floor(targetValue))
                 end
-                return oldIndex(self, key)
+            elseif system.type == "module" then
+                local targetValue = seconds
+                local name = tostring(system.key):lower()
+                if name:find("minute") then
+                    targetValue = seconds / 60
+                elseif name:find("hour") then
+                    targetValue = seconds / 3600
+                elseif name:find("day") then
+                    targetValue = seconds / 86400
+                end
+                system.module[system.key] = math.floor(targetValue)
+                successCount = successCount + 1
+            end
+        end)
+    end
+
+    -- 2. Disparar remotes de sincronização
+    for _, remote in ipairs(systems) do
+        if remote.type == "remote" then
+            pcall(function()
+                if remote.object:IsA("RemoteEvent") then
+                    remote.object:FireServer(seconds)
+                elseif remote.object:IsA("RemoteFunction") then
+                    remote.object:InvokeServer(seconds)
+                end
+                successCount = successCount + 1
+                print("[Playtime] 📡 Sincronizado via remote: " .. remote.name)
             end)
-            setreadonly(mt, true)
         end
-    end)
+    end
 
-    -- ====== FASE 9: HOOK NO RANDOM.NEW() ======
-    pcall(function()
-        local oldRandomNew = Random.new
-        Random.new = function(seed)
-            local rng = oldRandomNew(seed)
-            local oldNextNumber = rng.NextNumber
-            local oldNextInteger = rng.NextInteger
-
-            rng.NextNumber = function(self, ...)
-                local result = oldNextNumber(self, ...)
-                if type(result) == "number" and result >= 0 and result <= 1 then
-                    return 0.9999
-                end
-                return result
+    -- 3. Forçar atualização via eventos comuns
+    local commonRemotes = {
+        "UpdateStats", "SaveData", "SyncData", "UpdatePlayer",
+        "SavePlayer", "UpdateTime", "SetPlaytime", "UpdatePlaytime"
+    }
+    for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
+        if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+            if table.find(commonRemotes, child.Name) then
+                pcall(function()
+                    if child:IsA("RemoteEvent") then
+                        child:FireServer({Playtime = seconds, Time = seconds})
+                    else
+                        child:InvokeServer({Playtime = seconds, Time = seconds})
+                    end
+                    successCount = successCount + 1
+                end)
             end
-
-            rng.NextInteger = function(self, min, max)
-                return max
-            end
-
-            return rng
         end
-    end)
+    end
 
-    -- ====== FASE 10: MATH.RANDOM HOOK ======
-    pcall(function()
-        local oldRandom = math.random
-        math.random = function(...)
-            local args = {...}
-            if #args == 2 then
-                return args[2]
-            elseif #args == 1 then
-                return args[1]
+    -- 4. Método agressivo: disparar TODOS os remotes com o valor
+    if successCount < 2 then
+        for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
+            if child:IsA("RemoteEvent") then
+                pcall(function()
+                    child:FireServer(seconds, "playtime", "time")
+                end)
             end
-            return 0.9999
         end
-    end)
+    end
 
-    print("[Fish God Nuke] ✅ Modificações: " .. totalModified .. " valores alterados")
-    return totalModified
+    return successCount
 end
 
 -- ============================================
--- SISTEMA DE PESCA INSTANTÂNEA
+-- FUNÇÃO PRINCIPAL: APLICAR 2 DIAS
 -- ============================================
-local function instantCatchLoop()
+local function apply2Days(ui)
+    if ui then
+        ui.statusLabel.Text = "🔍 Procurando sistema de tempo..."
+    end
+
+    local systems = detectPlaytimeSystem()
+    
+    if #systems == 0 then
+        if ui then
+            ui.statusLabel.Text = "❌ Nenhum sistema de tempo encontrado"
+        end
+        print("[Playtime] ❌ Nenhum sistema de tempo detectado")
+        return false
+    end
+
+    if ui then
+        ui.statusLabel.Text = "✅ Sistema encontrado! Aplicando..."
+    end
+
+    print("[Playtime] " .. string.rep("=", 50))
+    print("[Playtime] ⏰ APLICANDO 2 DIAS (48 HORAS)")
+    print("[Playtime] " .. string.rep("=", 50))
+    print("[Playtime] 🔍 " .. #systems .. " sistemas de tempo encontrados")
+
+    local results = syncWithServer(TARGET_SECONDS, "seconds")
+
+    print("[Playtime] ✅ " .. results .. " alterações realizadas com sucesso!")
+    print("[Playtime] 👁️ Todos os jogadores podem ver a mudança")
+
+    if ui then
+        ui.statusLabel.Text = "✅ 2 DIAS APLICADOS! (" .. results .. " sistemas)"
+        ui.applyBtn.Text = "✅ CONCLUÍDO!"
+        ui.applyBtn.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+        task.wait(3)
+        ui.applyBtn.Text = "⚡ APLICAR 2 DIAS (48 HORAS)"
+        ui.applyBtn.BackgroundColor3 = Color3.fromRGB(59, 130, 246)
+    end
+
+    return true
+end
+
+-- ============================================
+-- SISTEMA DE ATUALIZAÇÃO CONTÍNUA
+-- ============================================
+local function startAutoRefresh()
     task.spawn(function()
-        while GOD_MODE and INSTANT_CATCH do
-            -- Procura a barra/minigame de pesca
-            for _, gui in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
-                if gui.Visible and gui:IsA("Frame") then
-                    local name = gui.Name:lower()
-                    if name:find("bar") or name:find("slider") or name:find("reel") or
-                       name:find("catch") or name:find("fish") or name:find("minigame") then
-
-                        -- Se encontrar, clica em qualquer botão de ação
-                        for _, btn in ipairs(gui:GetDescendants()) do
-                            if btn:IsA("TextButton") or btn:IsA("ImageButton") then
-                                local btnName = btn.Name:lower()
-                                local btnText = btn:IsA("TextButton") and btn.Text:lower() or ""
-                                if btnName:find("reel") or btnName:find("catch") or btnName:find("pull") or
-                                   btnName:find("confirm") or btnName:find("ok") or
-                                   btnText:find("reel") or btnText:find("catch") or btnText:find("pull") then
-                                    pcall(function()
-                                        firesignal(btn.MouseButton1Click)
-                                        firesignal(btn.Activated)
-                                    end)
-                                end
-                            end
+        while task.wait(30) do
+            pcall(function()
+                local systems = detectPlaytimeSystem()
+                local count = 0
+                for _, system in ipairs(systems) do
+                    if system.type == "leaderstat" or system.type == "dataFolder" then
+                        local currentValue = system.object.Value
+                        local targetValue = TARGET_SECONDS
+                        local name = system.name:lower()
+                        if name:find("minute") then targetValue = TARGET_MINUTES
+                        elseif name:find("hour") then targetValue = TARGET_HOURS
+                        elseif name:find("day") then targetValue = 2 end
+                        
+                        if math.abs(currentValue - targetValue) > 1 then
+                            pcall(function() system.object.Value = targetValue end)
+                            count = count + 1
                         end
-
-                        -- Também tenta clicar no centro da tela (minigames de clique)
-                        pcall(function()
-                            VirtualInputManager:SendMouseButtonEvent(
-                                Workspace.CurrentCamera.ViewportSize.X / 2,
-                                Workspace.CurrentCamera.ViewportSize.Y / 2,
-                                0, true, game, 1
-                            )
-                            task.wait(0.05)
-                            VirtualInputManager:SendMouseButtonEvent(
-                                Workspace.CurrentCamera.ViewportSize.X / 2,
-                                Workspace.CurrentCamera.ViewportSize.Y / 2,
-                                0, false, game, 1
-                            )
-                        end)
                     end
                 end
-            end
-            task.wait(0.05)
+                if count > 0 then
+                    print("[Playtime] 🔄 Auto-refresh: " .. count .. " valores corrigidos")
+                end
+            end)
         end
     end)
 end
 
 -- ============================================
--- SISTEMA DE AUTO PESCA
+-- INICIALIZAÇÃO
 -- ============================================
-local function autoFishLoop()
-    task.spawn(function()
-        while AUTO_FISH do
-            local found = false
+print("=" .. string.rep("=", 55))
+print("  ⏰ PLAYTIME BOOSTER - 2 DIAS")
+print("=" .. string.rep("=", 55))
 
-            -- Método 1: Usar ferramenta de pesca
-            local char = LocalPlayer.Character
-            if char then
-                for _, tool in ipairs(char:GetChildren()) do
-                    if tool:IsA("Tool") then
-                        local tName = tool.Name:lower()
-                        if tName:find("rod") or tName:find("fish") or tName:find("vara") or
-                           tName:find("fishing") or tName:find("pesca") then
-                            pcall(function() tool:Activate() end)
-                            found = true
-                            break
-                        end
-                    end
-                end
-            end
+local ui = createUI()
 
-            -- Método 2: Clicar botões de pescar na tela
-            if not found then
-                for _, gui in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
-                    if gui.Visible and (gui:IsA("TextButton") or gui:IsA("ImageButton")) then
-                        local gName = gui.Name:lower()
-                        local gText = gui:IsA("TextButton") and gui.Text:lower() or ""
-                        if gName:find("cast") or gName:find("fish") or gName:find("throw") or
-                           gName:find("pescar") or gName:find("lanzar") or gName:find("lançar") or
-                           gText:find("cast") or gText:find("fish") or gText:find("pescar") then
-                            pcall(function()
-                                firesignal(gui.MouseButton1Click)
-                                firesignal(gui.Activated)
-                            end)
-                            found = true
-                            break
-                        end
-                    end
-                end
-            end
+-- Função do botão aplicar
+ui.applyBtn.MouseButton1Click:Connect(function()
+    apply2Days(ui)
+end)
 
-            -- Método 3: Disparar remotamente
-            if not found then
-                for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
-                    if remote:IsA("RemoteEvent") then
-                        local rName = remote.Name:lower()
-                        if rName == "cast" or rName == "fish" or rName == "throw" or
-                           rName == "startfishing" or rName == "beginfish" then
-                            pcall(function() remote:FireServer() end)
-                            found = true
-                            break
-                        end
-                    end
-                end
-            end
+-- Função do botão atualizar
+ui.refreshBtn.MouseButton1Click:Connect(function()
+    ui.statusLabel.Text = "🔄 Atualizando para sincronizar..."
+    local results = syncWithServer(TARGET_SECONDS, "seconds")
+    ui.statusLabel.Text = "✅ Sincronizado! (" .. results .. " sistemas)"
+    task.wait(2)
+    ui.statusLabel.Text = "⏳ Pronto para usar"
+end)
 
-            task.wait(1.5)
-        end
-    end)
-end
+-- Aplica automaticamente
+task.wait(1)
+apply2Days(ui)
 
--- ============================================
--- SISTEMA DE DETECÇÃO DE PEIXE LENDÁRIO
--- ============================================
-local function monitorLegendaryCatches()
-    task.spawn(function()
-        while GOD_MODE do
-            -- Monitora todas as GUIs em busca de texto de raridade
-            for _, gui in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
-                if gui:IsA("TextLabel") and gui.Visible then
-                    local text = gui.Text:lower()
-                    local text2 = gui.Name:lower()
-                    for _, keyword in ipairs(RARITY_KEYWORDS) do
-                        if text:find(keyword) or text2:find(keyword) then
-                            -- Verifica se é uma notificação nova
-                            if not gui:GetAttribute("FishGodCounted") then
-                                gui:SetAttribute("FishGodCounted", true)
-                                legendaryFishCount = legendaryFishCount + 1
-                                if ui and ui.counter then
-                                    ui.counter.Text = "🏆 Lendários: " .. legendaryFishCount
-                                end
-                                print("[Fish God Nuke] 🏆 PEIXE LENDÁRIO CAPTURADO! (#" .. legendaryFishCount .. ")")
-                                -- Notificação visual
-                                pcall(function()
-                                    StarterGui:SetCore("SendNotification", {
-                                        Title = "🏆 PEIXE LENDÁRIO!",
-                                        Text = "Capturado! Total: " .. legendaryFishCount,
-                                        Duration = 3,
-                                        Icon = "rbxassetid://7733967073"
-                                    })
-                                end)
-                            end
-                            break
-                        end
-                    end
-                end
-            end
-            task.wait(0.5)
-        end
-    end)
-end
+-- Inicia auto-refresh
+startAutoRefresh()
 
--- ============================================
--- INICIALIZAÇÃO PRINCIPAL
--- ============================================
-print("=" .. string.rep("=", 60))
-print("  🎣 FISHING GOD MODE - VERSÃO NUCLEAR")
-print("  Força o servidor a entregar SEMPRE o item mais raro")
-print("  Hook em: Remotes, RNG, Módulos, GUI, Globais, Leaderstats")
-print("=" .. string.rep("=", 60))
-
--- Cria interface
-ui = createUI()
-
--- Notificação inicial
+-- Notificação
 pcall(function()
     StarterGui:SetCore("SendNotification", {
-        Title = "🎣 FISHING GOD NUCLEAR",
-        Text = "Modo nuclear ativado! Peixes lendários garantidos!",
-        Duration = 6,
+        Title = "⏰ PLAYTIME BOOSTER",
+        Text = "2 dias aplicados! Todos podem ver!",
+        Duration = 5,
         Icon = "rbxassetid://7733967073"
     })
 end)
 
--- Aplica força de raridade máxima
-local mods = forceMaxRarity()
-print("[Fish God Nuke] 🔥 " .. mods .. " sistemas modificados")
-
--- Inicia loops
-instantCatchLoop()
-monitorLegendaryCatches()
-
--- Atualiza status
-if ui and ui.statusLabel then
-    ui.statusLabel.Text = "⚡ MODO NUCLEAR ATIVO"
-    ui.statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
-end
-
--- ============================================
--- ATALHOS
--- ============================================
+-- Atalhos
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
-
+    
     if input.KeyCode == Enum.KeyCode.F6 then
-        GOD_MODE = not GOD_MODE
-        print("[Fish God] GOD MODE: " .. (GOD_MODE and "ON" or "OFF"))
+        apply2Days(ui)
     end
-
+    
     if input.KeyCode == Enum.KeyCode.F7 then
-        AUTO_FISH = not AUTO_FISH
-        if AUTO_FISH then
-            autoFishLoop()
-            print("[Fish God] AUTO PESCA: ON")
-        else
-            print("[Fish God] AUTO PESCA: OFF")
-        end
+        local results = syncWithServer(TARGET_SECONDS, "seconds")
+        print("[Playtime] 🔄 Sincronizado: " .. results .. " sistemas")
     end
 
     if input.KeyCode == Enum.KeyCode.F8 then
-        INSTANT_CATCH = not INSTANT_CATCH
-        print("[Fish God] PESCA INSTANTÂNEA: " .. (INSTANT_CATCH and "ON" or "OFF"))
-    end
-
-    if input.KeyCode == Enum.KeyCode.F9 then
-        if _G.FishGodNukeUI then
-            _G.FishGodNukeUI.Enabled = not _G.FishGodNukeUI.Enabled
+        if _G.PlaytimeUI then
+            _G.PlaytimeUI.Enabled = not _G.PlaytimeUI.Enabled
         end
-    end
-
-    if input.KeyCode == Enum.KeyCode.F10 then
-        print("[Fish God] 🔄 Reaplicando força nuclear...")
-        local count = forceMaxRarity()
-        print("[Fish God] ✅ " .. count .. " sistemas modificados novamente")
     end
 end)
 
 -- Comandos de chat
 LocalPlayer.Chatted:Connect(function(msg)
     local cmd = msg:lower()
-    if cmd == "/fish nuke" or cmd == "/nuke" then
-        local count = forceMaxRarity()
-        print("[Fish God] 🔥 Força nuclear aplicada: " .. count .. " sistemas")
-    elseif cmd == "/fish auto" then
-        AUTO_FISH = not AUTO_FISH
-        if AUTO_FISH then autoFishLoop() end
-    elseif cmd == "/fish status" then
-        print("[Fish God] 📊 Status:")
-        print("  God Mode: " .. (GOD_MODE and "ON" or "OFF"))
-        print("  Auto Fish: " .. (AUTO_FISH and "ON" or "OFF"))
-        print("  Instant Catch: " .. (INSTANT_CATCH and "ON" or "OFF"))
-        print("  Legendary Count: " .. legendaryFishCount)
+    if cmd == "/playtime" or cmd == "/2dias" then
+        apply2Days(ui)
+    elseif cmd == "/sync" then
+        syncWithServer(TARGET_SECONDS, "seconds")
     end
 end)
 
--- Mantém o boost ativo permanentemente
-task.spawn(function()
-    while GOD_MODE do
-        task.wait(10)
-        pcall(function()
-            forceMaxRarity()
-            if ui and ui.statusDot then
-                -- Pisca o status para mostrar que está ativo
-                ui.statusDot.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
-                task.wait(0.3)
-                ui.statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
-            end
-        end)
-    end
-end)
-
-print("[Fish God Nuke] ✅ SISTEMA NUCLEAR PRONTO")
-print("[Fish God Nuke] 🎮 F6=GodMode | F7=Auto | F8=Instant | F9=UI | F10=Force")
-print("[Fish God Nuke] 💬 /fish nuke | /fish auto | /fish status")
-print("")
-print("[Fish God Nuke] ⚠️ ATENÇÃO: Pesque normalmente - o script")
-print("[Fish God Nuke]    força o servidor a entregar o melhor peixe!")
-print("")
-
-return {
-    godMode = GOD_MODE,
-    autoFish = AUTO_FISH,
-    instantCatch = INSTANT_CATCH,
-    legendaryCount = legendaryFishCount,
-    forceMaxRarity = forceMaxRarity
-}
+print("[Playtime] ✅ Sistema iniciado")
+print("[Playtime] 🎮 F6=Aplicar | F7=Sincronizar | F8=Esconder UI")
+print("[Playtime] 💬 /playtime | /sync")
