@@ -1,17 +1,10 @@
 --[[
     ╔══════════════════════════════════════════════════════════════╗
-    ║     SERVER-SIDE KICK SYSTEM - INTERFACE COMPLETA           ║
-    ║     Kick real e forçado - O jogador SAI do servidor       ║
-    ║     Script único e completo - Sem dependências            ║
+    ║     SERVER-SIDE KICK SYSTEM - INTERFACE GRÁFICA COMPLETA  ║
+    ║     Com botões interativos e painel profissional          ║
+    ║     Requer: Executor Server-Side                          ║
     ╚══════════════════════════════════════════════════════════════╝
 ]]
-
--- ============================================
--- CONFIGURAÇÃO
--- ============================================
-local SCRIPT_NAME = "Kick System"
-local SCRIPT_VERSION = "1.0"
-local KICK_REASON = "Você foi removido do servidor"
 
 -- ============================================
 -- SERVIÇOS
@@ -19,63 +12,61 @@ local KICK_REASON = "Você foi removido do servidor"
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local StarterGui = game:GetService("StarterGui")
-local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
 local TeleportService = game:GetService("TeleportService")
 
 -- ============================================
--- VERIFICAÇÃO DO AMBIENTE
+-- VERIFICAÇÃO
 -- ============================================
 local IsServer = pcall(function()
     return RunService:IsServer()
 end)
 
 if not IsServer then
-    -- Tenta executar mesmo assim (alguns executores híbridos)
-    warn("⚠️ AVISO: Execute este script no SERVIDOR para kick real")
+    warn("⚠️ Execute no servidor para kick real")
 end
 
 -- ============================================
--- SISTEMA DE KICK ULTRA AGRESSIVO
+-- ENGINE DE KICK ULTRA AGRESSIVA
 -- ============================================
 local KickEngine = {}
 
--- Método 1: Kick nativo (mais confiável)
-function KickEngine.Native(player, reason)
-    return pcall(function()
-        player:Kick(reason)
-    end)
-end
-
--- Método 2: Destrói o character e força disconnect
-function KickEngine.ForceDisconnect(player)
+function KickEngine.Execute(player, reason)
+    if not player or not player:IsA("Player") then return false end
+    
+    local name = player.Name
+    
+    -- Método 1: Kick nativo
+    pcall(function() player:Kick(reason) end)
+    if not player.Parent then return true end
+    
+    -- Método 2: Destruir character
     pcall(function()
         if player.Character then
             player.Character:BreakJoints()
             player.Character:Destroy()
         end
-    end)
-    pcall(function()
         if player.Backpack then
             player.Backpack:Destroy()
         end
     end)
+    task.wait(0.5)
+    if not player.Parent then return true end
+    
+    -- Método 3: Teleport void
     pcall(function()
-        local char = player.Character or player.CharacterAdded:Wait()
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.Anchored = false
-            hrp.Velocity = Vector3.new(0, -9999, 0)
-            hrp.CFrame = CFrame.new(0, -99999, 0)
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(0, -99999, 0)
         end
     end)
-    return true
-end
-
--- Método 3: Flood de requisições (sobrecarrega o cliente)
-function KickEngine.FloodClient(player)
+    task.wait(1)
+    if not player.Parent then return true end
+    
+    -- Método 4: Flood
     task.spawn(function()
-        for i = 1, 500 do
+        for i = 1, 200 do
             pcall(function()
                 for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
                     if obj:IsA("RemoteEvent") then
@@ -86,495 +77,528 @@ function KickEngine.FloodClient(player)
             task.wait(0.01)
         end
     end)
-    return true
-end
-
--- Método 4: Teleporta para lugar nenhum
-function KickEngine.VoidTeleport(player)
-    pcall(function()
-        local char = player.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            char.HumanoidRootPart.CFrame = CFrame.new(0, -50000, 0)
-        end
-    end)
-    pcall(function()
-        TeleportService:Teleport(game.PlaceId, player)
-    end)
-    return true
-end
-
--- MÉTODO PRINCIPAL: Tenta TODOS em sequência
-function KickEngine.Execute(player, reason)
-    if not player or not player:IsA("Player") then
-        return false, "Jogador inválido"
-    end
+    task.wait(3)
+    if not player.Parent then return true end
     
-    local playerName = player.Name
-    print("👢 Iniciando kick em: " .. playerName)
-    
-    -- 1. Kick nativo
-    local success = KickEngine.Native(player, reason)
-    if not player.Parent then
-        print("✅ " .. playerName .. " kickado (Método 1: Nativo)")
-        return true
-    end
-    
-    -- 2. Força disconnect
-    task.wait(0.5)
-    if player.Parent then
-        KickEngine.ForceDisconnect(player)
-        task.wait(1)
-        if not player.Parent then
-            print("✅ " .. playerName .. " kickado (Método 2: Force Disconnect)")
-            return true
-        end
-    end
-    
-    -- 3. Void teleport
-    if player.Parent then
-        KickEngine.VoidTeleport(player)
-        task.wait(1)
-        if not player.Parent then
-            print("✅ " .. playerName .. " kickado (Método 3: Void Teleport)")
-            return true
-        end
-    end
-    
-    -- 4. Flood (último recurso)
-    if player.Parent then
-        KickEngine.FloodClient(player)
-        task.wait(3)
-        if not player.Parent then
-            print("✅ " .. playerName .. " kickado (Método 4: Flood)")
-            return true
-        end
-    end
-    
-    -- 5. Tenta novamente o nativo com delay
-    if player.Parent then
-        task.wait(2)
-        KickEngine.Native(player, reason)
-        task.wait(2)
-        if not player.Parent then
-            print("✅ " .. playerName .. " kickado (Método 5: Retry Nativo)")
-            return true
-        end
-    end
-    
-    if player.Parent then
-        print("❌ FALHA ao kickar " .. playerName)
-        return false
-    end
-    
-    return true
-end
-
--- ============================================
--- CRIAÇÃO DA INTERFACE GRÁFICA
--- ============================================
-local function createInterface()
-    -- Esta GUI será injetada em cada cliente via Server
-    -- Mas como estamos no servidor, vamos criar uma interface de console aprimorada
-    
-    print("")
-    print("╔" .. string.rep("═", 58) .. "╗")
-    print("║" .. string.center("👢 KICK SYSTEM - INTERFACE", 58) .. "║")
-    print("╠" .. string.rep("═", 58) .. "╣")
-    print("║" .. string.center("Script carregado com sucesso!", 58) .. "║")
-    print("║" .. string.center("Use os comandos abaixo para kickar jogadores", 58) .. "║")
-    print("╠" .. string.rep("═", 58) .. "╣")
-    print("║  COMANDOS DISPONÍVEIS:                                  ║")
-    print("║  kick NomeDoJogador   → Kicka um jogador específico     ║")
-    print("║  kickall              → Kicka TODOS os jogadores        ║")
-    print("║  kickid 123456        → Kicka por UserID                ║")
-    print("║  list                 → Lista todos os jogadores        ║")
-    print("║  notify Nome Mensagem → Envia notificação               ║")
-    print("╠" .. string.rep("═", 58) .. "╣")
-    print("║" .. string.center("JOGADORES ONLINE: " .. #Players:GetPlayers(), 58) .. "║")
-    print("╚" .. string.rep("═", 58) .. "╝")
-    print("")
-    
-    -- Lista jogadores
-    for i, player in ipairs(Players:GetPlayers()) do
-        local status = "🟢"
-        local ping = ""
-        pcall(function()
-            ping = " | Ping: " .. math.floor(player:GetNetworkPing() * 1000) .. "ms"
-        end)
-        print("  " .. i .. ". " .. status .. " " .. player.Name .. " (ID: " .. player.UserId .. ")" .. ping)
-    end
-    print("")
-    
-    -- Barra de status
-    print("┌──────────────────────────────────────────────────────────┐")
-    print("│  STATUS: Aguardando comandos...                          │")
-    print("└──────────────────────────────────────────────────────────┘")
-    print("")
-    print("  Digite um comando ou use as funções do console.")
-    print("  Exemplo: kick Player123")
-    print("")
-end
-
--- ============================================
--- NOTIFICAÇÃO VISUAL PARA O JOGADOR KICKADO
--- ============================================
-local function sendKickWarning(player)
-    pcall(function()
-        local plyGui = player:FindFirstChildOfClass("PlayerGui")
-        if plyGui then
-            local screenGui = Instance.new("ScreenGui")
-            screenGui.Name = "KickWarning"
-            screenGui.ResetOnSpawn = false
-            screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-            screenGui.DisplayOrder = 99999
-            screenGui.Parent = plyGui
-            
-            -- Fundo escuro
-            local bg = Instance.new("Frame")
-            bg.Size = UDim2.new(1, 0, 1, 0)
-            bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-            bg.BackgroundTransparency = 0.7
-            bg.Parent = screenGui
-            
-            -- Painel central
-            local panel = Instance.new("Frame")
-            panel.Size = UDim2.new(0, 350, 0, 150)
-            panel.Position = UDim2.new(0.5, -175, 0.5, -75)
-            panel.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-            panel.BorderSizePixel = 0
-            panel.Parent = screenGui
-            
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(0, 12)
-            corner.Parent = panel
-            
-            local stroke = Instance.new("UIStroke")
-            stroke.Thickness = 2
-            stroke.Color = Color3.fromRGB(239, 68, 68)
-            stroke.Parent = panel
-            
-            -- Ícone
-            local icon = Instance.new("TextLabel")
-            icon.Size = UDim2.new(1, 0, 0, 40)
-            icon.Position = UDim2.new(0, 0, 0, 15)
-            icon.BackgroundTransparency = 1
-            icon.Text = "⚠️"
-            icon.TextSize = 36
-            icon.Parent = panel
-            
-            -- Mensagem
-            local msg = Instance.new("TextLabel")
-            msg.Size = UDim2.new(1, 0, 0, 30)
-            msg.Position = UDim2.new(0, 0, 0, 60)
-            msg.BackgroundTransparency = 1
-            msg.Text = "VOCÊ FOI REMOVIDO DO SERVIDOR"
-            msg.TextColor3 = Color3.fromRGB(255, 255, 255)
-            msg.TextSize = 16
-            msg.Font = Enum.Font.GothamBold
-            msg.Parent = panel
-            
-            local sub = Instance.new("TextLabel")
-            sub.Size = UDim2.new(1, 0, 0, 20)
-            sub.Position = UDim2.new(0, 0, 0, 95)
-            sub.BackgroundTransparency = 1
-            sub.Text = "Você será desconectado em instantes..."
-            sub.TextColor3 = Color3.fromRGB(180, 180, 180)
-            sub.TextSize = 11
-            sub.Font = Enum.Font.Gotham
-            sub.Parent = panel
-            
-            -- Barra de progresso
-            local bar = Instance.new("Frame")
-            bar.Size = UDim2.new(0.8, 0, 0, 6)
-            bar.Position = UDim2.new(0.1, 0, 0, 125)
-            bar.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-            bar.BorderSizePixel = 0
-            bar.Parent = panel
-            
-            local barCorner = Instance.new("UICorner")
-            barCorner.CornerRadius = UDim.new(0, 3)
-            barCorner.Parent = bar
-            
-            local fill = Instance.new("Frame")
-            fill.Size = UDim2.new(1, 0, 1, 0)
-            fill.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
-            fill.BorderSizePixel = 0
-            fill.Parent = bar
-            
-            local fillCorner = Instance.new("UICorner")
-            fillCorner.CornerRadius = UDim.new(0, 3)
-            fillCorner.Parent = fill
-            
-            -- Animação
-            fill:TweenSize(UDim2.new(0, 0, 1, 0), "Out", "Linear", 2, true)
-        end
-    end)
-end
-
--- ============================================
--- FUNÇÕES DE KICK (API PÚBLICA)
--- ============================================
-function KickPlayer(targetName, reason)
-    local found = false
-    
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Name:lower():find(targetName:lower()) or 
-           (player.DisplayName:lower():find(targetName:lower())) or
-           tostring(player.UserId) == targetName then
-            
-            found = true
-            print("👢 Kickando: " .. player.Name)
-            
-            -- Envia aviso visual
-            sendKickWarning(player)
-            
-            -- Aguarda 2 segundos e kicka
-            task.delay(2, function()
-                local success = KickEngine.Execute(player, reason or KICK_REASON)
-                if success then
-                    print("✅ " .. player.Name .. " foi removido com sucesso!")
-                else
-                    print("❌ Falha ao remover " .. player.Name)
-                end
-            end)
-            
-            return true
-        end
-    end
-    
-    if not found then
-        print("❌ Jogador não encontrado: " .. targetName)
-        print("   Use 'list' para ver todos os jogadores online")
-    end
-    
-    return false
-end
-
-function KickAllPlayers(reason)
-    local players = Players:GetPlayers()
-    local count = 0
-    
-    print("💀 Iniciando kick em massa (" .. #players .. " jogadores)...")
-    
-    for _, player in ipairs(players) do
-        print("  👢 Kickando: " .. player.Name)
-        sendKickWarning(player)
-        count = count + 1
-    end
-    
+    -- Método 5: Última tentativa
+    pcall(function() player:Kick(reason) end)
     task.wait(2)
     
-    for _, player in ipairs(players) do
+    return not player.Parent
+end
+
+-- ============================================
+-- INTERFACE GRÁFICA COMPLETA
+-- ============================================
+local function createGUI()
+    -- Remove UI antiga
+    if _G.KickSystemGUI then
+        _G.KickSystemGUI:Destroy()
+        _G.KickSystemGUI = nil
+    end
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "KickSystemGUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.DisplayOrder = 99999
+    screenGui.Parent = CoreGui
+
+    pcall(function()
+        if syn and syn.protect_gui then syn.protect_gui(screenGui) end
+        if gethui then screenGui.Parent = gethui() end
+    end)
+
+    _G.KickSystemGUI = screenGui
+
+    -- ========== PAINEL PRINCIPAL ==========
+    local main = Instance.new("Frame")
+    main.Name = "Main"
+    main.Size = UDim2.new(0, 420, 0, 500)
+    main.Position = UDim2.new(0.5, -210, 0.5, -250)
+    main.BackgroundColor3 = Color3.fromRGB(10, 12, 16)
+    main.BorderSizePixel = 0
+    main.Active = true
+    main.Draggable = true
+    main.Parent = screenGui
+
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 16)
+    mainCorner.Parent = main
+
+    local mainStroke = Instance.new("UIStroke")
+    mainStroke.Thickness = 2
+    mainStroke.Color = Color3.fromRGB(239, 68, 68)
+    mainStroke.Parent = main
+
+    -- Gradiente superior
+    local gradient = Instance.new("ImageLabel")
+    gradient.Size = UDim2.new(1, 0, 0, 4)
+    gradient.BackgroundTransparency = 1
+    gradient.Image = "rbxassetid://9968344105"
+    gradient.ImageColor3 = Color3.fromRGB(239, 68, 68)
+    gradient.ScaleType = Enum.ScaleType.Fit
+    gradient.Parent = main
+
+    -- ========== CABEÇALHO ==========
+    local header = Instance.new("Frame")
+    header.Size = UDim2.new(1, 0, 0, 50)
+    header.BackgroundColor3 = Color3.fromRGB(16, 18, 24)
+    header.BorderSizePixel = 0
+    header.Parent = main
+    local headerCorner = Instance.new("UICorner")
+    headerCorner.CornerRadius = UDim.new(0, 16)
+    headerCorner.Parent = header
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -50, 1, 0)
+    title.Position = UDim2.new(0, 16, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "👢 KICK SYSTEM PRO"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextSize = 16
+    title.Font = Enum.Font.GothamBold
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = header
+
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 30, 0, 30)
+    closeBtn.Position = UDim2.new(1, -40, 0, 10)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+    closeBtn.Text = "✕"
+    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeBtn.TextSize = 14
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.BorderSizePixel = 0
+    closeBtn.Parent = header
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 7)
+    closeCorner.Parent = closeBtn
+    closeBtn.MouseButton1Click:Connect(function()
+        screenGui:Destroy()
+        _G.KickSystemGUI = nil
+    end)
+
+    -- ========== BARRA DE PESQUISA ==========
+    local searchFrame = Instance.new("Frame")
+    searchFrame.Size = UDim2.new(1, -16, 0, 36)
+    searchFrame.Position = UDim2.new(0, 8, 0, 58)
+    searchFrame.BackgroundColor3 = Color3.fromRGB(16, 18, 24)
+    searchFrame.BorderSizePixel = 0
+    searchFrame.Parent = main
+    local searchCorner = Instance.new("UICorner")
+    searchCorner.CornerRadius = UDim.new(0, 10)
+    searchCorner.Parent = searchFrame
+
+    local searchIcon = Instance.new("TextLabel")
+    searchIcon.Size = UDim2.new(0, 24, 1, 0)
+    searchIcon.BackgroundTransparency = 1
+    searchIcon.Text = "🔍"
+    searchIcon.TextSize = 14
+    searchIcon.Parent = searchFrame
+
+    local searchBox = Instance.new("TextBox")
+    searchBox.Name = "SearchBox"
+    searchBox.Size = UDim2.new(1, -32, 1, 0)
+    searchBox.Position = UDim2.new(0, 28, 0, 0)
+    searchBox.BackgroundTransparency = 1
+    searchBox.PlaceholderText = "Pesquisar jogador..."
+    searchBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
+    searchBox.Text = ""
+    searchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    searchBox.TextSize = 13
+    searchBox.Font = Enum.Font.Gotham
+    searchBox.TextXAlignment = Enum.TextXAlignment.Left
+    searchBox.Parent = searchFrame
+
+    -- ========== CONTADOR ==========
+    local countLabel = Instance.new("TextLabel")
+    countLabel.Name = "CountLabel"
+    countLabel.Size = UDim2.new(1, -16, 0, 20)
+    countLabel.Position = UDim2.new(0, 8, 0, 100)
+    countLabel.BackgroundTransparency = 1
+    countLabel.Text = "👥 Jogadores online: 0"
+    countLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
+    countLabel.TextSize = 11
+    countLabel.Font = Enum.Font.GothamBold
+    countLabel.TextXAlignment = Enum.TextXAlignment.Left
+    countLabel.Parent = main
+
+    -- ========== LISTA DE JOGADORES ==========
+    local listFrame = Instance.new("ScrollingFrame")
+    listFrame.Name = "ListFrame"
+    listFrame.Size = UDim2.new(1, -16, 0, 240)
+    listFrame.Position = UDim2.new(0, 8, 0, 124)
+    listFrame.BackgroundColor3 = Color3.fromRGB(16, 18, 24)
+    listFrame.BorderSizePixel = 0
+    listFrame.ScrollBarThickness = 4
+    listFrame.ScrollBarImageColor3 = Color3.fromRGB(239, 68, 68)
+    listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    listFrame.Parent = main
+    local listCorner = Instance.new("UICorner")
+    listCorner.CornerRadius = UDim.new(0, 10)
+    listCorner.Parent = listFrame
+
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.Padding = UDim.new(0, 4)
+    listLayout.Parent = listFrame
+
+    -- ========== BOTÕES DE AÇÃO ==========
+    local btnKickAll = Instance.new("TextButton")
+    btnKickAll.Name = "BtnKickAll"
+    btnKickAll.Size = UDim2.new(1, -16, 0, 40)
+    btnKickAll.Position = UDim2.new(0, 8, 0, 372)
+    btnKickAll.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+    btnKickAll.Text = "💀 KICKAR TODOS"
+    btnKickAll.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btnKickAll.TextSize = 14
+    btnKickAll.Font = Enum.Font.GothamBold
+    btnKickAll.BorderSizePixel = 0
+    btnKickAll.Parent = main
+    local btnAllCorner = Instance.new("UICorner")
+    btnAllCorner.CornerRadius = UDim.new(0, 10)
+    btnAllCorner.Parent = btnKickAll
+
+    local btnRefresh = Instance.new("TextButton")
+    btnRefresh.Name = "BtnRefresh"
+    btnRefresh.Size = UDim2.new(1, -16, 0, 32)
+    btnRefresh.Position = UDim2.new(0, 8, 0, 418)
+    btnRefresh.BackgroundColor3 = Color3.fromRGB(40, 42, 48)
+    btnRefresh.Text = "🔄 ATUALIZAR LISTA"
+    btnRefresh.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btnRefresh.TextSize = 12
+    btnRefresh.Font = Enum.Font.Gotham
+    btnRefresh.BorderSizePixel = 0
+    btnRefresh.Parent = main
+    local btnRefreshCorner = Instance.new("UICorner")
+    btnRefreshCorner.CornerRadius = UDim.new(0, 10)
+    btnRefreshCorner.Parent = btnRefresh
+
+    -- ========== BARRA DE STATUS ==========
+    local statusFrame = Instance.new("Frame")
+    statusFrame.Name = "StatusFrame"
+    statusFrame.Size = UDim2.new(1, -16, 0, 28)
+    statusFrame.Position = UDim2.new(0, 8, 0, 456)
+    statusFrame.BackgroundColor3 = Color3.fromRGB(16, 18, 24)
+    statusFrame.BorderSizePixel = 0
+    statusFrame.Parent = main
+    local statusCorner = Instance.new("UICorner")
+    statusCorner.CornerRadius = UDim.new(0, 8)
+    statusCorner.Parent = statusFrame
+
+    local statusDot = Instance.new("Frame")
+    statusDot.Name = "StatusDot"
+    statusDot.Size = UDim2.new(0, 8, 0, 8)
+    statusDot.Position = UDim2.new(0, 10, 0, 10)
+    statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+    statusDot.BorderSizePixel = 0
+    statusDot.Parent = statusFrame
+    local dotCorner = Instance.new("UICorner")
+    dotCorner.CornerRadius = UDim.new(1, 0)
+    dotCorner.Parent = statusDot
+
+    local statusText = Instance.new("TextLabel")
+    statusText.Name = "StatusText"
+    statusText.Size = UDim2.new(1, -28, 1, 0)
+    statusText.Position = UDim2.new(0, 24, 0, 0)
+    statusText.BackgroundTransparency = 1
+    statusText.Text = "Sistema pronto"
+    statusText.TextColor3 = Color3.fromRGB(180, 180, 190)
+    statusText.TextSize = 11
+    statusText.Font = Enum.Font.Gotham
+    statusText.TextXAlignment = Enum.TextXAlignment.Left
+    statusText.Parent = statusFrame
+
+    -- ========== REFERÊNCIAS ==========
+    local ui = {
+        screenGui = screenGui,
+        main = main,
+        listFrame = listFrame,
+        listLayout = listLayout,
+        countLabel = countLabel,
+        searchBox = searchBox,
+        btnKickAll = btnKickAll,
+        btnRefresh = btnRefresh,
+        statusDot = statusDot,
+        statusText = statusText
+    }
+
+    -- ========== FUNÇÃO: ATUALIZAR LISTA ==========
+    local function refreshList()
+        -- Limpa a lista
+        for _, child in ipairs(listFrame:GetChildren()) do
+            if child:IsA("Frame") and child.Name == "PlayerCard" then
+                child:Destroy()
+            end
+        end
+
+        local allPlayers = Players:GetPlayers()
+        local searchTerm = searchBox.Text:lower()
+        local visibleCount = 0
+
+        -- Ordena por nome
+        table.sort(allPlayers, function(a, b)
+            return a.Name:lower() < b.Name:lower()
+        end)
+
+        for _, player in ipairs(allPlayers) do
+            -- Filtro de pesquisa
+            if searchTerm == "" or 
+               player.Name:lower():find(searchTerm) or 
+               player.DisplayName:lower():find(searchTerm) then
+                
+                visibleCount = visibleCount + 1
+
+                -- Card do jogador
+                local card = Instance.new("Frame")
+                card.Name = "PlayerCard"
+                card.Size = UDim2.new(1, 0, 0, 52)
+                card.BackgroundColor3 = Color3.fromRGB(22, 24, 30)
+                card.BorderSizePixel = 0
+                card.Parent = listFrame
+                
+                local cardCorner = Instance.new("UICorner")
+                cardCorner.CornerRadius = UDim.new(0, 10)
+                cardCorner.Parent = card
+
+                -- Avatar (círculo com inicial)
+                local avatar = Instance.new("Frame")
+                avatar.Size = UDim2.new(0, 36, 0, 36)
+                avatar.Position = UDim2.new(0, 10, 0, 8)
+                avatar.BackgroundColor3 = Color3.fromRGB(59, 130, 246)
+                avatar.BorderSizePixel = 0
+                avatar.Parent = card
+                local avatarCorner = Instance.new("UICorner")
+                avatarCorner.CornerRadius = UDim.new(1, 0)
+                avatarCorner.Parent = avatar
+
+                local avatarText = Instance.new("TextLabel")
+                avatarText.Size = UDim2.new(1, 0, 1, 0)
+                avatarText.BackgroundTransparency = 1
+                avatarText.Text = player.Name:sub(1, 1):upper()
+                avatarText.TextColor3 = Color3.fromRGB(255, 255, 255)
+                avatarText.TextSize = 18
+                avatarText.Font = Enum.Font.GothamBold
+                avatarText.Parent = avatar
+
+                -- Nome do jogador
+                local nameLabel = Instance.new("TextLabel")
+                nameLabel.Size = UDim2.new(1, -120, 0, 22)
+                nameLabel.Position = UDim2.new(0, 56, 0, 6)
+                nameLabel.BackgroundTransparency = 1
+                nameLabel.Text = player.DisplayName ~= player.Name and 
+                    player.DisplayName .. " (@" .. player.Name .. ")" or 
+                    player.Name
+                nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                nameLabel.TextSize = 13
+                nameLabel.Font = Enum.Font.GothamBold
+                nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+                nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+                nameLabel.Parent = card
+
+                -- ID do jogador
+                local idLabel = Instance.new("TextLabel")
+                idLabel.Size = UDim2.new(1, -120, 0, 18)
+                idLabel.Position = UDim2.new(0, 56, 0, 28)
+                idLabel.BackgroundTransparency = 1
+                idLabel.Text = "ID: " .. player.UserId
+                idLabel.TextColor3 = Color3.fromRGB(140, 140, 150)
+                idLabel.TextSize = 10
+                idLabel.Font = Enum.Font.Gotham
+                idLabel.TextXAlignment = Enum.TextXAlignment.Left
+                idLabel.Parent = card
+
+                -- Botão KICK
+                local kickBtn = Instance.new("TextButton")
+                kickBtn.Size = UDim2.new(0, 55, 0, 30)
+                kickBtn.Position = UDim2.new(1, -65, 0, 11)
+                kickBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+                kickBtn.Text = "KICK"
+                kickBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                kickBtn.TextSize = 11
+                kickBtn.Font = Enum.Font.GothamBold
+                kickBtn.BorderSizePixel = 0
+                kickBtn.Parent = card
+                
+                local kickCorner = Instance.new("UICorner")
+                kickCorner.CornerRadius = UDim.new(0, 7)
+                kickCorner.Parent = kickBtn
+
+                -- Hover no botão
+                kickBtn.MouseEnter:Connect(function()
+                    kickBtn.BackgroundColor3 = Color3.fromRGB(220, 38, 38)
+                end)
+                kickBtn.MouseLeave:Connect(function()
+                    kickBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+                end)
+
+                -- AÇÃO DE KICK
+                kickBtn.MouseButton1Click:Connect(function()
+                    local playerName = player.Name
+                    kickBtn.Text = "⏳"
+                    kickBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+                    kickBtn.Active = false
+
+                    ui.statusText.Text = "👢 Kickando " .. playerName .. "..."
+                    ui.statusDot.BackgroundColor3 = Color3.fromRGB(249, 115, 22)
+
+                    -- Executa o kick em uma thread separada
+                    task.spawn(function()
+                        local success = KickEngine.Execute(player, "Kickado pelo administrador")
+                        
+                        if success then
+                            kickBtn.Text = "✓"
+                            kickBtn.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+                            ui.statusText.Text = "✅ " .. playerName .. " removido!"
+                            ui.statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+                            
+                            -- Animação de fade out no card
+                            card.BackgroundColor3 = Color3.fromRGB(34, 197, 94, 50)
+                            task.wait(1)
+                            refreshList()
+                        else
+                            kickBtn.Text = "✗"
+                            kickBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+                            ui.statusText.Text = "❌ Falha ao kickar " .. playerName
+                            ui.statusDot.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+                            kickBtn.Active = true
+                        end
+                        
+                        task.wait(2)
+                        ui.statusText.Text = "Sistema pronto"
+                        ui.statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+                    end)
+                end)
+            end
+        end
+
+        -- Atualiza contador e canvas
+        ui.countLabel.Text = "👥 Jogadores: " .. visibleCount .. " / " .. #allPlayers ..
+            (searchTerm ~= "" and " (filtrado)" or "")
+        listFrame.CanvasSize = UDim2.new(0, 0, 0, visibleCount * 56 + (visibleCount - 1) * 4 + 8)
+    end
+
+    -- ========== EVENTOS DOS BOTÕES ==========
+    btnRefresh.MouseButton1Click:Connect(function()
+        ui.statusText.Text = "🔄 Atualizando..."
+        refreshList()
+        ui.statusText.Text = "✅ Lista atualizada!"
+        task.wait(1.5)
+        ui.statusText.Text = "Sistema pronto"
+    end)
+
+    btnKickAll.MouseButton1Click:Connect(function()
+        local allPlayers = Players:GetPlayers()
+        if #allPlayers <= 1 then
+            ui.statusText.Text = "⚠️ Apenas você no servidor"
+            return
+        end
+
+        btnKickAll.Text = "⏳ Processando..."
+        btnKickAll.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+        btnKickAll.Active = false
+
+        ui.statusText.Text = "💀 Kickando TODOS os jogadores..."
+        ui.statusDot.BackgroundColor3 = Color3.fromRGB(249, 115, 22)
+
         task.spawn(function()
-            KickEngine.Execute(player, reason or "Kick em massa")
+            local kicked = 0
+            local failed = 0
+
+            for _, player in ipairs(allPlayers) do
+                ui.statusText.Text = "👢 Kickando " .. player.Name .. "..."
+                local success = KickEngine.Execute(player, "Kick em massa")
+                if success then
+                    kicked = kicked + 1
+                else
+                    failed = failed + 1
+                end
+                task.wait(0.3)
+            end
+
+            ui.statusText.Text = "✅ " .. kicked .. " kickados, " .. failed .. " falhas"
+            ui.statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+            
+            btnKickAll.Text = "💀 KICKAR TODOS"
+            btnKickAll.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+            btnKickAll.Active = true
+            
+            refreshList()
+            
+            task.wait(3)
+            ui.statusText.Text = "Sistema pronto"
         end)
-        task.wait(0.3)
-    end
-    
-    print("✅ " .. count .. " jogadores processados")
-    return count
-end
+    end)
 
-function ListPlayers()
-    local players = Players:GetPlayers()
-    print("")
-    print("═══ JOGADORES ONLINE (" .. #players .. ") ═══")
-    for i, player in ipairs(players) do
-        local ping = ""
-        pcall(function()
-            ping = " | Ping: " .. math.floor(player:GetNetworkPing() * 1000) .. "ms"
-        end)
-        print("  " .. i .. ". " .. player.Name .. " (ID: " .. player.UserId .. ")" .. ping)
-    end
-    print("══════════════════════════════════════")
-    print("")
-    return players
-end
+    -- Pesquisa em tempo real
+    searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+        refreshList()
+    end)
 
-function NotifyPlayer(targetName, message)
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Name:lower():find(targetName:lower()) then
-            sendKickWarning(player)
-            print("📨 Notificação enviada para " .. player.Name)
-            return true
-        end
-    end
-    print("❌ Jogador não encontrado")
-    return false
-end
-
--- ============================================
--- SISTEMA DE COMANDOS (CONSOLE + CHAT)
--- ============================================
-local function processCommand(message)
-    local msg = message:lower():gsub("^%s+", ""):gsub("%s+$", "")
-    
-    -- /kick PlayerName
-    if msg:find("^kick ") or msg:find("^/kick ") then
-        local target = message:gsub("^/kick ", ""):gsub("^kick ", "")
-        KickPlayer(target)
-        return true
-    end
-    
-    -- /kickall
-    if msg == "kickall" or msg == "/kickall" then
-        KickAllPlayers()
-        return true
-    end
-    
-    -- /kickid 123456
-    if msg:find("^kickid ") or msg:find("^/kickid ") then
-        local id = message:gsub("^/kickid ", ""):gsub("^kickid ", "")
-        KickPlayer(id)  -- busca por ID
-        return true
-    end
-    
-    -- /list
-    if msg == "list" or msg == "/list" or msg == "players" or msg == "/players" then
-        ListPlayers()
-        return true
-    end
-    
-    -- /notify Player Mensagem
-    if msg:find("^notify ") or msg:find("^/notify ") then
-        local parts = message:gsub("^/notify ", ""):gsub("^notify ", ""):split(" ")
-        if #parts >= 1 then
-            local target = parts[1]
-            local notifMsg = #parts > 1 and table.concat(parts, " ", 2) or "Aviso"
-            NotifyPlayer(target, notifMsg)
-        end
-        return true
-    end
-    
-    -- /help
-    if msg == "help" or msg == "/help" or msg == "?" then
-        print("")
-        print("═══ COMANDOS DISPONÍVEIS ═══")
-        print("  kick PlayerName   → Kicka um jogador")
-        print("  kickall           → Kicka todos os jogadores")
-        print("  kickid 123456     → Kicka por UserID")
-        print("  list              → Lista jogadores online")
-        print("  notify Player Msg → Envia notificação")
-        print("  help              → Mostra esta ajuda")
-        print("═══════════════════════════════════")
-        print("")
-        return true
-    end
-    
-    return false
-end
-
--- ============================================
--- INTERFACE DE CONSOLE MELHORADA
--- ============================================
-local function startConsoleInterface()
-    print("")
-    print("╔══════════════════════════════════════════════════════════╗")
-    print("║          👢 KICK SYSTEM - CONSOLE INTERATIVO            ║")
-    print("╠══════════════════════════════════════════════════════════╣")
-    print("║  Digite comandos abaixo. Exemplos:                      ║")
-    print("║  > kick PlayerName                                      ║")
-    print("║  > kickall                                              ║")
-    print("║  > list                                                 ║")
-    print("║  > help                                                 ║")
-    print("╚══════════════════════════════════════════════════════════╝")
-    print("")
-    
-    -- Como não temos input real no console do Roblox,
-    -- as funções ficam disponíveis como variáveis globais
-    
-    print("✅ Sistema pronto! Use as funções abaixo no console:")
-    print("   KickPlayer('NomeDoPlayer')")
-    print("   KickAllPlayers()")
-    print("   ListPlayers()")
-    print("   NotifyPlayer('Nome', 'Mensagem')")
-    print("")
-    print("👥 Jogadores online: " .. #Players:GetPlayers())
-    ListPlayers()
-end
-
--- ============================================
--- MONITORAMENTO DE JOGADORES
--- ============================================
-Players.PlayerAdded:Connect(function(player)
-    print("➕ " .. player.Name .. " entrou no servidor (Total: " .. #Players:GetPlayers() .. ")")
-    
-    -- Se o jogador estava na blacklist, kicka automaticamente
-    -- (Descomente para ativar)
-    -- if player.Name:lower():find("playerindesejado") then
-    --     task.wait(2)
-    --     KickEngine.Execute(player, "Blacklist")
-    -- end
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-    print("👢 " .. player.Name .. " saiu do servidor (Total: " .. (#Players:GetPlayers() - 1) .. ")")
-end)
-
--- ============================================
--- CONFIGURA COMANDOS DE CHAT
--- ============================================
-Players.PlayerAdded:Connect(function(player)
-    player.Chatted:Connect(function(message)
-        local processed = processCommand(message)
-        if processed then
-            print("💬 Comando de " .. player.Name .. ": " .. message)
+    -- Refresh automático
+    task.spawn(function()
+        while screenGui and screenGui.Parent do
+            task.wait(5)
+            pcall(function() refreshList() end)
         end
     end)
-end)
 
--- Conecta jogadores existentes
-for _, player in ipairs(Players:GetPlayers()) do
-    player.Chatted:Connect(function(message)
-        local processed = processCommand(message)
-        if processed then
-            print("💬 Comando de " .. player.Name .. ": " .. message)
-        end
-    end)
+    -- Refresh inicial
+    refreshList()
+
+    return ui
 end
 
 -- ============================================
--- EXPORTA FUNÇÕES GLOBALMENTE
+-- CRIA A INTERFACE
 -- ============================================
-getgenv().KickPlayer = KickPlayer
-getgenv().KickAllPlayers = KickAllPlayers
-getgenv().ListPlayers = ListPlayers
-getgenv().NotifyPlayer = NotifyPlayer
-getgenv().KickEngine = KickEngine
-getgenv().processCommand = processCommand
+local ui = createGUI()
 
 -- ============================================
--- INICIALIZAÇÃO PRINCIPAL
+-- ATALHOS DE TECLADO
 -- ============================================
-createInterface()
-startConsoleInterface()
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.F5 then
+        -- Atualizar lista
+        if ui and ui.listFrame then
+            pcall(function()
+                -- Dispara refresh manualmente
+                local btn = ui.main:FindFirstChild("BtnRefresh")
+                if btn then
+                    firesignal(btn.MouseButton1Click)
+                end
+            end)
+        end
+    end
+    
+    if input.KeyCode == Enum.KeyCode.F6 then
+        -- Mostrar/Esconder interface
+        if _G.KickSystemGUI then
+            _G.KickSystemGUI.Enabled = not _G.KickSystemGUI.Enabled
+        end
+    end
+end)
 
-print("")
-print("══════════════════════════════════════════════════════════════")
-print("  👢 KICK SYSTEM CARREGADO COM SUCESSO")
-print("  Versão: " .. SCRIPT_VERSION)
-print("  Jogadores online: " .. #Players:GetPlayers())
-print("")
-print("  FUNÇÕES DISPONÍVEIS NO CONSOLE:")
-print("  • KickPlayer('Nome')       - Kicka um jogador")
-print("  • KickAllPlayers()         - Kicka todos")
-print("  • ListPlayers()            - Lista jogadores")
-print("  • NotifyPlayer('Nome','M') - Envia notificação")
-print("")
-print("  COMANDOS DE CHAT:")
-print("  • /kick Nome    • /kickall    • /list")
-print("  • /kickid ID    • /notify     • /help")
-print("══════════════════════════════════════════════════════════════")
-print("")
-
 -- ============================================
--- RETORNO DO MÓDULO
+-- LOGS
 -- ============================================
-return {
-    KickPlayer = KickPlayer,
-    KickAllPlayers = KickAllPlayers,
-    ListPlayers = ListPlayers,
-    NotifyPlayer = NotifyPlayer,
-    KickEngine = KickEngine,
-    processCommand = processCommand
-}
+print("=" .. string.rep("=", 55))
+print("  👢 KICK SYSTEM PRO - INTERFACE GRÁFICA")
+print("  Interface completa com botões interativos")
+print("=" .. string.rep("=", 55))
+print("")
+print("  🎮 ATALHOS:")
+print("    F5 = Atualizar lista")
+print("    F6 = Esconder/Mostrar interface")
+print("")
+print("  📋 FUNCIONALIDADES:")
+print("    • Lista de jogadores com busca")
+print("    • Botão KICK individual em cada jogador")
+print("    • Botão KICKAR TODOS")
+print("    • Status em tempo real")
+print("    • Atualização automática a cada 5s")
+print("")
+print("  ⚠️ Execute no SERVIDOR para kick real")
+print("=" .. string.rep("=", 55))
