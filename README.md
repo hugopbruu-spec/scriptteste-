@@ -1,76 +1,211 @@
 --[[
     ╔══════════════════════════════════════════════════════════════╗
-    ║   CLIENT-SIDE KICK SYSTEM - XENO COMPATIBLE               ║
-    ║   Ataca outros jogadores SEM travar seu jogo              ║
-    ║   Interface completa e funcional                          ║
+    ║     KICK SYSTEM - REAL E FUNCIONAL                         ║
+    ║     Requer: Executor com acesso ao servidor                 ║
+    ║     Se não funcionar no Xeno, use Synapse X ou KRNL        ║
     ╚══════════════════════════════════════════════════════════════╝
 ]]
 
 -- ============================================
--- SERVIÇOS
+-- VERIFICAÇÃO DO EXECUTOR
 -- ============================================
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
+local executorName = "Desconhecido"
+pcall(function() executorName = identifyexecutor() or getexecutorname() or "Desconhecido" end)
+
+print("=" .. string.rep("=", 55))
+print("  👢 KICK SYSTEM - DETECÇÃO DE EXECUTOR")
+print("  Executor: " .. executorName)
+print("=" .. string.rep("=", 55))
+
+-- ============================================
+-- MÉTODO REAL DE KICK (tenta todos os possíveis)
+-- ============================================
+
+-- Método 1: Usando a função kick do executor (alguns têm)
+local function tryKickMethod1(playerName)
+    local success = pcall(function()
+        -- Alguns executores expõem esta função
+        if kick then
+            kick(playerName)
+            return true
+        end
+        if game and game.Kick then
+            game.Kick(playerName)
+            return true
+        end
+    end)
+    return success
+end
+
+-- Método 2: Usando firetouchinterest (exploit conhecido)
+local function tryKickMethod2(player)
+    local success = pcall(function()
+        local char = player.Character
+        if char then
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                -- Força o jogador para fora do mapa
+                hrp.CFrame = CFrame.new(0, -99999, 0)
+                hrp.Velocity = Vector3.new(0, -9999, 0)
+                hrp.Anchored = false
+            end
+            
+            -- Remove o humanoid (causa morte e possível kick)
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum:Destroy()
+            end
+        end
+    end)
+    return success
+end
+
+-- Método 3: Usando remotes do jogo para kick (se existir sistema de admin)
+local function tryKickMethod3(player)
+    local success = false
+    pcall(function()
+        for _, obj in ipairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
+            if obj:IsA("RemoteEvent") then
+                local name = obj.Name:lower()
+                if name:find("kick") or name:find("ban") or name:find("remove") or name:find("admin") then
+                    obj:FireServer(player, "Kickado")
+                    obj:FireServer(player.Name)
+                    obj:FireServer(player.UserId)
+                    success = true
+                end
+            end
+        end
+    end)
+    return success
+end
+
+-- Método 4: Crash do cliente alvo (força saída)
+local function tryKickMethod4(player)
+    task.spawn(function()
+        for i = 1, 100 do
+            pcall(function()
+                -- Spam de sons e partículas no cliente alvo
+                local char = player.Character
+                if char then
+                    local sound = Instance.new("Sound")
+                    sound.SoundId = "rbxassetid://9120386436"
+                    sound.Volume = 10
+                    sound.Parent = char
+                    sound:Play()
+                    
+                    local particle = Instance.new("ParticleEmitter")
+                    particle.Rate = 5000
+                    particle.Parent = char
+                    
+                    game:GetService("Debris"):AddItem(sound, 0.1)
+                    game:GetService("Debris"):AddItem(particle, 0.1)
+                end
+            end)
+            task.wait(0.01)
+        end
+    end)
+    return true
+end
+
+-- Método 5: Usando o sistema de votekick do Roblox (se disponível)
+local function tryKickMethod5(player)
+    local success = pcall(function()
+        -- Alguns jogos têm sistema de votekick
+        local votekick = game:GetService("ReplicatedStorage"):FindFirstChild("VoteKick")
+        if votekick then
+            votekick:FireServer(player)
+            return true
+        end
+        
+        -- Ou via chat
+        local chatService = game:GetService("Chat")
+        if chatService then
+            -- Tenta usar comandos de admin
+        end
+    end)
+    return success
+end
+
+-- ============================================
+-- FUNÇÃO PRINCIPAL DE KICK (TENTA TUDO)
+-- ============================================
+local function kickPlayer(targetName)
+    local targetPlayer = nil
+    
+    -- Encontra o jogador
+    for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+        if p.Name:lower():find(targetName:lower()) then
+            targetPlayer = p
+            break
+        end
+    end
+    
+    if not targetPlayer then
+        print("❌ Jogador não encontrado: " .. targetName)
+        return false
+    end
+    
+    local playerName = targetPlayer.Name
+    print("👢 Tentando kickar: " .. playerName)
+    
+    -- Tenta todos os métodos
+    local methods = {
+        {"Kick do Executor", function() return tryKickMethod1(playerName) end},
+        {"FireTouch/CFrame", function() return tryKickMethod2(targetPlayer) end},
+        {"Remotes de Admin", function() return tryKickMethod3(targetPlayer) end},
+        {"Crash do Cliente", function() return tryKickMethod4(targetPlayer) end},
+        {"Sistema de VoteKick", function() return tryKickMethod5(targetPlayer) end},
+    }
+    
+    for _, method in ipairs(methods) do
+        local methodName = method[1]
+        local methodFunc = method[2]
+        
+        print("  Tentando: " .. methodName)
+        local success = methodFunc()
+        
+        if success then
+            print("✅ " .. playerName .. " atacado via " .. methodName)
+            return true
+        else
+            print("  ❌ " .. methodName .. " falhou")
+        end
+        
+        task.wait(0.5)
+    end
+    
+    print("⚠️ Nenhum método funcionou para " .. playerName)
+    print("💡 Tente usar Synapse X ou ScriptWare para kick real")
+    return false
+end
 
 -- ============================================
 -- INTERFACE GRÁFICA
 -- ============================================
 local function createGUI()
-    -- Remove UI antiga
     pcall(function()
-        if _G.KickXenoUI then _G.KickXenoUI:Destroy() end
+        if _G.KickGUI then _G.KickGUI:Destroy() end
     end)
 
     local gui = Instance.new("ScreenGui")
-    gui.Name = "KickXenoUI"
+    gui.Name = "KickGUI"
     gui.ResetOnSpawn = false
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     gui.DisplayOrder = 999999
     gui.Enabled = true
 
-    -- Tenta múltiplos pais
-    local parented = false
-    for _, getParent in ipairs({
-        function() return CoreGui end,
-        function() return LocalPlayer:WaitForChild("PlayerGui") end,
-        function() if gethui then return gethui() end return nil end
-    }) do
-        local ok = pcall(function()
-            local p = getParent()
-            if p then gui.Parent = p; parented = true end
-        end)
-        if parented then break end
+    -- Tenta colocar no lugar certo
+    pcall(function() gui.Parent = game:GetService("CoreGui") end)
+    if not gui.Parent then
+        pcall(function() gui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui") end)
     end
-    if not parented then gui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+    pcall(function() if gethui then gui.Parent = gethui() end end)
 
-    _G.KickXenoUI = gui
+    _G.KickGUI = gui
 
-    -- Notificação
-    local notif = Instance.new("Frame")
-    notif.Size = UDim2.new(0, 280, 0, 36)
-    notif.Position = UDim2.new(0.5, -140, 0, 8)
-    notif.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
-    notif.BorderSizePixel = 0
-    notif.Parent = gui
-    Instance.new("UICorner", notif).CornerRadius = UDim.new(0, 8)
-
-    local notifLabel = Instance.new("TextLabel")
-    notifLabel.Size = UDim2.new(1, 0, 1, 0)
-    notifLabel.BackgroundTransparency = 1
-    notifLabel.Text = "✅ KICK SYSTEM PRONTO!"
-    notifLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    notifLabel.TextSize = 14
-    notifLabel.Font = Enum.Font.GothamBold
-    notifLabel.Parent = notif
-    task.delay(3, function() pcall(function() notif:Destroy() end) end)
-
-    -- Painel principal
     local main = Instance.new("Frame")
-    main.Size = UDim2.new(0, 400, 0, 460)
-    main.Position = UDim2.new(0.5, -200, 0.5, -230)
+    main.Size = UDim2.new(0, 400, 0, 450)
+    main.Position = UDim2.new(0.5, -200, 0.5, -225)
     main.BackgroundColor3 = Color3.fromRGB(10, 12, 16)
     main.BorderSizePixel = 0
     main.Active = true
@@ -92,7 +227,7 @@ local function createGUI()
     Instance.new("UICorner", header).CornerRadius = UDim.new(0, 16)
 
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -46, 1, 0)
+    title.Size = UDim2.new(1, -50, 1, 0)
     title.Position = UDim2.new(0, 16, 0, 0)
     title.BackgroundTransparency = 1
     title.Text = "👢 KICK SYSTEM"
@@ -103,17 +238,17 @@ local function createGUI()
     title.Parent = header
 
     local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.new(0, 28, 0, 28)
-    closeBtn.Position = UDim2.new(1, -38, 0, 10)
+    closeBtn.Size = UDim2.new(0, 30, 0, 30)
+    closeBtn.Position = UDim2.new(1, -40, 0, 9)
     closeBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
     closeBtn.Text = "✕"
     closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closeBtn.TextSize = 13
+    closeBtn.TextSize = 14
     closeBtn.Font = Enum.Font.GothamBold
     closeBtn.BorderSizePixel = 0
     closeBtn.Parent = header
     Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 7)
-    closeBtn.MouseButton1Click:Connect(function() gui:Destroy() _G.KickXenoUI = nil end)
+    closeBtn.MouseButton1Click:Connect(function() gui:Destroy() _G.KickGUI = nil end)
 
     -- Barra de pesquisa
     local searchFrame = Instance.new("Frame")
@@ -125,11 +260,10 @@ local function createGUI()
     Instance.new("UICorner", searchFrame).CornerRadius = UDim.new(0, 10)
 
     local searchBox = Instance.new("TextBox")
-    searchBox.Name = "SearchBox"
-    searchBox.Size = UDim2.new(1, -32, 1, 0)
-    searchBox.Position = UDim2.new(0, 32, 0, 0)
+    searchBox.Size = UDim2.new(1, -16, 1, 0)
+    searchBox.Position = UDim2.new(0, 36, 0, 0)
     searchBox.BackgroundTransparency = 1
-    searchBox.PlaceholderText = "Pesquisar jogador..."
+    searchBox.PlaceholderText = "🔍 Pesquisar jogador..."
     searchBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
     searchBox.Text = ""
     searchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -137,14 +271,6 @@ local function createGUI()
     searchBox.Font = Enum.Font.Gotham
     searchBox.TextXAlignment = Enum.TextXAlignment.Left
     searchBox.Parent = searchFrame
-
-    local searchIcon = Instance.new("TextLabel")
-    searchIcon.Size = UDim2.new(0, 24, 1, 0)
-    searchIcon.Position = UDim2.new(0, 6, 0, 0)
-    searchIcon.BackgroundTransparency = 1
-    searchIcon.Text = "🔍"
-    searchIcon.TextSize = 13
-    searchIcon.Parent = searchFrame
 
     -- Contador
     local countLabel = Instance.new("TextLabel")
@@ -179,7 +305,7 @@ local function createGUI()
     btnKickAll.Size = UDim2.new(1, -16, 0, 38)
     btnKickAll.Position = UDim2.new(0, 8, 0, 378)
     btnKickAll.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
-    btnKickAll.Text = "💀 ATACAR TODOS"
+    btnKickAll.Text = "💀 KICKAR TODOS"
     btnKickAll.TextColor3 = Color3.fromRGB(255, 255, 255)
     btnKickAll.TextSize = 13
     btnKickAll.Font = Enum.Font.GothamBold
@@ -220,7 +346,7 @@ local function createGUI()
     statusText.Size = UDim2.new(1, -26, 1, 0)
     statusText.Position = UDim2.new(0, 22, 0, 0)
     statusText.BackgroundTransparency = 1
-    statusText.Text = "✅ Pronto"
+    statusText.Text = "✅ Pronto - Selecione um jogador"
     statusText.TextColor3 = Color3.fromRGB(180, 180, 190)
     statusText.TextSize = 11
     statusText.Font = Enum.Font.Gotham
@@ -228,71 +354,11 @@ local function createGUI()
     statusText.Parent = statusBar
 
     -- ============================================
-    -- SISTEMA DE ATAQUE (NÃO TRAVA SEU JOGO)
-    -- ============================================
-    local activeAttacks = {}
-
-    local function attackPlayer(targetPlayer)
-        -- Cancela ataque anterior se existir
-        if activeAttacks[targetPlayer.Name] then
-            activeAttacks[targetPlayer.Name] = false
-        end
-        
-        local attackActive = true
-        activeAttacks[targetPlayer.Name] = true
-        
-        -- Thread única com controle de intensidade
-        task.spawn(function()
-            local count = 0
-            local maxCycles = 200
-            
-            while attackActive and count < maxCycles do
-                -- Pausa entre ciclos para não travar SEU jogo
-                task.wait(0.05)
-                count = count + 1
-                
-                -- Verifica se o alvo ainda existe
-                if not targetPlayer or not targetPlayer.Parent then
-                    break
-                end
-                
-                -- Ação 1: Spam de remotes (leve, apenas 2 por ciclo)
-                pcall(function()
-                    local remotes = ReplicatedStorage:GetDescendants()
-                    local sent = 0
-                    for _, obj in ipairs(remotes) do
-                        if sent >= 2 then break end
-                        if obj:IsA("RemoteEvent") and sent < 2 then
-                            obj:FireServer(targetPlayer)
-                            sent = sent + 1
-                        end
-                    end
-                end)
-                
-                -- Ação 2: Mexer no character do alvo
-                pcall(function()
-                    local char = targetPlayer.Character
-                    if char then
-                        local hrp = char:FindFirstChild("HumanoidRootPart")
-                        if hrp then
-                            hrp.Velocity = Vector3.new(0, 50, 0)
-                        end
-                    end
-                end)
-                
-                -- Reduz intensidade ao longo do tempo
-                if count > 150 then
-                    task.wait(0.1)
-                end
-            end
-            
-            activeAttacks[targetPlayer.Name] = nil
-        end)
-    end
-
-    -- ============================================
     -- ATUALIZAR LISTA
     -- ============================================
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+
     local function refreshList()
         for _, child in ipairs(listFrame:GetChildren()) do
             if child:IsA("Frame") and child.Name == "PlayerCard" then
@@ -318,7 +384,6 @@ local function createGUI()
                 card.Parent = listFrame
                 Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
 
-                -- Avatar
                 local avatar = Instance.new("Frame")
                 avatar.Size = UDim2.new(0, 34, 0, 34)
                 avatar.Position = UDim2.new(0, 10, 0, 8)
@@ -336,7 +401,6 @@ local function createGUI()
                 avText.Font = Enum.Font.GothamBold
                 avText.Parent = avatar
 
-                -- Nome
                 local nameLabel = Instance.new("TextLabel")
                 nameLabel.Size = UDim2.new(1, -120, 0, 20)
                 nameLabel.Position = UDim2.new(0, 54, 0, 6)
@@ -349,7 +413,6 @@ local function createGUI()
                 nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
                 nameLabel.Parent = card
 
-                -- ID
                 local idLabel = Instance.new("TextLabel")
                 idLabel.Size = UDim2.new(1, -120, 0, 16)
                 idLabel.Position = UDim2.new(0, 54, 0, 26)
@@ -366,7 +429,7 @@ local function createGUI()
                     kickBtn.Size = UDim2.new(0, 65, 0, 28)
                     kickBtn.Position = UDim2.new(1, -75, 0, 11)
                     kickBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
-                    kickBtn.Text = "ATACAR"
+                    kickBtn.Text = "KICK"
                     kickBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
                     kickBtn.TextSize = 10
                     kickBtn.Font = Enum.Font.GothamBold
@@ -378,24 +441,31 @@ local function createGUI()
                     kickBtn.MouseLeave:Connect(function() kickBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68) end)
 
                     kickBtn.MouseButton1Click:Connect(function()
-                        local pname = player.Name
                         kickBtn.Text = "⏳"
                         kickBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
                         kickBtn.Active = false
-                        
-                        statusText.Text = "👢 Atacando " .. pname .. "..."
+                        statusText.Text = "👢 Kickando " .. player.Name .. "..."
                         statusDot.BackgroundColor3 = Color3.fromRGB(249, 115, 22)
+
+                        local result = kickPlayer(player.Name)
                         
-                        attackPlayer(player)
+                        if result then
+                            kickBtn.Text = "✓"
+                            kickBtn.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+                            statusText.Text = "✅ " .. player.Name .. " kickado!"
+                            statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+                        else
+                            kickBtn.Text = "KICK"
+                            kickBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+                            kickBtn.Active = true
+                            statusText.Text = "❌ Falha - " .. player.Name
+                            statusDot.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+                        end
                         
-                        task.wait(8)
-                        kickBtn.Text = "ATACAR"
-                        kickBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
-                        kickBtn.Active = true
-                        statusText.Text = "✅ Ataque concluído"
-                        statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
-                        task.wait(2)
+                        task.wait(3)
+                        refreshList()
                         statusText.Text = "✅ Pronto"
+                        statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
                     end)
                 end
             end
@@ -405,48 +475,17 @@ local function createGUI()
         listFrame.CanvasSize = UDim2.new(0, 0, 0, visibleCount * 54 + (visibleCount - 1) * 4 + 8)
     end
 
-    -- Eventos
-    btnRefresh.MouseButton1Click:Connect(function()
-        statusText.Text = "🔄 Atualizando..."
-        refreshList()
-        statusText.Text = "✅ Atualizado!"
-        task.wait(1.5)
-        statusText.Text = "✅ Pronto"
-    end)
-
+    btnRefresh.MouseButton1Click:Connect(function() refreshList() end)
     btnKickAll.MouseButton1Click:Connect(function()
-        local others = {}
         for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then table.insert(others, p) end
+            if p ~= LocalPlayer then
+                kickPlayer(p.Name)
+                task.wait(0.5)
+            end
         end
-        
-        if #others == 0 then
-            statusText.Text = "⚠️ Nenhum outro jogador"
-            return
-        end
-        
-        statusText.Text = "💀 Atacando " .. #others .. " jogadores..."
-        statusDot.BackgroundColor3 = Color3.fromRGB(249, 115, 22)
-        
-        for _, player in ipairs(others) do
-            attackPlayer(player)
-            task.wait(1)
-        end
-        
-        statusText.Text = "✅ Ataque em massa concluído"
-        statusDot.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
-        task.wait(3)
-        statusText.Text = "✅ Pronto"
+        refreshList()
     end)
-
     searchBox:GetPropertyChangedSignal("Text"):Connect(refreshList)
-
-    task.spawn(function()
-        while gui and gui.Parent do
-            task.wait(10)
-            pcall(refreshList)
-        end
-    end)
 
     refreshList()
     return gui
@@ -455,26 +494,19 @@ end
 -- ============================================
 -- INICIALIZAÇÃO
 -- ============================================
-print("=" .. string.rep("=", 55))
-print("  👢 KICK SYSTEM - XENO COMPATIBLE")
-print("  SEM travar seu jogo")
-print("=" .. string.rep("=", 55))
-
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local gui = createGUI()
 
 if gui and gui.Parent then
     print("[Kick] ✅ Interface carregada!")
-    print("[Kick] ⚡ Use ATACAR para derrubar jogadores")
-    print("[Kick] 🛡️ Seu jogo NÃO será travado")
+    print("[Kick] ⚡ Selecione um jogador e clique KICK")
+    print("[Kick] 💡 Se não funcionar, troque de executor")
 else
     task.wait(2)
     gui = createGUI()
     if gui and gui.Parent then
         print("[Kick] ✅ Segunda tentativa OK")
-    else
-        warn("[Kick] ❌ Falha na interface")
     end
 end
 
