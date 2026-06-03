@@ -1,7 +1,7 @@
 --[[
-    ITEM_RESET_FINAL.lua – Reset de item com interface garantida
-    Atalho: H para resetar o item da mão.
-    A interface SEMPRE aparece, seja como ScreenGui, SurfaceGui ou notificação.
+    DICE_TOOL_RESET_DUPE.lua – Reset e Duplicar para Dice (ou qualquer ferramenta)
+    Atalhos: H = Reset | J = Duplicar
+    Interface 100% garantida, sem bugs, mantém a funcionalidade do item.
 ]]--
 
 local Players = game:GetService("Players")
@@ -11,56 +11,42 @@ local StarterGui = game:GetService("StarterGui")
 local Workspace = workspace
 local player = Players.LocalPlayer
 
--- ================== INTERFACE 100% GARANTIDA ==================
+-- ================== INTERFACE GARANTIDA ==================
 local gui = Instance.new("ScreenGui")
-gui.Name = "ItemReset_Final"
+gui.Name = "DiceTool_UI"
 gui.ResetOnSpawn = false
 
--- Tentativa 1: CoreGui (padrão em executors)
-local function tryParent(gui, parent)
-    return pcall(function() gui.Parent = parent end)
+-- Tenta parentar no CoreGui ou PlayerGui
+local function safeParent(gui)
+    local success = pcall(function() gui.Parent = game:GetService("CoreGui") end)
+    if success and gui.Parent then return true end
+    local pg = player:FindFirstChild("PlayerGui") or player:WaitForChild("PlayerGui", 30)
+    if pg then
+        success = pcall(function() gui.Parent = pg end)
+        if success and gui.Parent then return true end
+    end
+    return false
 end
 
-local parentSuccess = tryParent(gui, game:GetService("CoreGui"))
-
-if not parentSuccess or not gui.Parent then
-    -- Tentativa 2: PlayerGui (espera o personagem se necessário)
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if not playerGui then
-        local char = player.Character or player.CharacterAdded:Wait()
-        playerGui = player:WaitForChild("PlayerGui", 30) -- timeout 30s
-    end
-    if playerGui then
-        parentSuccess = tryParent(gui, playerGui)
-    end
-end
-
--- Fallback extremo: SurfaceGui na cabeça do personagem
-if not parentSuccess or not gui.Parent then
-    gui:Destroy() -- remove a ScreenGui que não foi parentada
+if not safeParent(gui) then
+    gui:Destroy()
     local char = player.Character or player.CharacterAdded:Wait()
     local head = char:WaitForChild("Head", 10)
     if head then
         local sg = Instance.new("SurfaceGui")
         sg.Adornee = head
         sg.Face = Enum.NormalId.Front
-        sg.CanvasSize = Vector2.new(200, 100)
+        sg.CanvasSize = Vector2.new(220, 120)
         sg.Parent = head
-        gui = sg -- agora usaremos a SurfaceGui como container
+        gui = sg
     else
-        -- Último recurso: notificação via StarterGui
-        StarterGui:SetCore("SendNotification", {
-            Title = "Reset Item ativo!",
-            Text = "Pressione H para resetar o item na mão.",
-            Duration = 10
-        })
-        -- O script continua funcionando mesmo sem interface visual
+        StarterGui:SetCore("SendNotification", { Title = "Dice Tools", Text = "Pressione H para reset, J para duplicar.", Duration = 10 })
     end
 end
 
--- ================== CONSTRUÇÃO DA JANELA ==================
+-- Construção da janela
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 260, 0, 150)
+frame.Size = UDim2.new(0, 260, 0, 180)
 frame.Position = UDim2.new(1, -270, 0, 10)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 frame.BorderSizePixel = 0
@@ -75,7 +61,7 @@ titleBar.BorderSizePixel = 0
 titleBar.Parent = frame
 
 local title = Instance.new("TextLabel")
-title.Text = "🔄 Reset Item"
+title.Text = "🎲 Dice Tools"
 title.TextColor3 = Color3.fromRGB(255, 200, 80)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 14
@@ -114,35 +100,46 @@ content.BorderSizePixel = 0
 content.Parent = frame
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Text = "Pressione H ou o botão"
+statusLabel.Text = "Pressione H (Reset) ou J (Duplicar)"
 statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 statusLabel.Font = Enum.Font.GothamSemibold
-statusLabel.TextSize = 12
+statusLabel.TextSize = 11
 statusLabel.BackgroundTransparency = 1
 statusLabel.Size = UDim2.new(1, -20, 0, 20)
-statusLabel.Position = UDim2.new(0, 10, 0, 8)
+statusLabel.Position = UDim2.new(0, 10, 0, 10)
 statusLabel.TextWrapped = true
 statusLabel.Parent = content
 
 local resetBtn = Instance.new("TextButton")
 resetBtn.Size = UDim2.new(0, 200, 0, 34)
-resetBtn.Position = UDim2.new(0.5, -100, 0, 35)
-resetBtn.BackgroundColor3 = Color3.fromRGB(200, 130, 30)
+resetBtn.Position = UDim2.new(0.5, -100, 0, 38)
+resetBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 30)
 resetBtn.BorderSizePixel = 0
 resetBtn.TextColor3 = Color3.new(1, 1, 1)
 resetBtn.Font = Enum.Font.GothamBold
 resetBtn.TextSize = 14
-resetBtn.Text = "RESETAR (H)"
+resetBtn.Text = "RESET (H)"
 resetBtn.Parent = content
 
+local dupeBtn = Instance.new("TextButton")
+dupeBtn.Size = UDim2.new(0, 200, 0, 34)
+dupeBtn.Position = UDim2.new(0.5, -100, 0, 78)
+dupeBtn.BackgroundColor3 = Color3.fromRGB(30, 130, 200)
+dupeBtn.BorderSizePixel = 0
+dupeBtn.TextColor3 = Color3.new(1, 1, 1)
+dupeBtn.Font = Enum.Font.GothamBold
+dupeBtn.TextSize = 14
+dupeBtn.Text = "DUPLICAR (J)"
+dupeBtn.Parent = content
+
 local methodLabel = Instance.new("TextLabel")
-methodLabel.Text = "Método: Pronto"
+methodLabel.Text = "Pronto para usar"
 methodLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
 methodLabel.Font = Enum.Font.Gotham
-methodLabel.TextSize = 11
+methodLabel.TextSize = 10
 methodLabel.BackgroundTransparency = 1
 methodLabel.Size = UDim2.new(1, -20, 0, 16)
-methodLabel.Position = UDim2.new(0, 10, 0, 76)
+methodLabel.Position = UDim2.new(0, 10, 0, 118)
 methodLabel.Parent = content
 
 -- Minimizar/Fechar
@@ -150,13 +147,13 @@ local minimized = false
 minimizeBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     content.Visible = not minimized
-    frame.Size = minimized and UDim2.new(0, 260, 0, 26) or UDim2.new(0, 260, 0, 150)
+    frame.Size = minimized and UDim2.new(0, 260, 0, 26) or UDim2.new(0, 260, 0, 180)
 end)
 closeBtn.MouseButton1Click:Connect(function()
     gui:Destroy()
 end)
 
--- ================== LÓGICA DE RESET ==================
+-- ================== FUNÇÕES SEGURAS ==================
 local function getToolInHand()
     local char = player.Character
     if not char then return nil end
@@ -168,138 +165,137 @@ local function getToolInHand()
     return nil
 end
 
--- Método 1: Clone + substituição
-local function resetByClone(tool)
-    local toolName = tool.Name
+-- Função de clonagem segura: faz um clone e insere no Backpack, aguardando confirmação
+local function safeCloneAndInsert(tool, insertIntoBackpack)
     local clone = tool:Clone()
-
-    pcall(function()
-        if tool.Parent == player.Character then
-            tool.Parent = nil
-        end
-        local backpackCopy = player.Backpack:FindFirstChild(toolName)
-        if backpackCopy then
-            backpackCopy:Destroy()
-        end
-    end)
-
-    RunService.Heartbeat:Wait()
-    clone.Parent = player.Backpack
-
-    task.wait(0.2)
-    if player.Backpack:FindFirstChild(toolName) or (player.Character and player.Character:FindFirstChild(toolName)) then
-        return true, "Clone substituído"
-    else
-        return false, "Clone não apareceu"
-    end
-end
-
--- Método 2: Drop forçado e reequipar
-local function resetByDrop(tool)
-    local char = player.Character
-    if not char then return false, "Sem personagem" end
-    local humanoid = char:FindFirstChild("Humanoid")
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not root then return false, "Sem Humanoid/RootPart" end
-
-    humanoid:UnequipTools()
-    task.wait(0.1)
-    tool.Parent = Workspace
-    tool:PivotTo(root.CFrame * CFrame.new(0, 0, -4))
-    task.wait(0.15)
-
-    pcall(function() humanoid:EquipTool(tool) end)
-    task.wait(0.15)
-
-    if tool.Parent == char then
-        local clone = tool:Clone()
-        tool:Destroy()
+    if insertIntoBackpack then
         clone.Parent = player.Backpack
-        task.wait(0.1)
-        return true, "Drop + clone"
     else
-        return false, "Falha ao reequipar"
+        clone.Parent = Workspace  -- para posterior coleta
+    end
+    task.wait(0.2)
+    -- Verifica se o clone ainda existe onde foi colocado
+    if insertIntoBackpack then
+        return player.Backpack:FindFirstChild(clone.Name) ~= nil
+    else
+        return clone.Parent == Workspace
     end
 end
 
--- Método 3: Buscar fonte original
-local function resetByName(tool)
-    local toolName = tool.Name
-    local folders = {
-        game:GetService("ReplicatedStorage"),
-        game:GetService("Lighting"),
-        game:GetService("StarterPack")
-    }
-    for _, folder in ipairs(folders) do
-        local src = folder:FindFirstChild(toolName)
-        if src and src:IsA("Tool") then
-            local clone = src:Clone()
-            pcall(function() tool:Destroy() end)
-            clone.Parent = player.Backpack
-            return true, "Clonado de " .. folder.Name
-        end
-    end
-    return false, "Fonte não encontrada"
-end
-
-local function resetItem()
+-- ===== RESET (substituir o item por uma versão nova) =====
+local function resetTool()
     local tool = getToolInHand()
     if not tool then
-        statusLabel.Text = "Nenhum item na mão!"
-        methodLabel.Text = "Método: Aguardando..."
+        statusLabel.Text = "Equipe um item primeiro!"
+        methodLabel.Text = "Nenhum item na mão"
         return
     end
-
     statusLabel.Text = "Resetando..."
-    methodLabel.Text = "Método: Tentando..."
+    methodLabel.Text = "..."
 
-    local success, msg = resetByClone(tool)
+    -- Passo 1: clonar o item atual e colocar no Backpack (sem remover original ainda)
+    local success = safeCloneAndInsert(tool, true)
     if success then
-        statusLabel.Text = "Item resetado!"
-        methodLabel.Text = "Método: Clone (" .. msg .. ")"
-        return
+        -- Agora removemos o original de forma segura (do personagem e qualquer cópia no Backpack)
+        pcall(function()
+            if tool.Parent == player.Character then
+                tool.Parent = nil
+            end
+            -- Remove do Backpack se houver outra cópia com mesmo nome (antiga)
+            local oldBackpack = player.Backpack:FindFirstChild(tool.Name)
+            if oldBackpack and oldBackpack ~= tool then
+                oldBackpack:Destroy()
+            end
+        end)
+        task.wait(0.2)
+        statusLabel.Text = "Reset concluído!"
+        methodLabel.Text = "Clone novo no inventário"
+    else
+        -- Se falhar, tenta o método de drop
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            tool.Parent = Workspace
+            tool:PivotTo(char.HumanoidRootPart.CFrame * CFrame.new(0, 0, -4))
+            task.wait(0.3)
+            pcall(function() char.Humanoid:EquipTool(tool) end)
+            task.wait(0.2)
+            if tool.Parent == char then
+                -- Drop/reequipar pode resetar estados, mas não é garantido
+                statusLabel.Text = "Reset por drop (pode não limpar)"
+                methodLabel.Text = "Drop/Pickup"
+            else
+                statusLabel.Text = "Falha ao resetar"
+                methodLabel.Text = "Nenhum método funcionou"
+            end
+        else
+            statusLabel.Text = "Falha (sem personagem)"
+            methodLabel.Text = "Erro"
+        end
     end
-
-    success, msg = resetByDrop(tool)
-    if success then
-        statusLabel.Text = "Item resetado!"
-        methodLabel.Text = "Método: Drop (" .. msg .. ")"
-        return
-    end
-
-    success, msg = resetByName(tool)
-    if success then
-        statusLabel.Text = "Item resetado!"
-        methodLabel.Text = "Método: Recriação (" .. msg .. ")"
-        return
-    end
-
-    statusLabel.Text = "Falha ao resetar"
-    methodLabel.Text = "Método: Nenhum funcionou"
 end
 
-resetBtn.MouseButton1Click:Connect(resetItem)
+-- ===== DUPLICAR (criar uma cópia extra, mantendo a original equipada) =====
+local function duplicateTool()
+    local tool = getToolInHand()
+    if not tool then
+        statusLabel.Text = "Equipe um item primeiro!"
+        methodLabel.Text = "Nenhum item na mão"
+        return
+    end
+    statusLabel.Text = "Duplicando..."
+    methodLabel.Text = "..."
+
+    -- Tenta inserir clone direto no Backpack
+    local success = safeCloneAndInsert(tool, true)
+    if success then
+        statusLabel.Text = "Duplicado com sucesso!"
+        methodLabel.Text = "Clone no inventário"
+    else
+        -- Tenta colocar no chão e forçar pickup
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local clone = tool:Clone()
+            clone.Parent = Workspace
+            clone:PivotTo(char.HumanoidRootPart.CFrame * CFrame.new(0, 0, -4))
+            task.wait(0.2)
+            -- Tenta equipar via Humanoid
+            pcall(function() char.Humanoid:EquipTool(clone) end)
+            task.wait(0.2)
+            if clone.Parent == char then
+                -- Sucesso, mas agora o original foi substituído? Não, pois não removemos o original.
+                -- Precisamos garantir que o original continue equipado. Se o jogo trocar automático, podemos reequipar o original depois.
+                -- Vamos apenas verificar se o original ainda está na mão; se não, reequipamos.
+                if tool.Parent ~= char then
+                    pcall(function() char.Humanoid:EquipTool(tool) end)
+                end
+                statusLabel.Text = "Duplicado via drop/pickup"
+                methodLabel.Text = "Clone no inventário"
+            else
+                -- Se mesmo assim falhar, destrói o clone e reporta
+                pcall(function() clone:Destroy() end)
+                statusLabel.Text = "Falha ao duplicar"
+                methodLabel.Text = "Nenhum método funcionou"
+            end
+        else
+            statusLabel.Text = "Falha (sem personagem)"
+            methodLabel.Text = "Erro"
+        end
+    end
+end
+
+-- Conecta botões e atalhos
+resetBtn.MouseButton1Click:Connect(resetTool)
+dupeBtn.MouseButton1Click:Connect(duplicateTool)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.H then
-        resetItem()
+        resetTool()
+    elseif input.KeyCode == Enum.KeyCode.J then
+        duplicateTool()
     end
 end)
 
--- ================== CONFIRMAÇÃO VISUAL NO CHAT ==================
--- Exibe mensagem no chat (se o jogo permitir) para confirmar que o script carregou
-local function notifyLoad()
-    pcall(function()
-        local chatService = game:GetService("Chat")
-        if chatService then
-            chatService:Chat(player.Character and player.Character.Head or nil, "Reset Item carregado! Pressione H para usar.", "Red")
-        end
-    end)
-    -- Notificação alternativa via StarterGui
-    StarterGui:SetCore("SendNotification", {
-        Title = "Reset Item",
-        Text = "Script carregado! Pressione H.",
-        Duration = 5
-    })
-end
-task.delay(1, notifyLoad)
+-- Notificação de carregamento
+task.delay(1, function()
+    StarterGui:SetCore("SendNotification", { Title = "Dice Tools", Text = "Reset (H) e Duplicar (J) ativos!", Duration = 5 })
+end)
