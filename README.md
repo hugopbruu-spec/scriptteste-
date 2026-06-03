@@ -1,7 +1,7 @@
 --[[
-    ITEM_RESET_GARANTIDO.lua
+    ITEM_RESET_ABSOLUTO.lua
     Atalho: H para resetar o item da mão.
-    Interface garantida: aparece no canto inferior direito.
+    Interface garantida — nunca falha em aparecer.
 ]]--
 
 local Players = game:GetService("Players")
@@ -10,22 +10,63 @@ local RunService = game:GetService("RunService")
 local Workspace = workspace
 local player = Players.LocalPlayer
 
--- ================== CRIAÇÃO ROBUSTA DA INTERFACE ==================
+-- ================== INTERFACE GARANTIDA ==================
 local gui = Instance.new("ScreenGui")
-gui.Name = "ItemReset_GUI"
+gui.Name = "ItemReset_UI"
 gui.ResetOnSpawn = false
 
--- Tenta CoreGui, senão PlayerGui
-local parentSuccess = pcall(function() gui.Parent = game:GetService("CoreGui") end)
-if not parentSuccess or not gui.Parent then
-    pcall(function() gui.Parent = player:WaitForChild("PlayerGui") end)
-end
--- Se ainda assim falhar, tentamos usar o PlayerGui diretamente
-if not gui.Parent then
-    gui.Parent = player:FindFirstChild("PlayerGui") or player:WaitForChild("PlayerGui")
+-- Tenta colocar no CoreGui ou PlayerGui, repetindo até conseguir
+local function tentaParentear(gui)
+    -- Tenta CoreGui primeiro (mais comum em executors)
+    local ok1 = pcall(function()
+        gui.Parent = game:GetService("CoreGui")
+    end)
+    if ok1 and gui.Parent then
+        return true
+    end
+    
+    -- Tenta PlayerGui, esperando se necessário
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if not playerGui then
+        -- Aguarda até existir (com timeout de 30s)
+        local startTime = tick()
+        repeat
+            task.wait(0.5)
+            playerGui = player:FindFirstChild("PlayerGui")
+        until playerGui or (tick() - startTime > 30)
+    end
+    if playerGui then
+        pcall(function() gui.Parent = playerGui end)
+        if gui.Parent then return true end
+    end
+    
+    return false
 end
 
--- Cria a janela
+-- Se falhar ScreenGui, tenta uma SurfaceGui no personagem (visível para você)
+local function fallbackSurfaceGui()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local head = char:WaitForChild("Head")
+    local sg = Instance.new("SurfaceGui")
+    sg.Adornee = head
+    sg.Face = Enum.NormalId.Front
+    sg.CanvasSize = Vector2.new(200, 100)
+    sg.Parent = head
+    return sg
+end
+
+local interfaceReady = false
+local guiContainer = nil
+
+if not tentaParentear(gui) then
+    -- Fallback: SurfaceGui na cabeça
+    gui:Destroy()
+    guiContainer = fallbackSurfaceGui()
+else
+    guiContainer = gui
+end
+
+-- Cria os elementos dentro do container (seja ScreenGui ou SurfaceGui)
 local frame = Instance.new("Frame")
 frame.Size = UDim2.new(0, 260, 0, 160)
 frame.Position = UDim2.new(1, -270, 0, 700)
@@ -33,7 +74,7 @@ frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
-frame.Parent = gui
+frame.Parent = guiContainer
 
 -- Barra de título
 local titleBar = Instance.new("Frame")
@@ -113,7 +154,7 @@ methodLabel.Size = UDim2.new(1, -20, 0, 18)
 methodLabel.Position = UDim2.new(0, 10, 0, 86)
 methodLabel.Parent = content
 
--- Controles de minimizar/fechar
+-- Minimizar/Fechar
 local minimized = false
 minimizeBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
@@ -121,10 +162,10 @@ minimizeBtn.MouseButton1Click:Connect(function()
     frame.Size = minimized and UDim2.new(0, 260, 0, 28) or UDim2.new(0, 260, 0, 160)
 end)
 closeBtn.MouseButton1Click:Connect(function()
-    gui:Destroy()
+    guiContainer:Destroy()
 end)
 
--- ================== LÓGICA DE RESET DO ITEM ==================
+-- ================== LÓGICA DE RESET ==================
 local function getToolInHand()
     local char = player.Character
     if not char then return nil end
@@ -136,13 +177,11 @@ local function getToolInHand()
     return nil
 end
 
--- Método principal: clone + substituição no Backpack
+-- Método 1: Clone + substituição
 local function resetByClone(tool)
     local toolName = tool.Name
-    -- Clona o item
     local clone = tool:Clone()
-    
-    -- Remove o original de onde estiver
+
     pcall(function()
         if tool.Parent == player.Character then
             tool.Parent = nil
@@ -152,14 +191,10 @@ local function resetByClone(tool)
             backpackCopy:Destroy()
         end
     end)
-    
-    -- Aguarda um pulso para o servidor processar
+
     RunService.Heartbeat:Wait()
-    
-    -- Insere o clone no Backpack
     clone.Parent = player.Backpack
-    
-    -- Confirma após um curto tempo
+
     task.wait(0.2)
     if player.Backpack:FindFirstChild(toolName) or (player.Character and player.Character:FindFirstChild(toolName)) then
         return true, "Clone substituído"
@@ -168,31 +203,24 @@ local function resetByClone(tool)
     end
 end
 
--- Método auxiliar: drop e tentativa de pegar de volta
+-- Método 2: Drop forçado
 local function resetByDrop(tool)
     local char = player.Character
     if not char then return false, "Sem personagem" end
     local humanoid = char:FindFirstChild("Humanoid")
     local root = char:FindFirstChild("HumanoidRootPart")
     if not humanoid or not root then return false, "Sem Humanoid/RootPart" end
-    
-    -- Desequipa
+
     humanoid:UnequipTools()
     task.wait(0.1)
-    
-    -- Move para o chão
     tool.Parent = Workspace
     tool:PivotTo(root.CFrame * CFrame.new(0, 0, -4))
     task.wait(0.15)
-    
-    -- Tenta equipar de volta (alguns jogos permitem)
-    pcall(function()
-        humanoid:EquipTool(tool)
-    end)
+
+    pcall(function() humanoid:EquipTool(tool) end)
     task.wait(0.15)
-    
+
     if tool.Parent == char then
-        -- Agora que está equipado, tentamos substituí-lo via clone (para garantir reset)
         local clone = tool:Clone()
         tool:Destroy()
         clone.Parent = player.Backpack
@@ -203,10 +231,9 @@ local function resetByDrop(tool)
     end
 end
 
--- Método de fallback: procurar o modelo original no jogo
+-- Método 3: Buscar fonte original
 local function resetByName(tool)
     local toolName = tool.Name
-    -- Locais onde ferramentas costumam ser guardadas
     local folders = {
         game:GetService("ReplicatedStorage"),
         game:GetService("Lighting"),
@@ -231,36 +258,35 @@ local function resetItem()
         methodLabel.Text = "Método: Aguardando..."
         return
     end
-    
+
     statusLabel.Text = "Resetando..."
     methodLabel.Text = "Método: Tentando..."
-    
+
     local success, msg = resetByClone(tool)
     if success then
         statusLabel.Text = "Item resetado!"
         methodLabel.Text = "Método: Clone (" .. msg .. ")"
         return
     end
-    
+
     success, msg = resetByDrop(tool)
     if success then
         statusLabel.Text = "Item resetado!"
         methodLabel.Text = "Método: Drop (" .. msg .. ")"
         return
     end
-    
+
     success, msg = resetByName(tool)
     if success then
         statusLabel.Text = "Item resetado!"
         methodLabel.Text = "Método: Recriação (" .. msg .. ")"
         return
     end
-    
+
     statusLabel.Text = "Falha ao resetar"
     methodLabel.Text = "Método: Nenhum funcionou"
 end
 
--- Conecta botão e tecla H
 resetBtn.MouseButton1Click:Connect(resetItem)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
