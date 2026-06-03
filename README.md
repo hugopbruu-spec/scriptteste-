@@ -1,84 +1,75 @@
 --[[
-    ITEM_RESET_ABSOLUTO.lua
+    ITEM_RESET_FINAL.lua – Reset de item com interface garantida
     Atalho: H para resetar o item da mão.
-    Interface garantida — nunca falha em aparecer.
+    A interface SEMPRE aparece, seja como ScreenGui, SurfaceGui ou notificação.
 ]]--
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
 local Workspace = workspace
 local player = Players.LocalPlayer
 
--- ================== INTERFACE GARANTIDA ==================
+-- ================== INTERFACE 100% GARANTIDA ==================
 local gui = Instance.new("ScreenGui")
-gui.Name = "ItemReset_UI"
+gui.Name = "ItemReset_Final"
 gui.ResetOnSpawn = false
 
--- Tenta colocar no CoreGui ou PlayerGui, repetindo até conseguir
-local function tentaParentear(gui)
-    -- Tenta CoreGui primeiro (mais comum em executors)
-    local ok1 = pcall(function()
-        gui.Parent = game:GetService("CoreGui")
-    end)
-    if ok1 and gui.Parent then
-        return true
-    end
-    
-    -- Tenta PlayerGui, esperando se necessário
+-- Tentativa 1: CoreGui (padrão em executors)
+local function tryParent(gui, parent)
+    return pcall(function() gui.Parent = parent end)
+end
+
+local parentSuccess = tryParent(gui, game:GetService("CoreGui"))
+
+if not parentSuccess or not gui.Parent then
+    -- Tentativa 2: PlayerGui (espera o personagem se necessário)
     local playerGui = player:FindFirstChild("PlayerGui")
     if not playerGui then
-        -- Aguarda até existir (com timeout de 30s)
-        local startTime = tick()
-        repeat
-            task.wait(0.5)
-            playerGui = player:FindFirstChild("PlayerGui")
-        until playerGui or (tick() - startTime > 30)
+        local char = player.Character or player.CharacterAdded:Wait()
+        playerGui = player:WaitForChild("PlayerGui", 30) -- timeout 30s
     end
     if playerGui then
-        pcall(function() gui.Parent = playerGui end)
-        if gui.Parent then return true end
+        parentSuccess = tryParent(gui, playerGui)
     end
-    
-    return false
 end
 
--- Se falhar ScreenGui, tenta uma SurfaceGui no personagem (visível para você)
-local function fallbackSurfaceGui()
+-- Fallback extremo: SurfaceGui na cabeça do personagem
+if not parentSuccess or not gui.Parent then
+    gui:Destroy() -- remove a ScreenGui que não foi parentada
     local char = player.Character or player.CharacterAdded:Wait()
-    local head = char:WaitForChild("Head")
-    local sg = Instance.new("SurfaceGui")
-    sg.Adornee = head
-    sg.Face = Enum.NormalId.Front
-    sg.CanvasSize = Vector2.new(200, 100)
-    sg.Parent = head
-    return sg
+    local head = char:WaitForChild("Head", 10)
+    if head then
+        local sg = Instance.new("SurfaceGui")
+        sg.Adornee = head
+        sg.Face = Enum.NormalId.Front
+        sg.CanvasSize = Vector2.new(200, 100)
+        sg.Parent = head
+        gui = sg -- agora usaremos a SurfaceGui como container
+    else
+        -- Último recurso: notificação via StarterGui
+        StarterGui:SetCore("SendNotification", {
+            Title = "Reset Item ativo!",
+            Text = "Pressione H para resetar o item na mão.",
+            Duration = 10
+        })
+        -- O script continua funcionando mesmo sem interface visual
+    end
 end
 
-local interfaceReady = false
-local guiContainer = nil
-
-if not tentaParentear(gui) then
-    -- Fallback: SurfaceGui na cabeça
-    gui:Destroy()
-    guiContainer = fallbackSurfaceGui()
-else
-    guiContainer = gui
-end
-
--- Cria os elementos dentro do container (seja ScreenGui ou SurfaceGui)
+-- ================== CONSTRUÇÃO DA JANELA ==================
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 260, 0, 160)
-frame.Position = UDim2.new(1, -270, 0, 700)
+frame.Size = UDim2.new(0, 260, 0, 150)
+frame.Position = UDim2.new(1, -270, 0, 10)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
-frame.Parent = guiContainer
+frame.Parent = gui
 
--- Barra de título
 local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 28)
+titleBar.Size = UDim2.new(1, 0, 0, 26)
 titleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
 titleBar.BorderSizePixel = 0
 titleBar.Parent = frame
@@ -100,7 +91,7 @@ minimizeBtn.Font = Enum.Font.GothamBold
 minimizeBtn.TextSize = 16
 minimizeBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
 minimizeBtn.BorderSizePixel = 0
-minimizeBtn.Size = UDim2.new(0, 28, 0, 28)
+minimizeBtn.Size = UDim2.new(0, 28, 0, 26)
 minimizeBtn.Position = UDim2.new(1, -56, 0, 0)
 minimizeBtn.Parent = titleBar
 
@@ -111,31 +102,31 @@ closeBtn.Font = Enum.Font.GothamBold
 closeBtn.TextSize = 16
 closeBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 closeBtn.BorderSizePixel = 0
-closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Size = UDim2.new(0, 28, 0, 26)
 closeBtn.Position = UDim2.new(1, -28, 0, 0)
 closeBtn.Parent = titleBar
 
 local content = Instance.new("Frame")
-content.Size = UDim2.new(1, 0, 1, -28)
-content.Position = UDim2.new(0, 0, 0, 28)
+content.Size = UDim2.new(1, 0, 1, -26)
+content.Position = UDim2.new(0, 0, 0, 26)
 content.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
 content.BorderSizePixel = 0
 content.Parent = frame
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Text = "Aperte H ou o botão"
+statusLabel.Text = "Pressione H ou o botão"
 statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 statusLabel.Font = Enum.Font.GothamSemibold
 statusLabel.TextSize = 12
 statusLabel.BackgroundTransparency = 1
 statusLabel.Size = UDim2.new(1, -20, 0, 20)
-statusLabel.Position = UDim2.new(0, 10, 0, 10)
+statusLabel.Position = UDim2.new(0, 10, 0, 8)
 statusLabel.TextWrapped = true
 statusLabel.Parent = content
 
 local resetBtn = Instance.new("TextButton")
-resetBtn.Size = UDim2.new(0, 200, 0, 36)
-resetBtn.Position = UDim2.new(0.5, -100, 0, 40)
+resetBtn.Size = UDim2.new(0, 200, 0, 34)
+resetBtn.Position = UDim2.new(0.5, -100, 0, 35)
 resetBtn.BackgroundColor3 = Color3.fromRGB(200, 130, 30)
 resetBtn.BorderSizePixel = 0
 resetBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -150,8 +141,8 @@ methodLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
 methodLabel.Font = Enum.Font.Gotham
 methodLabel.TextSize = 11
 methodLabel.BackgroundTransparency = 1
-methodLabel.Size = UDim2.new(1, -20, 0, 18)
-methodLabel.Position = UDim2.new(0, 10, 0, 86)
+methodLabel.Size = UDim2.new(1, -20, 0, 16)
+methodLabel.Position = UDim2.new(0, 10, 0, 76)
 methodLabel.Parent = content
 
 -- Minimizar/Fechar
@@ -159,10 +150,10 @@ local minimized = false
 minimizeBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     content.Visible = not minimized
-    frame.Size = minimized and UDim2.new(0, 260, 0, 28) or UDim2.new(0, 260, 0, 160)
+    frame.Size = minimized and UDim2.new(0, 260, 0, 26) or UDim2.new(0, 260, 0, 150)
 end)
 closeBtn.MouseButton1Click:Connect(function()
-    guiContainer:Destroy()
+    gui:Destroy()
 end)
 
 -- ================== LÓGICA DE RESET ==================
@@ -203,7 +194,7 @@ local function resetByClone(tool)
     end
 end
 
--- Método 2: Drop forçado
+-- Método 2: Drop forçado e reequipar
 local function resetByDrop(tool)
     local char = player.Character
     if not char then return false, "Sem personagem" end
@@ -294,3 +285,21 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         resetItem()
     end
 end)
+
+-- ================== CONFIRMAÇÃO VISUAL NO CHAT ==================
+-- Exibe mensagem no chat (se o jogo permitir) para confirmar que o script carregou
+local function notifyLoad()
+    pcall(function()
+        local chatService = game:GetService("Chat")
+        if chatService then
+            chatService:Chat(player.Character and player.Character.Head or nil, "Reset Item carregado! Pressione H para usar.", "Red")
+        end
+    end)
+    -- Notificação alternativa via StarterGui
+    StarterGui:SetCore("SendNotification", {
+        Title = "Reset Item",
+        Text = "Script carregado! Pressione H.",
+        Duration = 5
+    })
+end
+task.delay(1, notifyLoad)
