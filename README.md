@@ -1,7 +1,10 @@
 --[[
-    DICE_TOOL_RESET_DUPE.lua – Reset e Duplicar para Dice (ou qualquer ferramenta)
-    Atalhos: H = Reset | J = Duplicar
-    Interface 100% garantida, sem bugs, mantém a funcionalidade do item.
+    DICE_RESTOCK.lua – Reset, Duplicar e Restock de Dice
+    Atalhos:
+        H = Reset (substitui o Dice da mão por um novo)
+        J = Duplicar (cria uma cópia extra do Dice que está na mão)
+        K = Restock (adiciona um novo Dice ao inventário, mesmo sem nenhum equipado)
+    Ideal para "bugar" o dado: jogue o dado no chão, pressione K e ganhe outro.
 ]]--
 
 local Players = game:GetService("Players")
@@ -13,17 +16,17 @@ local player = Players.LocalPlayer
 
 -- ================== INTERFACE GARANTIDA ==================
 local gui = Instance.new("ScreenGui")
-gui.Name = "DiceTool_UI"
+gui.Name = "DiceRestock_UI"
 gui.ResetOnSpawn = false
 
--- Tenta parentar no CoreGui ou PlayerGui
+-- Tenta CoreGui, depois PlayerGui, depois SurfaceGui na cabeça
 local function safeParent(gui)
-    local success = pcall(function() gui.Parent = game:GetService("CoreGui") end)
-    if success and gui.Parent then return true end
+    local ok = pcall(function() gui.Parent = game:GetService("CoreGui") end)
+    if ok and gui.Parent then return true end
     local pg = player:FindFirstChild("PlayerGui") or player:WaitForChild("PlayerGui", 30)
     if pg then
-        success = pcall(function() gui.Parent = pg end)
-        if success and gui.Parent then return true end
+        ok = pcall(function() gui.Parent = pg end)
+        if ok and gui.Parent then return true end
     end
     return false
 end
@@ -36,18 +39,22 @@ if not safeParent(gui) then
         local sg = Instance.new("SurfaceGui")
         sg.Adornee = head
         sg.Face = Enum.NormalId.Front
-        sg.CanvasSize = Vector2.new(220, 120)
+        sg.CanvasSize = Vector2.new(240, 130)
         sg.Parent = head
         gui = sg
     else
-        StarterGui:SetCore("SendNotification", { Title = "Dice Tools", Text = "Pressione H para reset, J para duplicar.", Duration = 10 })
+        StarterGui:SetCore("SendNotification", {
+            Title = "Dice Restock",
+            Text = "H=Reset | J=Duplicar | K=Restock",
+            Duration = 10
+        })
     end
 end
 
--- Construção da janela
+-- Janela
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 260, 0, 180)
-frame.Position = UDim2.new(1, -270, 0, 10)
+frame.Size = UDim2.new(0, 270, 0, 200)
+frame.Position = UDim2.new(1, -280, 0, 10)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -61,7 +68,7 @@ titleBar.BorderSizePixel = 0
 titleBar.Parent = frame
 
 local title = Instance.new("TextLabel")
-title.Text = "🎲 Dice Tools"
+title.Text = "🎲 Dice Restock"
 title.TextColor3 = Color3.fromRGB(255, 200, 80)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 14
@@ -100,7 +107,7 @@ content.BorderSizePixel = 0
 content.Parent = frame
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Text = "Pressione H (Reset) ou J (Duplicar)"
+statusLabel.Text = "H=Reset | J=Duplicar | K=Restock"
 statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 statusLabel.Font = Enum.Font.GothamSemibold
 statusLabel.TextSize = 11
@@ -111,35 +118,46 @@ statusLabel.TextWrapped = true
 statusLabel.Parent = content
 
 local resetBtn = Instance.new("TextButton")
-resetBtn.Size = UDim2.new(0, 200, 0, 34)
-resetBtn.Position = UDim2.new(0.5, -100, 0, 38)
+resetBtn.Size = UDim2.new(0, 220, 0, 32)
+resetBtn.Position = UDim2.new(0.5, -110, 0, 38)
 resetBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 30)
 resetBtn.BorderSizePixel = 0
 resetBtn.TextColor3 = Color3.new(1, 1, 1)
 resetBtn.Font = Enum.Font.GothamBold
-resetBtn.TextSize = 14
+resetBtn.TextSize = 13
 resetBtn.Text = "RESET (H)"
 resetBtn.Parent = content
 
 local dupeBtn = Instance.new("TextButton")
-dupeBtn.Size = UDim2.new(0, 200, 0, 34)
-dupeBtn.Position = UDim2.new(0.5, -100, 0, 78)
+dupeBtn.Size = UDim2.new(0, 220, 0, 32)
+dupeBtn.Position = UDim2.new(0.5, -110, 0, 76)
 dupeBtn.BackgroundColor3 = Color3.fromRGB(30, 130, 200)
 dupeBtn.BorderSizePixel = 0
 dupeBtn.TextColor3 = Color3.new(1, 1, 1)
 dupeBtn.Font = Enum.Font.GothamBold
-dupeBtn.TextSize = 14
+dupeBtn.TextSize = 13
 dupeBtn.Text = "DUPLICAR (J)"
 dupeBtn.Parent = content
 
+local restockBtn = Instance.new("TextButton")
+restockBtn.Size = UDim2.new(0, 220, 0, 32)
+restockBtn.Position = UDim2.new(0.5, -110, 0, 114)
+restockBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 200)
+restockBtn.BorderSizePixel = 0
+restockBtn.TextColor3 = Color3.new(1, 1, 1)
+restockBtn.Font = Enum.Font.GothamBold
+restockBtn.TextSize = 13
+restockBtn.Text = "RESTOCK (K)"
+restockBtn.Parent = content
+
 local methodLabel = Instance.new("TextLabel")
-methodLabel.Text = "Pronto para usar"
+methodLabel.Text = "Pronto"
 methodLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
 methodLabel.Font = Enum.Font.Gotham
 methodLabel.TextSize = 10
 methodLabel.BackgroundTransparency = 1
 methodLabel.Size = UDim2.new(1, -20, 0, 16)
-methodLabel.Position = UDim2.new(0, 10, 0, 118)
+methodLabel.Position = UDim2.new(0, 10, 0, 152)
 methodLabel.Parent = content
 
 -- Minimizar/Fechar
@@ -147,13 +165,13 @@ local minimized = false
 minimizeBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     content.Visible = not minimized
-    frame.Size = minimized and UDim2.new(0, 260, 0, 26) or UDim2.new(0, 260, 0, 180)
+    frame.Size = minimized and UDim2.new(0, 270, 0, 26) or UDim2.new(0, 270, 0, 200)
 end)
 closeBtn.MouseButton1Click:Connect(function()
     gui:Destroy()
 end)
 
--- ================== FUNÇÕES SEGURAS ==================
+-- ================== FUNÇÕES ==================
 local function getToolInHand()
     local char = player.Character
     if not char then return nil end
@@ -165,137 +183,144 @@ local function getToolInHand()
     return nil
 end
 
--- Função de clonagem segura: faz um clone e insere no Backpack, aguardando confirmação
-local function safeCloneAndInsert(tool, insertIntoBackpack)
-    local clone = tool:Clone()
-    if insertIntoBackpack then
-        clone.Parent = player.Backpack
-    else
-        clone.Parent = Workspace  -- para posterior coleta
+-- Função principal: encontrar uma fonte do Dice para clonar
+local function findDiceSource()
+    local searchNames = {"Dice", "dice", "DiceTool", "DiceGiver"} -- variações comuns
+    local folders = {
+        game:GetService("StarterPack"),
+        game:GetService("ReplicatedStorage"),
+        game:GetService("Lighting"),
+        Workspace -- alguns jogos deixam moldes no workspace
+    }
+    for _, folder in ipairs(folders) do
+        for _, name in ipairs(searchNames) do
+            local found = folder:FindFirstChild(name)
+            if found and found:IsA("Tool") then
+                return found
+            end
+        end
     end
-    task.wait(0.2)
-    -- Verifica se o clone ainda existe onde foi colocado
-    if insertIntoBackpack then
-        return player.Backpack:FindFirstChild(clone.Name) ~= nil
-    else
-        return clone.Parent == Workspace
+    -- Último recurso: procurar qualquer ferramenta cujo nome contenha "dice" (case insensitive)
+    local allFolders = {game:GetService("StarterPack"), game:GetService("ReplicatedStorage"), game:GetService("Lighting")}
+    for _, folder in ipairs(allFolders) do
+        for _, child in ipairs(folder:GetChildren()) do
+            if child:IsA("Tool") and string.lower(child.Name):find("dice") then
+                return child
+            end
+        end
     end
+    return nil
 end
 
--- ===== RESET (substituir o item por uma versão nova) =====
-local function resetTool()
+-- Adiciona um novo Dice ao Backpack, retornando true se bem-sucedido
+local function giveNewDice()
+    local source = findDiceSource()
+    if not source then
+        -- Tenta clonar a partir de algum dado no chão (último caso)
+        for _, obj in ipairs(Workspace:GetChildren()) do
+            if obj:IsA("Tool") and string.lower(obj.Name):find("dice") then
+                source = obj
+                break
+            end
+        end
+    end
+    if not source then
+        return false
+    end
+    local clone = source:Clone()
+    clone.Parent = player.Backpack
+    task.wait(0.1)
+    return player.Backpack:FindFirstChild(clone.Name) ~= nil
+end
+
+-- RESET: substitui o Dice atual na mão por um novo
+local function resetDice()
     local tool = getToolInHand()
-    if not tool then
-        statusLabel.Text = "Equipe um item primeiro!"
-        methodLabel.Text = "Nenhum item na mão"
+    if not tool or not string.lower(tool.Name):find("dice") then
+        statusLabel.Text = "Equipe um Dice primeiro"
+        methodLabel.Text = "Item não é Dice"
         return
     end
     statusLabel.Text = "Resetando..."
-    methodLabel.Text = "..."
-
-    -- Passo 1: clonar o item atual e colocar no Backpack (sem remover original ainda)
-    local success = safeCloneAndInsert(tool, true)
+    local success = giveNewDice()
     if success then
-        -- Agora removemos o original de forma segura (do personagem e qualquer cópia no Backpack)
+        -- Remove o antigo (da mão e qualquer cópia no Backpack)
         pcall(function()
             if tool.Parent == player.Character then
                 tool.Parent = nil
             end
-            -- Remove do Backpack se houver outra cópia com mesmo nome (antiga)
-            local oldBackpack = player.Backpack:FindFirstChild(tool.Name)
-            if oldBackpack and oldBackpack ~= tool then
-                oldBackpack:Destroy()
-            end
+            local bp = player.Backpack:FindFirstChild(tool.Name)
+            if bp then bp:Destroy() end
         end)
         task.wait(0.2)
-        statusLabel.Text = "Reset concluído!"
-        methodLabel.Text = "Clone novo no inventário"
+        statusLabel.Text = "Reset concluído"
+        methodLabel.Text = "Novo Dice no inventário"
     else
-        -- Se falhar, tenta o método de drop
-        local char = player.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            tool.Parent = Workspace
-            tool:PivotTo(char.HumanoidRootPart.CFrame * CFrame.new(0, 0, -4))
-            task.wait(0.3)
-            pcall(function() char.Humanoid:EquipTool(tool) end)
-            task.wait(0.2)
-            if tool.Parent == char then
-                -- Drop/reequipar pode resetar estados, mas não é garantido
-                statusLabel.Text = "Reset por drop (pode não limpar)"
-                methodLabel.Text = "Drop/Pickup"
-            else
-                statusLabel.Text = "Falha ao resetar"
-                methodLabel.Text = "Nenhum método funcionou"
-            end
-        else
-            statusLabel.Text = "Falha (sem personagem)"
-            methodLabel.Text = "Erro"
-        end
+        statusLabel.Text = "Falha ao encontrar fonte do Dice"
+        methodLabel.Text = "Erro"
     end
 end
 
--- ===== DUPLICAR (criar uma cópia extra, mantendo a original equipada) =====
-local function duplicateTool()
+-- DUPLICAR: se estiver com um Dice na mão, cria uma cópia extra no inventário
+local function dupeDice()
     local tool = getToolInHand()
-    if not tool then
-        statusLabel.Text = "Equipe um item primeiro!"
-        methodLabel.Text = "Nenhum item na mão"
+    if not tool or not string.lower(tool.Name):find("dice") then
+        statusLabel.Text = "Equipe um Dice primeiro"
+        methodLabel.Text = "Item não é Dice"
         return
     end
     statusLabel.Text = "Duplicando..."
-    methodLabel.Text = "..."
-
-    -- Tenta inserir clone direto no Backpack
-    local success = safeCloneAndInsert(tool, true)
-    if success then
-        statusLabel.Text = "Duplicado com sucesso!"
+    local clone = tool:Clone()
+    clone.Parent = player.Backpack
+    task.wait(0.1)
+    if player.Backpack:FindFirstChild(clone.Name) then
+        statusLabel.Text = "Duplicado com sucesso"
         methodLabel.Text = "Clone no inventário"
     else
-        -- Tenta colocar no chão e forçar pickup
-        local char = player.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            local clone = tool:Clone()
-            clone.Parent = Workspace
-            clone:PivotTo(char.HumanoidRootPart.CFrame * CFrame.new(0, 0, -4))
-            task.wait(0.2)
-            -- Tenta equipar via Humanoid
-            pcall(function() char.Humanoid:EquipTool(clone) end)
-            task.wait(0.2)
-            if clone.Parent == char then
-                -- Sucesso, mas agora o original foi substituído? Não, pois não removemos o original.
-                -- Precisamos garantir que o original continue equipado. Se o jogo trocar automático, podemos reequipar o original depois.
-                -- Vamos apenas verificar se o original ainda está na mão; se não, reequipamos.
-                if tool.Parent ~= char then
-                    pcall(function() char.Humanoid:EquipTool(tool) end)
-                end
-                statusLabel.Text = "Duplicado via drop/pickup"
-                methodLabel.Text = "Clone no inventário"
-            else
-                -- Se mesmo assim falhar, destrói o clone e reporta
-                pcall(function() clone:Destroy() end)
-                statusLabel.Text = "Falha ao duplicar"
-                methodLabel.Text = "Nenhum método funcionou"
-            end
-        else
-            statusLabel.Text = "Falha (sem personagem)"
-            methodLabel.Text = "Erro"
+        statusLabel.Text = "Falha ao duplicar"
+        methodLabel.Text = "Tentando método alternativo"
+        -- Fallback: adicionar via fonte
+        if giveNewDice() then
+            statusLabel.Text = "Duplicado via restock"
+            methodLabel.Text = "Clone no inventário"
         end
     end
 end
 
--- Conecta botões e atalhos
-resetBtn.MouseButton1Click:Connect(resetTool)
-dupeBtn.MouseButton1Click:Connect(duplicateTool)
+-- RESTOCK: adiciona um novo Dice, independentemente de ter um na mão (ideal após jogar)
+local function restockDice()
+    statusLabel.Text = "Restock..."
+    local success = giveNewDice()
+    if success then
+        statusLabel.Text = "Novo Dice adicionado"
+        methodLabel.Text = "Pronto para usar"
+    else
+        statusLabel.Text = "Falha: Dice não encontrado"
+        methodLabel.Text = "Verifique o nome do item"
+    end
+end
+
+-- Conexões
+resetBtn.MouseButton1Click:Connect(resetDice)
+dupeBtn.MouseButton1Click:Connect(dupeDice)
+restockBtn.MouseButton1Click:Connect(restockDice)
+
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.H then
-        resetTool()
+        resetDice()
     elseif input.KeyCode == Enum.KeyCode.J then
-        duplicateTool()
+        dupeDice()
+    elseif input.KeyCode == Enum.KeyCode.K then
+        restockDice()
     end
 end)
 
 -- Notificação de carregamento
 task.delay(1, function()
-    StarterGui:SetCore("SendNotification", { Title = "Dice Tools", Text = "Reset (H) e Duplicar (J) ativos!", Duration = 5 })
+    StarterGui:SetCore("SendNotification", {
+        Title = "Dice Restock",
+        Text = "H=Reset | J=Duplicar | K=Restock",
+        Duration = 6
+    })
 end)
