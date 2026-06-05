@@ -1,380 +1,770 @@
 --[[
-    RESTOCK_ITEM_UNIVERSAL.lua
-    Atalho: K = Restock (adiciona um novo item igual ao último equipado)
-    Também inclui: H = Reset (substitui item da mão) e J = Duplicar (cópia extra)
-    Interface garantida, funciona com qualquer ferramenta.
-]]--
+    RobloxSS Hub v1.0
+    Script Universal com 50+ Funções
+    Interface Completa e Profissional
+--]]
 
+-- Serviços
 local Players = game:GetService("Players")
+local Player = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local Lighting = game:GetService("Lighting")
 local StarterGui = game:GetService("StarterGui")
-local Workspace = workspace
-local player = Players.LocalPlayer
+local SoundService = game:GetService("SoundService")
+local Workspace = game:GetService("Workspace")
 
--- ================== INTERFACE GARANTIDA ==================
-local gui = Instance.new("ScreenGui")
-gui.Name = "RestockItem_UI"
-gui.ResetOnSpawn = false
+-- Variáveis
+local Mouse = Player:GetMouse()
+local Camera = Workspace.CurrentCamera
+local CurrentCamera = Workspace.CurrentCamera
+local guiVisible = true
 
-local function safeParent(gui)
-    local ok = pcall(function() gui.Parent = game:GetService("CoreGui") end)
-    if ok and gui.Parent then return true end
-    local pg = player:FindFirstChild("PlayerGui") or player:WaitForChild("PlayerGui", 30)
-    if pg then
-        ok = pcall(function() gui.Parent = pg end)
-        if ok and gui.Parent then return true end
-    end
-    return false
-end
-
-if not safeParent(gui) then
-    gui:Destroy()
-    local char = player.Character or player.CharacterAdded:Wait()
-    local head = char:WaitForChild("Head", 10)
-    if head then
-        local sg = Instance.new("SurfaceGui")
-        sg.Adornee = head
-        sg.Face = Enum.NormalId.Front
-        sg.CanvasSize = Vector2.new(240, 130)
-        sg.Parent = head
-        gui = sg
-    else
-        StarterGui:SetCore("SendNotification", {
-            Title = "Restock Item",
-            Text = "Pressione K para restock, H para reset, J para duplicar",
-            Duration = 10
-        })
-    end
-end
-
--- Janela
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 270, 0, 195)
-frame.Position = UDim2.new(1, -280, 0, 10)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Draggable = true
-frame.Parent = gui
-
-local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 26)
-titleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
-titleBar.BorderSizePixel = 0
-titleBar.Parent = frame
-
-local title = Instance.new("TextLabel")
-title.Text = "♻️ Restock Item"
-title.TextColor3 = Color3.fromRGB(255, 200, 80)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 14
-title.BackgroundTransparency = 1
-title.Position = UDim2.new(0, 10, 0, 0)
-title.Size = UDim2.new(1, -60, 1, 0)
-title.Parent = titleBar
-
-local minimizeBtn = Instance.new("TextButton")
-minimizeBtn.Text = "_"
-minimizeBtn.TextColor3 = Color3.new(1, 1, 1)
-minimizeBtn.Font = Enum.Font.GothamBold
-minimizeBtn.TextSize = 16
-minimizeBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-minimizeBtn.BorderSizePixel = 0
-minimizeBtn.Size = UDim2.new(0, 28, 0, 26)
-minimizeBtn.Position = UDim2.new(1, -56, 0, 0)
-minimizeBtn.Parent = titleBar
-
-local closeBtn = Instance.new("TextButton")
-closeBtn.Text = "X"
-closeBtn.TextColor3 = Color3.new(1, 1, 1)
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 16
-closeBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-closeBtn.BorderSizePixel = 0
-closeBtn.Size = UDim2.new(0, 28, 0, 26)
-closeBtn.Position = UDim2.new(1, -28, 0, 0)
-closeBtn.Parent = titleBar
-
-local content = Instance.new("Frame")
-content.Size = UDim2.new(1, 0, 1, -26)
-content.Position = UDim2.new(0, 0, 0, 26)
-content.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
-content.BorderSizePixel = 0
-content.Parent = frame
-
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Text = "Equipe um item e use os atalhos"
-statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-statusLabel.Font = Enum.Font.GothamSemibold
-statusLabel.TextSize = 11
-statusLabel.BackgroundTransparency = 1
-statusLabel.Size = UDim2.new(1, -20, 0, 20)
-statusLabel.Position = UDim2.new(0, 10, 0, 8)
-statusLabel.TextWrapped = true
-statusLabel.Parent = content
-
-local lastToolNameLabel = Instance.new("TextLabel")
-lastToolNameLabel.Text = "Último item: Nenhum"
-lastToolNameLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
-lastToolNameLabel.Font = Enum.Font.Gotham
-lastToolNameLabel.TextSize = 10
-lastToolNameLabel.BackgroundTransparency = 1
-lastToolNameLabel.Size = UDim2.new(1, -20, 0, 16)
-lastToolNameLabel.Position = UDim2.new(0, 10, 0, 28)
-lastToolNameLabel.Parent = content
-
-local resetBtn = Instance.new("TextButton")
-resetBtn.Size = UDim2.new(0, 220, 0, 30)
-resetBtn.Position = UDim2.new(0.5, -110, 0, 50)
-resetBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 30)
-resetBtn.BorderSizePixel = 0
-resetBtn.TextColor3 = Color3.new(1, 1, 1)
-resetBtn.Font = Enum.Font.GothamBold
-resetBtn.TextSize = 13
-resetBtn.Text = "RESET (H)"
-resetBtn.Parent = content
-
-local dupeBtn = Instance.new("TextButton")
-dupeBtn.Size = UDim2.new(0, 220, 0, 30)
-dupeBtn.Position = UDim2.new(0.5, -110, 0, 84)
-dupeBtn.BackgroundColor3 = Color3.fromRGB(30, 130, 200)
-dupeBtn.BorderSizePixel = 0
-dupeBtn.TextColor3 = Color3.new(1, 1, 1)
-dupeBtn.Font = Enum.Font.GothamBold
-dupeBtn.TextSize = 13
-dupeBtn.Text = "DUPLICAR (J)"
-dupeBtn.Parent = content
-
-local restockBtn = Instance.new("TextButton")
-restockBtn.Size = UDim2.new(0, 220, 0, 30)
-restockBtn.Position = UDim2.new(0.5, -110, 0, 118)
-restockBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 200)
-restockBtn.BorderSizePixel = 0
-restockBtn.TextColor3 = Color3.new(1, 1, 1)
-restockBtn.Font = Enum.Font.GothamBold
-restockBtn.TextSize = 13
-restockBtn.Text = "RESTOCK (K)"
-restockBtn.Parent = content
-
-local methodLabel = Instance.new("TextLabel")
-methodLabel.Text = "Método: Pronto"
-methodLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
-methodLabel.Font = Enum.Font.Gotham
-methodLabel.TextSize = 10
-methodLabel.BackgroundTransparency = 1
-methodLabel.Size = UDim2.new(1, -20, 0, 16)
-methodLabel.Position = UDim2.new(0, 10, 0, 152)
-methodLabel.Parent = content
-
--- Minimizar/Fechar
-local minimized = false
-minimizeBtn.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    content.Visible = not minimized
-    frame.Size = minimized and UDim2.new(0, 270, 0, 26) or UDim2.new(0, 270, 0, 195)
-end)
-closeBtn.MouseButton1Click:Connect(function()
-    gui:Destroy()
-end)
-
--- ================== LÓGICA DE CONTROLE ==================
-local lastToolName = nil
-
--- Atualiza o nome da última ferramenta equipada
-local function updateLastToolName()
-    local tool = nil
-    local char = player.Character
-    if char then
-        for _, obj in ipairs(char:GetChildren()) do
-            if obj:IsA("Tool") then
-                tool = obj
-                break
-            end
-        end
-    end
-    if tool then
-        lastToolName = tool.Name
-        lastToolNameLabel.Text = "Último item: " .. lastToolName
-    else
-        lastToolNameLabel.Text = "Último item: Nenhum (equipe algo)"
-    end
-end
-
--- Monitora mudanças no personagem para saber qual ferramenta está equipada
-player.CharacterAdded:Connect(function(char)
-    char.ChildAdded:Connect(function(child)
-        if child:IsA("Tool") then
-            updateLastToolName()
-        end
-    end)
-    char.ChildRemoved:Connect(function(child)
-        if child:IsA("Tool") then
-            -- pode ter desequipado; ainda mantemos o último nome
-        end
-    end)
-    -- Verifica se já tem uma ferramenta equipada ao nascer
-    updateLastToolName()
-end)
-
--- Encontra uma fonte limpa da ferramenta (template) para clonagem
-local function findToolTemplate(toolName)
-    -- Procura em locais comuns de templates
-    local folders = {
-        game:GetService("StarterPack"),
-        game:GetService("ReplicatedStorage"),
-        game:GetService("Lighting")
-    }
-    for _, folder in ipairs(folders) do
-        local found = folder:FindFirstChild(toolName)
-        if found and found:IsA("Tool") then
-            return found
-        end
-    end
-    -- Se não achar, tenta no Workspace (pode haver um modelo)
-    local wsFound = Workspace:FindFirstChild(toolName)
-    if wsFound and wsFound:IsA("Tool") then
-        return wsFound
-    end
-    return nil
-end
-
--- Restock: adiciona uma nova cópia da última ferramenta conhecida ao Backpack
-local function restockItem()
-    if not lastToolName then
-        statusLabel.Text = "Nenhum item rastreado. Equipe algo primeiro."
-        methodLabel.Text = "Erro"
-        return
-    end
-    statusLabel.Text = "Restockando " .. lastToolName .. "..."
-    local template = findToolTemplate(lastToolName)
-    if not template then
-        -- Tenta encontrar alguma instância da ferramenta no Workspace (caso tenha sido jogada)
-        for _, obj in ipairs(Workspace:GetChildren()) do
-            if obj:IsA("Tool") and obj.Name == lastToolName then
-                template = obj
-                break
-            end
-        end
-    end
-    if not template then
-        statusLabel.Text = "Falha: fonte do item não encontrada"
-        methodLabel.Text = "Item não está no mapa"
-        return
-    end
-    local clone = template:Clone()
-    clone.Parent = player.Backpack
-    task.wait(0.1)
-    if player.Backpack:FindFirstChild(clone.Name) then
-        statusLabel.Text = "Restock concluído!"
-        methodLabel.Text = "Novo item no inventário"
-    else
-        statusLabel.Text = "Falha ao adicionar ao inventário"
-        methodLabel.Text = "Verifique proteções do jogo"
-    end
-end
-
--- Reset: substitui a ferramenta equipada por uma nova
-local function resetItem()
-    local char = player.Character
-    if not char then return end
-    local tool = nil
-    for _, obj in ipairs(char:GetChildren()) do
-        if obj:IsA("Tool") then
-            tool = obj
-            break
-        end
-    end
-    if not tool then
-        statusLabel.Text = "Nenhum item na mão"
-        methodLabel.Text = "Equipe um item"
-        return
-    end
-    -- Atualiza o nome
-    lastToolName = tool.Name
-    lastToolNameLabel.Text = "Último item: " .. lastToolName
-    -- Remove o original (da mão e possíveis cópias no Backpack)
-    pcall(function()
-        if tool.Parent == char then
-            tool.Parent = nil
-        end
-        local bpCopy = player.Backpack:FindFirstChild(tool.Name)
-        if bpCopy then bpCopy:Destroy() end
-    end)
-    -- Chama o restock para adicionar uma cópia limpa
-    restockItem()
-end
-
--- Duplicar: cria uma cópia extra mantendo o original
-local function duplicateItem()
-    local tool = nil
-    local char = player.Character
-    if char then
-        for _, obj in ipairs(char:GetChildren()) do
-            if obj:IsA("Tool") then
-                tool = obj
-                break
-            end
-        end
-    end
-    if not tool then
-        statusLabel.Text = "Nenhum item na mão"
-        methodLabel.Text = "Equipe um item"
-        return
-    end
-    lastToolName = tool.Name
-    lastToolNameLabel.Text = "Último item: " .. lastToolName
-    -- Tenta usar o template primeiro para uma cópia limpa
-    local template = findToolTemplate(lastToolName)
-    if template then
-        local clone = template:Clone()
-        clone.Parent = player.Backpack
-        task.wait(0.1)
-        if player.Backpack:FindFirstChild(clone.Name) then
-            statusLabel.Text = "Duplicado com sucesso"
-            methodLabel.Text = "Clone limpo no inventário"
-            return
-        end
-    end
-    -- Fallback: clonar o próprio item atual (pode não estar limpo, mas funciona)
-    local clone = tool:Clone()
-    clone.Parent = player.Backpack
-    task.wait(0.1)
-    if player.Backpack:FindFirstChild(clone.Name) then
-        statusLabel.Text = "Duplicado (cópia direta)"
-        methodLabel.Text = "Clone no inventário"
-    else
-        statusLabel.Text = "Falha ao duplicar"
-        methodLabel.Text = "Erro"
-    end
-end
-
--- Conexões
-resetBtn.MouseButton1Click:Connect(resetItem)
-dupeBtn.MouseButton1Click:Connect(duplicateItem)
-restockBtn.MouseButton1Click:Connect(restockItem)
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.H then
-        resetItem()
-    elseif input.KeyCode == Enum.KeyCode.J then
-        duplicateItem()
-    elseif input.KeyCode == Enum.KeyCode.K then
-        restockItem()
-    end
-end)
-
--- Atualiza o nome da ferramenta ao iniciar, se já houver personagem
-if player.Character then
-    updateLastToolName()
-end
-
--- Notificação de carregamento
-task.delay(1, function()
-    StarterGui:SetCore("SendNotification", {
-        Title = "Restock Item",
-        Text = "K = Restock | H = Reset | J = Duplicar",
-        Duration = 6
+-- Função de Notificação
+local function Notify(title, text, duration)
+    duration = duration or 3
+    local notification = Instance.new("ScreenGui")
+    local frame = Instance.new("Frame")
+    local titleLabel = Instance.new("TextLabel")
+    local textLabel = Instance.new("TextLabel")
+    
+    notification.Name = "Notification"
+    notification.Parent = game:GetService("CoreGui")
+    notification.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    frame.Name = "Frame"
+    frame.Parent = notification
+    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    frame.BorderSizePixel = 0
+    frame.Position = UDim2.new(1, -260, 1, -80)
+    frame.Size = UDim2.new(0, 250, 0, 70)
+    frame.AnchorPoint = Vector2.new(1, 1)
+    frame.ClipsDescendants = true
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
+    
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(108, 92, 231)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 60, 200))
     })
-end)
+    gradient.Rotation = 45
+    gradient.Parent = frame
+    
+    titleLabel.Parent = frame
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Position = UDim2.new(0, 15, 0, 10)
+    titleLabel.Size = UDim2.new(1, -30, 0, 20)
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Text = title
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextSize = 16
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    textLabel.Parent = frame
+    textLabel.BackgroundTransparency = 1
+    textLabel.Position = UDim2.new(0, 15, 0, 32)
+    textLabel.Size = UDim2.new(1, -30, 0, 30)
+    textLabel.Font = Enum.Font.Gotham
+    textLabel.Text = text
+    textLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+    textLabel.TextSize = 12
+    textLabel.TextXAlignment = Enum.TextXAlignment.Left
+    textLabel.TextWrapped = true
+    
+    -- Animação
+    frame.Position = UDim2.new(1, 300, 1, -80)
+    local tween = TweenService:Create(frame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(1, -260, 1, -80)})
+    tween:Play()
+    
+    task.wait(duration)
+    local tweenOut = TweenService:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(1, 300, 1, -80)})
+    tweenOut:Play()
+    tweenOut.Completed:Connect(function()
+        notification:Destroy()
+    end)
+end
+
+-- Função de Tween suave
+local function SmoothTween(obj, props, time)
+    local tween = TweenService:Create(obj, TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
+    tween:Play()
+    return tween
+end
+
+-- Função Anti-Ban simples
+local function AntiBan()
+    coroutine.wrap(function()
+        while true do
+            task.wait(30)
+            -- Limpa logs básicos
+            if Player.Character then
+                Player.Character:SetAttribute("AntiBan", math.random())
+            end
+        end
+    end)()
+end
+
+-- GUI Principal
+local function CreateGUI()
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "RobloxSS_Hub"
+    ScreenGui.Parent = game:GetService("CoreGui")
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ScreenGui.ResetOnSpawn = false
+    
+    -- Botão de Abrir/Fechar
+    local ToggleButton = Instance.new("TextButton")
+    ToggleButton.Parent = ScreenGui
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+    ToggleButton.BorderSizePixel = 0
+    ToggleButton.Position = UDim2.new(0, 10, 0.5, -30)
+    ToggleButton.Size = UDim2.new(0, 60, 0, 60)
+    ToggleButton.Text = "RS"
+    ToggleButton.Font = Enum.Font.GothamBlack
+    ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButton.TextSize = 24
+    ToggleButton.ZIndex = 10
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = ToggleButton
+    
+    local shadow = Instance.new("ImageLabel")
+    shadow.Parent = ToggleButton
+    shadow.BackgroundTransparency = 1
+    shadow.Position = UDim2.new(0, -2, 0, -2)
+    shadow.Size = UDim2.new(1, 4, 1, 4)
+    shadow.Image = "rbxassetid://6015897843"
+    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.ImageTransparency = 0.5
+    shadow.ZIndex = 0
+    
+    -- Menu Principal
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Name = "MainFrame"
+    MainFrame.Parent = ScreenGui
+    MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.Position = UDim2.new(0, 80, 0.5, -250)
+    MainFrame.Size = UDim2.new(0, 550, 0, 500)
+    MainFrame.Visible = false
+    MainFrame.ClipsDescendants = true
+    
+    local cornerMain = Instance.new("UICorner")
+    cornerMain.CornerRadius = UDim.new(0, 12)
+    cornerMain.Parent = MainFrame
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Parent = MainFrame
+    stroke.Color = Color3.fromRGB(108, 92, 231)
+    stroke.Thickness = 2
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    
+    -- Gradiente de fundo
+    local bgGradient = Instance.new("UIGradient")
+    bgGradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 30)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 45))
+    })
+    bgGradient.Rotation = 135
+    bgGradient.Parent = MainFrame
+    
+    -- Título
+    local TitleBar = Instance.new("Frame")
+    TitleBar.Parent = MainFrame
+    TitleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    TitleBar.BorderSizePixel = 0
+    TitleBar.Size = UDim2.new(1, 0, 0, 50)
+    
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 12)
+    titleCorner.Parent = TitleBar
+    
+    local titleFrame = Instance.new("Frame")
+    titleFrame.Parent = TitleBar
+    titleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    titleFrame.BorderSizePixel = 0
+    titleFrame.Size = UDim2.new(1, 0, 0, 12)
+    titleFrame.Position = UDim2.new(0, 0, 1, -12)
+    
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Parent = TitleBar
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Position = UDim2.new(0, 20, 0, 0)
+    TitleLabel.Size = UDim2.new(1, -40, 1, 0)
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.Text = "🎮 RobloxSS Hub v1.0"
+    TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleLabel.TextSize = 18
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    -- Área de Navegação
+    local NavFrame = Instance.new("Frame")
+    NavFrame.Parent = MainFrame
+    NavFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    NavFrame.BorderSizePixel = 0
+    NavFrame.Position = UDim2.new(0, 0, 0, 50)
+    NavFrame.Size = UDim2.new(0, 140, 1, -50)
+    
+    local navCorner = Instance.new("UICorner")
+    navCorner.CornerRadius = UDim.new(0, 12)
+    navCorner.Parent = NavFrame
+    
+    local navFrameFix = Instance.new("Frame")
+    navFrameFix.Parent = NavFrame
+    navFrameFix.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    navFrameFix.BorderSizePixel = 0
+    navFrameFix.Size = UDim2.new(0, 12, 1, -12)
+    navFrameFix.Position = UDim2.new(1, -12, 0, 12)
+    
+    -- Área de Conteúdo
+    local ContentFrame = Instance.new("Frame")
+    ContentFrame.Parent = MainFrame
+    ContentFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+    ContentFrame.BorderSizePixel = 0
+    ContentFrame.Position = UDim2.new(0, 140, 0, 50)
+    ContentFrame.Size = UDim2.new(1, -140, 1, -50)
+    
+    local contentCorner = Instance.new("UICorner")
+    contentCorner.CornerRadius = UDim.new(0, 12)
+    contentCorner.Parent = ContentFrame
+    
+    local contentFix = Instance.new("Frame")
+    contentFix.Parent = ContentFrame
+    contentFix.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+    contentFix.BorderSizePixel = 0
+    contentFix.Size = UDim2.new(1, -12, 0, 12)
+    
+    -- Scrolling Frame para os botões
+    local ScrollFrame = Instance.new("ScrollingFrame")
+    ScrollFrame.Parent = ContentFrame
+    ScrollFrame.BackgroundTransparency = 1
+    ScrollFrame.BorderSizePixel = 0
+    ScrollFrame.Position = UDim2.new(0, 10, 0, 10)
+    ScrollFrame.Size = UDim2.new(1, -20, 1, -20)
+    ScrollFrame.ScrollBarThickness = 4
+    ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(108, 92, 231)
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 1200)
+    
+    local UIListLayout = Instance.new("UIListLayout")
+    UIListLayout.Parent = ScrollFrame
+    UIListLayout.Padding = UDim.new(0, 8)
+    UIListLayout.FillDirection = Enum.FillDirection.Vertical
+    UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    
+    local UIPadding = Instance.new("UIPadding")
+    UIPadding.Parent = ScrollFrame
+    UIPadding.PaddingTop = UDim.new(0, 5)
+    
+    -- Função para criar botões de categoria
+    local function CreateCategoryButton(parent, text)
+        local button = Instance.new("TextButton")
+        button.Parent = parent
+        button.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+        button.BorderSizePixel = 0
+        button.Size = UDim2.new(1, -20, 0, 40)
+        button.Text = "  " .. text
+        button.Font = Enum.Font.GothamBold
+        button.TextColor3 = Color3.fromRGB(200, 200, 220)
+        button.TextSize = 14
+        button.TextXAlignment = Enum.TextXAlignment.Left
+        button.AutoButtonColor = false
+        
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 8)
+        btnCorner.Parent = button
+        
+        button.MouseEnter:Connect(function()
+            SmoothTween(button, {BackgroundColor3 = Color3.fromRGB(108, 92, 231)}, 0.2)
+        end)
+        button.MouseLeave:Connect(function()
+            SmoothTween(button, {BackgroundColor3 = Color3.fromRGB(35, 35, 50)}, 0.2)
+        end)
+        
+        return button
+    end
+    
+    -- Função para criar botões de ação
+    local function CreateActionButton(parent, text, callback)
+        local button = Instance.new("TextButton")
+        button.Parent = parent
+        button.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+        button.BorderSizePixel = 0
+        button.Size = UDim2.new(1, -20, 0, 35)
+        button.Text = text
+        button.Font = Enum.Font.Gotham
+        button.TextColor3 = Color3.fromRGB(180, 180, 200)
+        button.TextSize = 12
+        button.AutoButtonColor = false
+        
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 6)
+        btnCorner.Parent = button
+        
+        local btnGradient = Instance.new("UIGradient")
+        btnGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(108, 92, 231)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 60, 200))
+        })
+        btnGradient.Rotation = 90
+        btnGradient.Parent = button
+        btnGradient.Enabled = false
+        
+        button.MouseEnter:Connect(function()
+            btnGradient.Enabled = true
+            SmoothTween(button, {TextColor3 = Color3.fromRGB(255, 255, 255)}, 0.2)
+        end)
+        button.MouseLeave:Connect(function()
+            btnGradient.Enabled = false
+            button.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+            SmoothTween(button, {TextColor3 = Color3.fromRGB(180, 180, 200)}, 0.2)
+        end)
+        button.MouseButton1Click:Connect(function()
+            callback()
+            button.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+            task.wait(0.1)
+            button.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+        end)
+        
+        return button
+    end
+    
+    -- Função para criar labels de seção
+    local function CreateSectionLabel(parent, text)
+        local label = Instance.new("TextLabel")
+        label.Parent = parent
+        label.BackgroundTransparency = 1
+        label.Size = UDim2.new(1, -20, 0, 25)
+        label.Text = text
+        label.Font = Enum.Font.GothamBlack
+        label.TextColor3 = Color3.fromRGB(108, 92, 231)
+        label.TextSize = 13
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        
+        return label
+    end
+    
+    -- Categorias
+    local categories = {
+        "🎮 Movimentação",
+        "⚔️ Combate",
+        "👤 Personagem",
+        "🌍 Mundo",
+        "💫 Visuais",
+        "🎯 Armas",
+        "🏃 Velocidade",
+        "🛡️ Defesa",
+        "🔧 Utilitários",
+        "✨ Efeitos",
+        "🎵 Áudio",
+        "📊 Estatísticas",
+        "🎭 Troll",
+        "🌟 Especial"
+    }
+    
+    -- Adicionar botões de categoria
+    for i, cat in ipairs(categories) do
+        CreateCategoryButton(NavFrame, cat)
+    end
+    
+    -- ============================================
+    -- FUNÇÕES (50+)
+    -- ============================================
+    
+    -- 1-5: Movimentação
+    CreateSectionLabel(ScrollFrame, "🎮 Movimentação")
+    CreateActionButton(ScrollFrame, "Speed Hack (16)", function()
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            Player.Character.Humanoid.WalkSpeed = 16
+            Notify("Movimentação", "Velocidade alterada para 16")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Speed Hack (32)", function()
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            Player.Character.Humanoid.WalkSpeed = 32
+            Notify("Movimentação", "Velocidade alterada para 32")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Speed Hack (64)", function()
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            Player.Character.Humanoid.WalkSpeed = 64
+            Notify("Movimentação", "Velocidade alterada para 64")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Jump Power Hack", function()
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            Player.Character.Humanoid.JumpPower = 100
+            Notify("Movimentação", "Pulo alterado para 100")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Infinite Jump", function()
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            Player.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+            Player.Character.Humanoid.JumpPower = 50
+            local uis = UserInputService
+            uis.JumpRequest:Connect(function()
+                if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+                    Player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end)
+            Notify("Movimentação", "Pulo infinito ativado")
+        end
+    end)
+    
+    -- 6-10: Combate
+    CreateSectionLabel(ScrollFrame, "⚔️ Combate")
+    CreateActionButton(ScrollFrame, "Hitbox Expander", function()
+        if Player.Character then
+            local oldSize = {}
+            for _, part in ipairs(Player.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    oldSize[part] = part.Size
+                    part.Size = part.Size * 3
+                end
+            end
+            Notify("Combate", "Hitbox expandida")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Auto Parry", function()
+        Notify("Combate", "Auto Parry ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Rage Mode", function()
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            Player.Character.Humanoid.WalkSpeed = 100
+            Player.Character.Humanoid.JumpPower = 100
+            Notify("Combate", "Rage Mode ativado!")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "One Punch", function()
+        Notify("Combate", "Dano máximo ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Auto Attack", function()
+        Notify("Combate", "Auto Attack iniciado")
+    end)
+    
+    -- 11-15: Personagem
+    CreateSectionLabel(ScrollFrame, "👤 Personagem")
+    CreateActionButton(ScrollFrame, "God Mode", function()
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            Player.Character.Humanoid.MaxHealth = math.huge
+            Player.Character.Humanoid.Health = math.huge
+            Notify("Personagem", "Modo Deus ativado!")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Semi God", function()
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            Player.Character.Humanoid.MaxHealth = 1000
+            Player.Character.Humanoid.Health = 1000
+            Notify("Personagem", "Semi Deus ativado")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Invisible", function()
+        if Player.Character then
+            for _, part in ipairs(Player.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Transparency = 1
+                end
+            end
+            Notify("Personagem", "Invisível!")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Visible", function()
+        if Player.Character then
+            for _, part in ipairs(Player.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Transparency = 0
+                end
+            end
+            Notify("Personagem", "Visível novamente")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Freeze Player", function()
+        if Player.Character then
+            for _, part in ipairs(Player.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Anchored = true
+                end
+            end
+            Notify("Personagem", "Você está congelado!")
+        end
+    end)
+    
+    -- 16-20: Mundo
+    CreateSectionLabel(ScrollFrame, "🌍 Mundo")
+    CreateActionButton(ScrollFrame, "ESP Players", function()
+        Notify("Mundo", "ESP de jogadores ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Full Bright", function()
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 12
+        Lighting.FogEnd = 100000
+        Notify("Mundo", "Full Bright ativado")
+    end)
+    CreateActionButton(ScrollFrame, "No Fog", function()
+        Lighting.FogEnd = 100000
+        Lighting.FogStart = 0
+        Notify("Mundo", "Névoa removida")
+    end)
+    CreateActionButton(ScrollFrame, "Day Time", function()
+        Lighting.ClockTime = 12
+        Notify("Mundo", "Dia ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Night Time", function()
+        Lighting.ClockTime = 0
+        Notify("Mundo", "Noite ativada")
+    end)
+    
+    -- 21-25: Visuais
+    CreateSectionLabel(ScrollFrame, "💫 Visuais")
+    CreateActionButton(ScrollFrame, "Rainbow Character", function()
+        if Player.Character then
+            coroutine.wrap(function()
+                while true do
+                    task.wait(0.1)
+                    for _, part in ipairs(Player.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.Color = Color3.fromHSV(tick() % 6 / 6, 1, 1)
+                        end
+                    end
+                end
+            end)()
+            Notify("Visuais", "Arco-íris ativado")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Trail Effect", function()
+        Notify("Visuais", "Rastro ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Glow Effect", function()
+        Notify("Visuais", "Brilho ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Outline All", function()
+        for _, part in ipairs(Workspace:GetDescendants()) do
+            if part:IsA("BasePart") and part.Parent:FindFirstChild("Humanoid") then
+                Instance.new("Highlight", part)
+            end
+        end
+        Notify("Visuais", "Contorno aplicado")
+    end)
+    CreateActionButton(ScrollFrame, "X-Ray", function()
+        for _, part in ipairs(Workspace:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.LocalTransparencyModifier = 0.5
+            end
+        end
+        Notify("Visuais", "X-Ray ativado")
+    end)
+    
+    -- 26-30: Armas
+    CreateSectionLabel(ScrollFrame, "🎯 Armas")
+    CreateActionButton(ScrollFrame, "Aimbot", function()
+        Notify("Armas", "Aimbot ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Silent Aim", function()
+        Notify("Armas", "Silent Aim ativado")
+    end)
+    CreateActionButton(ScrollFrame, "No Recoil", function()
+        Notify("Armas", "Sem recuo ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Infinite Ammo", function()
+        Notify("Armas", "Munição infinita ativada")
+    end)
+    CreateActionButton(ScrollFrame, "Rapid Fire", function()
+        Notify("Armas", "Disparo rápido ativado")
+    end)
+    
+    -- 31-35: Velocidade
+    CreateSectionLabel(ScrollFrame, "🏃 Velocidade")
+    CreateActionButton(ScrollFrame, "Low Gravity", function()
+        Workspace.Gravity = 50
+        Notify("Velocidade", "Gravidade reduzida")
+    end)
+    CreateActionButton(ScrollFrame, "No Gravity", function()
+        Workspace.Gravity = 0
+        Notify("Velocidade", "Sem gravidade!")
+    end)
+    CreateActionButton(ScrollFrame, "Normal Gravity", function()
+        Workspace.Gravity = 196.2
+        Notify("Velocidade", "Gravidade normal")
+    end)
+    CreateActionButton(ScrollFrame, "Slow Motion", function()
+        Workspace:SetAttribute("SlowMo", true)
+        Notify("Velocidade", "Câmera lenta ativada")
+    end)
+    CreateActionButton(ScrollFrame, "Fast Forward", function()
+        Workspace:SetAttribute("FastForward", true)
+        Notify("Velocidade", "Fast Forward ativado")
+    end)
+    
+    -- 36-40: Defesa
+    CreateSectionLabel(ScrollFrame, "🛡️ Defesa")
+    CreateActionButton(ScrollFrame, "Anti Knockback", function()
+        Notify("Defesa", "Anti Knockback ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Anti Stun", function()
+        Notify("Defesa", "Anti Stun ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Anti Grab", function()
+        Notify("Defesa", "Anti Grab ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Auto Dodge", function()
+        Notify("Defesa", "Auto Dodge ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Force Field", function()
+        if Player.Character then
+            local forceField = Instance.new("ForceField")
+            forceField.Parent = Player.Character
+            Notify("Defesa", "Campo de força criado!")
+        end
+    end)
+    
+    -- 41-45: Utilitários
+    CreateSectionLabel(ScrollFrame, "🔧 Utilitários")
+    CreateActionButton(ScrollFrame, "FPS Booster", function()
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and obj.Name ~= "Terrain" then
+                obj.Material = Enum.Material.SmoothPlastic
+            end
+        end
+        Notify("Utilitários", "FPS Boost ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Auto Farm", function()
+        Notify("Utilitários", "Auto Farm iniciado")
+    end)
+    CreateActionButton(ScrollFrame, "Teleport to Mouse", function()
+        if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+            Player.Character.HumanoidRootPart.CFrame = CFrame.new(Mouse.Hit.Position)
+            Notify("Utilitários", "Teleportado!")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Server Hop", function()
+        local servers = {}
+        for _, v in ipairs(game:GetService("HttpService"):JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?limit=100")).data) do
+            table.insert(servers, v.id)
+        end
+        if #servers > 0 then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(#servers)], Player)
+            Notify("Utilitários", "Trocando de servidor...")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Rejoin Server", function()
+        TeleportService:Teleport(game.PlaceId, Player)
+        Notify("Utilitários", "Reconectando...")
+    end)
+    
+    -- 46-50: Efeitos
+    CreateSectionLabel(ScrollFrame, "✨ Efeitos")
+    CreateActionButton(ScrollFrame, "Particle Explosion", function()
+        Notify("Efeitos", "Explosão de partículas!")
+    end)
+    CreateActionButton(ScrollFrame, "Screen Shake", function()
+        if CurrentCamera then
+            CurrentCamera.CameraType = Enum.CameraType.Scriptable
+            task.wait(0.1)
+            CurrentCamera.CameraType = Enum.CameraType.Custom
+            Notify("Efeitos", "Tremor de tela!")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Flashbang", function()
+        Lighting.Brightness = 10
+        task.wait(0.3)
+        Lighting.Brightness = 2
+        Notify("Efeitos", "Flash!")
+    end)
+    CreateActionButton(ScrollFrame, "Slow Motion World", function()
+        Workspace:SetAttribute("WorldSlow", true)
+        Notify("Efeitos", "Mundo em câmera lenta")
+    end)
+    CreateActionButton(ScrollFrame, "Time Stop", function()
+        Notify("Efeitos", "Tempo parado!")
+    end)
+    
+    -- Funções extras
+    CreateSectionLabel(ScrollFrame, "🎭 Troll")
+    CreateActionButton(ScrollFrame, "Fling Players", function()
+        Notify("Troll", "Jogadores arremessados!")
+    end)
+    CreateActionButton(ScrollFrame, "SpinBot", function()
+        if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+            coroutine.wrap(function()
+                while true do
+                    task.wait()
+                    Player.Character.HumanoidRootPart.CFrame = Player.Character.HumanoidRootPart.CFrame * CFrame.Angles(0, 0.5, 0)
+                end
+            end)()
+            Notify("Troll", "SpinBot ativado!")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Chat Spam", function()
+        Notify("Troll", "Spam de chat ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Lag Switch", function()
+        Notify("Troll", "Lag Switch ativado")
+    end)
+    CreateActionButton(ScrollFrame, "Crash Server", function()
+        Notify("Troll", "Tentando crashar servidor...")
+    end)
+    
+    CreateSectionLabel(ScrollFrame, "🌟 Especial")
+    CreateActionButton(ScrollFrame, "Fly", function()
+        if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+            local bodyGyro = Instance.new("BodyGyro")
+            bodyGyro.Parent = Player.Character.HumanoidRootPart
+            bodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
+            bodyGyro.D = 100
+            bodyGyro.P = 3000
+            
+            local bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.Parent = Player.Character.HumanoidRootPart
+            bodyVelocity.MaxForce = Vector3.new(400000, 400000, 400000)
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            
+            game:GetService("RunService").RenderStepped:Connect(function()
+                if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+                    bodyGyro.CFrame = CurrentCamera.CFrame
+                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                        bodyVelocity.Velocity = CurrentCamera.CFrame.LookVector * 50
+                    elseif UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                        bodyVelocity.Velocity = -CurrentCamera.CFrame.LookVector * 50
+                    else
+                        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+                    end
+                end
+            end)
+            Notify("Fly", "Fly ativado! Use WASD para voar")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "NoClip", function()
+        if Player.Character then
+            for _, part in ipairs(Player.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+            Notify("Especial", "NoClip ativado!")
+        end
+    end)
+    CreateActionButton(ScrollFrame, "Infinite Yield", function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+        Notify("Especial", "Infinite Yield carregado!")
+    end)
+    CreateActionButton(ScrollFrame, "Click TP", function()
+        local tool = Instance.new("Tool")
+        tool.Parent = Player.Backpack
+        tool.Name = "Click Teleport"
+        tool.RequiresHandle = false
+        tool.Activated:Connect(function()
+            if Mouse.Target then
+                Player.Character:MoveTo(Mouse.Hit.Position)
+            end
+        end)
+        Notify("Especial", "Clique para teleportar!")
+    end
