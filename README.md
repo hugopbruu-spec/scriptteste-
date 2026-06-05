@@ -767,4 +767,44 @@ local function CreateGUI()
             end
         end)
         Notify("Especial", "Clique para teleportar!")
+    end)
+    CreateActionButton(ScrollFrame, "Btools", function()
+        local tool1 = Instance.new("HopperBin")
+        tool1.BinType = Enum.BinType.Hammer
+        tool1.Parent = Player.Backpack
+        local tool2 = Instance.new("HopperBin")
+        tool2.BinType = Enum.BinType.Clone
+        tool2.Parent = Player.Backpack
+        local tool3 = Instance.new("HopperBin")
+        tool3.BinType = Enum.BinType.Grab
+        tool3.Parent = Player.Backpack
+        Notify("Especial", "Btools adicionadas!")
+    end)
+    
+    -- Toggle da GUI
+    local function ToggleGUI()
+        guiVisible = not guiVisible
+        MainFrame.Visible = guiVisible
+        if guiVisible then
+            ToggleButton.Text = "✕"
+            SmoothTween(MainFrame, {Position = UDim2.new(0, 80, 0.5, -250)}, 0.3)
+        else
+            ToggleButton.Text = "RS"
+            SmoothTween(MainFrame, {Position = UDim2.new(0, 80, 0.5, 300)}, 0.3)
+        end
     end
+    
+    ToggleButton.MouseButton1Click:Connect(ToggleGUI)
+    
+    -- Abrir ao iniciar
+    ToggleGUI()
+    
+    -- Notificação inicial
+    Notify("RobloxSS Hub", "Script carregado com sucesso!\nMais de 50 funções disponíveis.", 5)
+    
+    AntiBan()
+end
+
+-- Iniciar
+CreateGUI()
+Notify("RobloxSS", "Hub inicializado com sucesso!\nPressione o botão roxo na esquerda.", 4)
