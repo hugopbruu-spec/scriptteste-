@@ -1,501 +1,510 @@
 --[[
-    🔍 Item Inspector - Script Roblox
-    Interface arrastável com botão de fechar
-    Mostra todos os dados do item que você está segurando
-    Versão corrigida - Interface garantida
+    🔍 Roblox Item Inspector - Professional Tool Data Viewer
+    Arrastável, com botão de fechar, exibe TODOS os dados do item na mão
+    Extremamente completo e organizado
 --]]
 
--- Serviços
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
 local CollectionService = game:GetService("CollectionService")
 
--- Espera o jogo carregar completamente
+-- Aguarda o personagem carregar
 repeat task.wait() until Player.Character
 
--- Função de notificação simples
-local function Notificar(texto)
+-- ==================== FUNÇÕES AUXILIARES ====================
+local function Notify(text, duration)
+    duration = duration or 3
     local gui = Instance.new("ScreenGui")
     gui.Parent = CoreGui
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    
     local frame = Instance.new("Frame")
     frame.Parent = gui
     frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
     frame.BorderSizePixel = 0
-    frame.Position = UDim2.new(0.5, -150, 0, 10)
-    frame.Size = UDim2.new(0, 300, 0, 40)
+    frame.Position = UDim2.new(0.5, -160, 0, 10)
+    frame.Size = UDim2.new(0, 320, 0, 40)
     frame.AnchorPoint = Vector2.new(0.5, 0)
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
-    
-    local label = Instance.new("TextLabel")
-    label.Parent = frame
-    label.BackgroundTransparency = 1
-    label.Size = UDim2.new(1, 0, 1, 0)
-    label.Font = Enum.Font.GothamBold
-    label.Text = texto
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextSize = 14
-    
-    local tween = TweenService:Create(frame, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -150, 0, 20)})
-    tween:Play()
-    
-    task.wait(3)
-    local tweenOut = TweenService:Create(frame, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -150, 0, -40)})
-    tweenOut:Play()
-    tweenOut.Completed:Connect(function() gui:Destroy() end)
+    Instance.new("UIStroke", frame).Color = Color3.fromRGB(108, 92, 231)
+    local lbl = Instance.new("TextLabel")
+    lbl.Parent = frame
+    lbl.BackgroundTransparency = 1
+    lbl.Size = UDim2.new(1, 0, 1, 0)
+    lbl.Font = Enum.Font.GothamBold
+    lbl.Text = text
+    lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    lbl.TextSize = 13
+    local tw = Tween:Create(frame, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -160, 0, 20)})
+    tw:Play()
+    task.wait(duration)
+    local tw2 = Tween:Create(frame, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -160, 0, -40)})
+    tw2:Play()
+    tw2.Completed:Connect(function() gui:Destroy() end)
 end
 
--- ============================================
--- CRIAR GUI PRINCIPAL
--- ============================================
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ItemInspector_" .. math.random(1000, 9999)
-ScreenGui.Parent = CoreGui
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.ResetOnSpawn = false
+local function SafeGet(obj, prop)
+    local ok, val = pcall(function() return obj[prop] end)
+    return ok and val or nil
+end
 
--- ============================================
--- FRAME PRINCIPAL (ARRASTÁVEL)
--- ============================================
-local MainFrame = Instance.new("Frame")
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -210, 0.5, -240)
-MainFrame.Size = UDim2.new(0, 420, 0, 480)
-MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-MainFrame.ClipsDescendants = true
-
-local mainCorner = Instance.new("UICorner", MainFrame)
-mainCorner.CornerRadius = UDim.new(0, 12)
-
-local mainStroke = Instance.new("UIStroke", MainFrame)
-mainStroke.Color = Color3.fromRGB(108, 92, 231)
-mainStroke.Thickness = 2
-
--- ============================================
--- BARRA DE TÍTULO (ÁREA DE ARRASTAR)
--- ============================================
-local TitleBar = Instance.new("Frame")
-TitleBar.Parent = MainFrame
-TitleBar.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-TitleBar.BorderSizePixel = 0
-TitleBar.Size = UDim2.new(1, 0, 0, 45)
-
-local titleCorner = Instance.new("UICorner", TitleBar)
-titleCorner.CornerRadius = UDim.new(0, 12)
-
-local titleFix = Instance.new("Frame")
-titleFix.Parent = TitleBar
-titleFix.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-titleFix.BorderSizePixel = 0
-titleFix.Size = UDim2.new(1, 0, 0, 12)
-titleFix.Position = UDim2.new(0, 0, 1, -12)
-
--- Ícone
-local IconLabel = Instance.new("TextLabel")
-IconLabel.Parent = TitleBar
-IconLabel.BackgroundTransparency = 1
-IconLabel.Position = UDim2.new(0, 12, 0, 5)
-IconLabel.Size = UDim2.new(0, 35, 0, 35)
-IconLabel.Text = "🔍"
-IconLabel.TextSize = 22
-IconLabel.Font = Enum.Font.Gotham
-
--- Título
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Parent = TitleBar
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Position = UDim2.new(0, 50, 0, 0)
-TitleLabel.Size = UDim2.new(1, -100, 1, 0)
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "Item Inspector"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 16
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-
--- Botão Fechar
-local CloseButton = Instance.new("TextButton")
-CloseButton.Parent = TitleBar
-CloseButton.BackgroundColor3 = Color3.fromRGB(255, 71, 87)
-CloseButton.BorderSizePixel = 0
-CloseButton.Position = UDim2.new(1, -45, 0, 8)
-CloseButton.Size = UDim2.new(0, 32, 0, 28)
-CloseButton.Text = "✕"
-CloseButton.Font = Enum.Font.GothamBlack
-CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.TextSize = 16
-Instance.new("UICorner", CloseButton).CornerRadius = UDim.new(0, 8)
-
--- ============================================
--- ÁREA DE CONTEÚDO
--- ============================================
-local ContentFrame = Instance.new("Frame")
-ContentFrame.Parent = MainFrame
-ContentFrame.BackgroundTransparency = 1
-ContentFrame.Position = UDim2.new(0, 10, 0, 55)
-ContentFrame.Size = UDim2.new(1, -20, 1, -65)
-
--- Scrolling para a lista de propriedades
-local ScrollFrame = Instance.new("ScrollingFrame")
-ScrollFrame.Parent = ContentFrame
-ScrollFrame.BackgroundTransparency = 1
-ScrollFrame.BorderSizePixel = 0
-ScrollFrame.Size = UDim2.new(1, 0, 1, -60)
-ScrollFrame.ScrollBarThickness = 3
-ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(108, 92, 231)
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 100)
-
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Parent = ScrollFrame
-UIListLayout.Padding = UDim.new(0, 6)
-UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
--- Área de texto copiável
-local CopyFrame = Instance.new("Frame")
-CopyFrame.Parent = ContentFrame
-CopyFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
-CopyFrame.BorderSizePixel = 0
-CopyFrame.Position = UDim2.new(0, 0, 1, -55)
-CopyFrame.Size = UDim2.new(1, 0, 0, 50)
-Instance.new("UICorner", CopyFrame).CornerRadius = UDim.new(0, 8)
-Instance.new("UIStroke", CopyFrame).Color = Color3.fromRGB(108, 92, 231)
-
-local CopyTextBox = Instance.new("TextBox")
-CopyTextBox.Parent = CopyFrame
-CopyTextBox.BackgroundTransparency = 1
-CopyTextBox.Position = UDim2.new(0, 8, 0, 5)
-CopyTextBox.Size = UDim2.new(1, -60, 1, -10)
-CopyTextBox.Font = Enum.Font.Code
-CopyTextBox.Text = "Clique em 'Inspecionar' para ver os dados..."
-CopyTextBox.TextColor3 = Color3.fromRGB(180, 180, 200)
-CopyTextBox.TextSize = 10
-CopyTextBox.ClearTextOnFocus = false
-CopyTextBox.TextEditable = false
-CopyTextBox.TextWrapped = true
-CopyTextBox.TextXAlignment = Enum.TextXAlignment.Left
-CopyTextBox.TextYAlignment = Enum.TextYAlignment.Top
-
--- Botão Copiar
-local CopyButton = Instance.new("TextButton")
-CopyButton.Parent = CopyFrame
-CopyButton.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-CopyButton.BorderSizePixel = 0
-CopyButton.Position = UDim2.new(1, -48, 0, 10)
-CopyButton.Size = UDim2.new(0, 42, 0, 30)
-CopyButton.Text = "📋"
-CopyButton.Font = Enum.Font.GothamBold
-CopyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CopyButton.TextSize = 16
-Instance.new("UICorner", CopyButton).CornerRadius = UDim.new(0, 6)
-
--- Botão Inspecionar Item
-local InspectButton = Instance.new("TextButton")
-InspectButton.Parent = ContentFrame
-InspectButton.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-InspectButton.BorderSizePixel = 0
-InspectButton.Position = UDim2.new(0, 0, 1, -60)
-InspectButton.Size = UDim2.new(1, 0, 0, 40)
-InspectButton.Text = "🔍 INSPECIONAR ITEM NA MÃO"
-InspectButton.Font = Enum.Font.GothamBlack
-InspectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-InspectButton.TextSize = 14
-Instance.new("UICorner", InspectButton).CornerRadius = UDim.new(0, 8)
-
--- ============================================
--- FUNÇÕES DE ARRASTAR
--- ============================================
-local dragging = false
-local dragStartPos = nil
-local frameStartPos = nil
-
-TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStartPos = input.Position
-        frameStartPos = MainFrame.Position
+local function FormatValue(val)
+    local t = typeof(val)
+    if t == "Vector3" then return string.format("(%.3f, %.3f, %.3f)", val.X, val.Y, val.Z)
+    elseif t == "CFrame" then return tostring(val) -- já formatado
+    elseif t == "Color3" then return string.format("RGB(%d,%d,%d)", val.R*255, val.G*255, val.B*255)
+    elseif t == "EnumItem" then return val.Name
+    elseif t == "BrickColor" then return val.Name
+    elseif t == "Instance" then return val:GetFullName()
+    elseif t == "nil" then return "nil"
+    else return tostring(val)
     end
-end)
+end
 
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStartPos
-        MainFrame.Position = UDim2.new(
-            frameStartPos.X.Scale,
-            frameStartPos.X.Offset + delta.X,
-            frameStartPos.Y.Scale,
-            frameStartPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
--- ============================================
--- FUNÇÃO PARA OBTER DADOS DO ITEM
--- ============================================
-local function GetItemData()
-    if not Player.Character then
-        return nil, "Você não está spawnado."
-    end
-    
+-- ==================== COLETA DE DADOS ====================
+local function InspectItem()
+    if not Player.Character then return nil, "Personagem não encontrado." end
     local tool = Player.Character:FindFirstChildOfClass("Tool")
-    if not tool then
-        tool = Player.Backpack:FindFirstChildOfClass("Tool")
-        if not tool then
-            return nil, "Nenhum item encontrado na mão ou mochila."
-        end
-    end
-    
-    local parts = {}
-    table.insert(parts, string.rep("=", 50))
-    table.insert(parts, "ITEM: " .. tool.Name)
-    table.insert(parts, string.rep("=", 50))
-    table.insert(parts, "")
-    table.insert(parts, "📦 INFORMAÇÕES BÁSICAS")
-    table.insert(parts, "  Classe: " .. tool.ClassName)
-    table.insert(parts, "  Name: " .. tool.Name)
-    table.insert(parts, "  Parent: " .. (tool.Parent and tool.Parent:GetFullName() or "nil"))
-    table.insert(parts, "")
-    table.insert(parts, "⚙️ PROPRIEDADES")
-    
-    local propsToCheck = {
-        "RequiresHandle", "CanBeDropped", "ManualActivationOnly",
-        "ToolTip", "TextureId", "Grip", "GripForward", "GripRight", "GripUp",
-        "GripPos",
-    }
-    
-    for _, propName in ipairs(propsToCheck) do
-        local success, value = pcall(function() return tool[propName] end)
-        if success and value ~= nil then
-            local valueStr = tostring(value)
-            if typeof(value) == "Vector3" or typeof(value) == "CFrame" then
-                valueStr = tostring(value)
-            elseif typeof(value) == "EnumItem" then
-                valueStr = value.Name
+    if not tool then tool = Player.Backpack:FindFirstChildOfClass("Tool") end
+    if not tool then return nil, "Nenhum item na mão ou mochila." end
+
+    local lines = {}
+    local function add(s) table.insert(lines, s) end
+
+    add("══════════════════════════════════════")
+    add("🔍 ITEM: " .. tool.Name)
+    add("══════════════════════════════════════")
+    add("")
+
+    -- Seção: Informações Básicas
+    add("📋 INFORMAÇÕES BÁSICAS")
+    add("  Classe: " .. tool.ClassName)
+    add("  Nome: " .. tool.Name)
+    add("  Parent: " .. (tool.Parent and tool.Parent:GetFullName() or "nil"))
+    add("")
+
+    -- IDs e referências de ativos (TextureId, MeshId, SoundId, etc.)
+    local assetIds = {}
+    for _, child in ipairs(tool:GetDescendants()) do
+        for _, prop in ipairs({"TextureId", "MeshId", "SoundId", "Image", "AssetId"}) do
+            local val = SafeGet(child, prop)
+            if val and type(val) == "string" and val:match("rbxassetid://(%d+)") then
+                table.insert(assetIds, child.Name .. " [" .. child.ClassName .. "] " .. prop .. ": " .. val)
             end
-            table.insert(parts, "  " .. propName .. ": " .. valueStr)
         end
     end
-    
-    -- Partes do tool
-    table.insert(parts, "")
-    table.insert(parts, "🧩 PARTES DA FERRAMENTA")
+    if #assetIds > 0 then
+        add("🆔 IDs DE ASSETS ENCONTRADOS")
+        for _, aid in ipairs(assetIds) do add("  " .. aid) end
+        add("")
+    end
+
+    -- Seção: Propriedades da Tool
+    add("⚙️ PROPRIEDADES DA FERRAMENTA")
+    local toolProps = {
+        "RequiresHandle", "CanBeDropped", "ManualActivationOnly",
+        "ToolTip", "Grip", "GripForward", "GripRight", "GripUp", "GripPos",
+        "TextureId",
+    }
+    for _, prop in ipairs(toolProps) do
+        local val = SafeGet(tool, prop)
+        if val ~= nil then
+            add("  " .. prop .. ": " .. FormatValue(val))
+        end
+    end
+    add("")
+
+    -- Seção: Partes
+    add("🧩 PARTES (" .. #tool:GetDescendants():Filter(function(c) return c:IsA("BasePart") end) .. " encontradas)")
     local partCount = 0
-    for _, child in ipairs(tool:GetDescendants()) do
-        if child:IsA("BasePart") then
+    for _, part in ipairs(tool:GetDescendants()) do
+        if part:IsA("BasePart") then
             partCount = partCount + 1
-            table.insert(parts, "  [" .. child.ClassName .. "] " .. child.Name)
-            table.insert(parts, "    Posição: " .. tostring(child.Position))
-            table.insert(parts, "    Tamanho: " .. tostring(child.Size))
-            table.insert(parts, "    Material: " .. child.Material.Name)
-            table.insert(parts, "    Cor: " .. tostring(child.Color))
+            add("  ┌─ " .. part.ClassName .. " \"" .. part.Name .. "\"")
+            local partProps = {
+                "Position", "Size", "Material", "Color", "BrickColor",
+                "CanCollide", "Anchored", "Transparency", "Mass",
+                "Reflectance", "Transparency",
+            }
+            for _, prop in ipairs(partProps) do
+                local val = SafeGet(part, prop)
+                if val ~= nil then
+                    add("  │  " .. prop .. ": " .. FormatValue(val))
+                end
+            end
+            -- Se for MeshPart, pegar MeshId
+            if part:IsA("MeshPart") then
+                local meshId = SafeGet(part, "MeshId")
+                if meshId then add("  │  MeshId: " .. FormatValue(meshId)) end
+            end
+            add("  └─")
         end
     end
-    if partCount == 0 then
-        table.insert(parts, "  Nenhuma parte encontrada.")
-    end
-    
-    -- Scripts
-    table.insert(parts, "")
-    table.insert(parts, "📜 SCRIPTS")
-    local scriptCount = 0
-    for _, child in ipairs(tool:GetDescendants()) do
-        if child:IsA("BaseScript") then
-            scriptCount = scriptCount + 1
-            table.insert(parts, "  [" .. child.ClassName .. "] " .. child.Name .. (child.Enabled and " (Ativado)" or " (Desativado)"))
-        end
-    end
-    if scriptCount == 0 then
-        table.insert(parts, "  Nenhum script encontrado.")
-    end
-    
-    -- Atributos
-    table.insert(parts, "")
-    table.insert(parts, "💾 ATRIBUTOS")
-    local attributes = tool:GetAttributes()
-    local attrCount = 0
-    for attrName, attrValue in pairs(attributes) do
-        attrCount = attrCount + 1
-        table.insert(parts, "  " .. attrName .. ": " .. tostring(attrValue))
-    end
-    if attrCount == 0 then
-        table.insert(parts, "  Nenhum atributo.")
-    end
-    
-    -- Tags
-    table.insert(parts, "")
-    table.insert(parts, "🏷️ TAGS")
-    local tags = CollectionService:GetTags(tool)
-    if #tags > 0 then
-        for _, tag in ipairs(tags) do
-            table.insert(parts, "  " .. tag)
+    if partCount == 0 then add("  Nenhuma parte encontrada.") end
+    add("")
+
+    -- Seção: Scripts
+    local scripts = tool:GetDescendants():Filter(function(c) return c:IsA("BaseScript") end)
+    add("📜 SCRIPTS (" .. #scripts .. " encontrados)")
+    if #scripts > 0 then
+        for _, s in ipairs(scripts) do
+            add("  [" .. s.ClassName .. "] " .. s.Name .. (s.Enabled and " (Ativo)" or " (Inativo)"))
         end
     else
-        table.insert(parts, "  Nenhuma tag.")
+        add("  Nenhum script.")
     end
-    
-    table.insert(parts, "")
-    table.insert(parts, string.rep("=", 50))
-    
-    return tool, table.concat(parts, "\n")
-end
+    add("")
 
--- ============================================
--- FUNÇÃO PARA ATUALIZAR A LISTA
--- ============================================
-local function CreatePropertyCard(name, value)
-    local frame = Instance.new("Frame")
-    frame.Parent = ScrollFrame
-    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
-    frame.BorderSizePixel = 0
-    frame.Size = UDim2.new(1, -10, 0, 40)
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
-    
-    local nameLabel = Instance.new("TextLabel")
-    nameLabel.Parent = frame
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.Position = UDim2.new(0, 10, 0, 0)
-    nameLabel.Size = UDim2.new(0, 150, 1, 0)
-    nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.Text = name
-    nameLabel.TextColor3 = Color3.fromRGB(108, 92, 231)
-    nameLabel.TextSize = 11
-    nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local valueLabel = Instance.new("TextLabel")
-    valueLabel.Parent = frame
-    valueLabel.BackgroundTransparency = 1
-    valueLabel.Position = UDim2.new(0, 160, 0, 0)
-    valueLabel.Size = UDim2.new(1, -170, 1, 0)
-    valueLabel.Font = Enum.Font.Code
-    valueLabel.Text = value
-    valueLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
-    valueLabel.TextSize = 10
-    valueLabel.TextXAlignment = Enum.TextXAlignment.Left
-    valueLabel.TextWrapped = true
-    
-    return frame
-end
-
-local function UpdatePropertyList(tool, dataText)
-    -- Limpar scroll
-    for _, child in ipairs(ScrollFrame:GetChildren()) do
-        if child:IsA("Frame") then
-            child:Destroy()
+    -- Seção: Sons
+    local sounds = tool:GetDescendants():Filter(function(c) return c:IsA("Sound") end)
+    if #sounds > 0 then
+        add("🔊 SONS (" .. #sounds .. " encontrados)")
+        for _, snd in ipairs(sounds) do
+            add("  [" .. snd.Name .. "] " .. (SafeGet(snd, "SoundId") or "Sem ID") .. " Vol:" .. (SafeGet(snd, "Volume") or 1))
         end
+        add("")
     end
-    
-    if not tool then
-        CreatePropertyCard("Status", dataText)
-        ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 50)
-        return
+
+    -- Seção: Valores (StringValue, IntValue, etc.)
+    local values = tool:GetDescendants():Filter(function(c)
+        return c:IsA("ValueBase")
+    end)
+    if #values > 0 then
+        add("💾 VALORES")
+        for _, v in ipairs(values) do
+            add("  [" .. v.ClassName .. "] " .. v.Name .. " = " .. FormatValue(v.Value))
+        end
+        add("")
     end
-    
-    -- Propriedades principais
-    CreatePropertyCard("Nome", tool.Name)
-    CreatePropertyCard("Classe", tool.ClassName)
-    CreatePropertyCard("Parent", tool.Parent and tool.Parent:GetFullName() or "nil")
-    CreatePropertyCard("ToolTip", tool.ToolTip or "Nenhum")
-    CreatePropertyCard("Pode Dropar?", tostring(tool.CanBeDropped))
-    CreatePropertyCard("Ativação Manual", tostring(tool.ManualActivationOnly))
-    
-    if tool.Grip then
-        CreatePropertyCard("Grip", tostring(tool.Grip))
+
+    -- Seção: Atributos
+    local attribs = tool:GetAttributes()
+    local hasAttribs = false
+    for _ in pairs(attribs) do hasAttribs = true break end
+    if hasAttribs then
+        add("🏷️ ATRIBUTOS")
+        for k, v in pairs(attribs) do
+            add("  " .. k .. ": " .. FormatValue(v))
+        end
+        add("")
+    else
+        add("🏷️ ATRIBUTOS: Nenhum")
+        add("")
     end
-    CreatePropertyCard("GripForward", tostring(tool.GripForward))
-    CreatePropertyCard("GripRight", tostring(tool.GripRight))
-    CreatePropertyCard("GripUp", tostring(tool.GripUp))
-    CreatePropertyCard("GripPos", tostring(tool.GripPos))
-    
-    if tool.TextureId then
-        CreatePropertyCard("TextureId", tool.TextureId)
-    end
-    
-    -- Contagens
-    local partCount = 0
-    local scriptCount = 0
-    for _, child in ipairs(tool:GetDescendants()) do
-        if child:IsA("BasePart") then partCount = partCount + 1 end
-        if child:IsA("BaseScript") then scriptCount = scriptCount + 1 end
-    end
-    
-    CreatePropertyCard("Partes", tostring(partCount) .. " partes")
-    CreatePropertyCard("Scripts", tostring(scriptCount) .. " scripts")
-    
-    local attrCount = 0
-    for _ in pairs(tool:GetAttributes()) do attrCount = attrCount + 1 end
-    CreatePropertyCard("Atributos", tostring(attrCount))
-    
+
+    -- Seção: Tags
     local tags = CollectionService:GetTags(tool)
-    CreatePropertyCard("Tags", #tags > 0 and table.concat(tags, ", ") or "Nenhuma")
-    
-    -- Ajustar canvas
-    local childCount = #ScrollFrame:GetChildren()
-    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, childCount * 46 + 10)
+    if #tags > 0 then
+        add("📌 TAGS")
+        for _, t in ipairs(tags) do add("  " .. t) end
+        add("")
+    else
+        add("📌 TAGS: Nenhuma")
+        add("")
+    end
+
+    add("══════════════════════════════════════")
+    return tool, table.concat(lines, "\n")
 end
 
--- ============================================
--- BOTÃO INSPECIONAR
--- ============================================
-InspectButton.MouseButton1Click:Connect(function()
-    local tool, result = GetItemData()
-    CopyTextBox.Text = result
-    UpdatePropertyList(tool, result)
-    Notificar("Item inspecionado: " .. (tool and tool.Name or "Nenhum"))
-end)
+-- ==================== CONSTRUÇÃO DA GUI ====================
+local function CreateGUI()
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "ItemInspectorPro"
+    gui.Parent = CoreGui
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.ResetOnSpawn = false
 
--- ============================================
--- BOTÃO COPIAR
--- ============================================
-CopyButton.MouseButton1Click:Connect(function()
-    if CopyTextBox.Text ~= "" then
-        -- Tentar copiar usando setclipboard (disponível em alguns executores)
-        local success = pcall(function()
-            if setclipboard then
-                setclipboard(CopyTextBox.Text)
-            elseif writefile then
-                writefile("clipboard.txt", CopyTextBox.Text)
-            end
-        end)
+    -- Frame principal
+    local Main = Instance.new("Frame")
+    Main.Parent = gui
+    Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
+    Main.BorderSizePixel = 0
+    Main.Position = UDim2.new(0.5, -260, 0.5, -300)
+    Main.Size = UDim2.new(0, 520, 0, 600)
+    Main.AnchorPoint = Vector2.new(0.5, 0.5)
+    Main.ClipsDescendants = true
+    Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
+    Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
+    local bgGrad = Instance.new("UIGradient", Main)
+    bgGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 18, 28)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(28, 28, 42))
+    })
+    bgGrad.Rotation = 135
+
+    -- Barra de título (arraste)
+    local TitleBar = Instance.new("Frame")
+    TitleBar.Parent = Main
+    TitleBar.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+    TitleBar.BorderSizePixel = 0
+    TitleBar.Size = UDim2.new(1, 0, 0, 46)
+    local tc = Instance.new("UICorner", TitleBar)
+    tc.CornerRadius = UDim.new(0, 12)
+    local tf = Instance.new("Frame")
+    tf.Parent = TitleBar
+    tf.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+    tf.BorderSizePixel = 0
+    tf.Size = UDim2.new(1, 0, 0, 12)
+    tf.Position = UDim2.new(0, 0, 1, -12)
+
+    local TitleIcon = Instance.new("TextLabel")
+    TitleIcon.Parent = TitleBar
+    TitleIcon.BackgroundTransparency = 1
+    TitleIcon.Position = UDim2.new(0, 12, 0, 6)
+    TitleIcon.Size = UDim2.new(0, 34, 0, 34)
+    TitleIcon.Text = "🔍"
+    TitleIcon.TextSize = 22
+    local TitleText = Instance.new("TextLabel")
+    TitleText.Parent = TitleBar
+    TitleText.BackgroundTransparency = 1
+    TitleText.Position = UDim2.new(0, 48, 0, 0)
+    TitleText.Size = UDim2.new(1, -120, 1, 0)
+    TitleText.Font = Enum.Font.GothamBold
+    TitleText.Text = "Item Inspector Pro"
+    TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TitleText.TextSize = 15
+    TitleText.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Botões
+    local CloseBtn = Instance.new("TextButton")
+    CloseBtn.Parent = TitleBar
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 71, 87)
+    CloseBtn.BorderSizePixel = 0
+    CloseBtn.Position = UDim2.new(1, -42, 0, 10)
+    CloseBtn.Size = UDim2.new(0, 30, 0, 26)
+    CloseBtn.Text = "✕"
+    CloseBtn.Font = Enum.Font.GothamBlack
+    CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseBtn.TextSize = 14
+    Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
+
+    CloseBtn.MouseButton1Click:Connect(function()
+        Notify("Inspector fechado")
+        gui:Destroy()
+    end)
+
+    -- Área de conteúdo
+    local Content = Instance.new("Frame")
+    Content.Parent = Main
+    Content.BackgroundTransparency = 1
+    Content.Position = UDim2.new(0, 10, 0, 52)
+    Content.Size = UDim2.new(1, -20, 1, -112)
+
+    -- ScrollingFrame para os cards
+    local Scroll = Instance.new("ScrollingFrame")
+    Scroll.Parent = Content
+    Scroll.BackgroundTransparency = 1
+    Scroll.BorderSizePixel = 0
+    Scroll.Size = UDim2.new(1, 0, 1, 0)
+    Scroll.ScrollBarThickness = 3
+    Scroll.ScrollBarImageColor3 = Color3.fromRGB(108, 92, 231)
+    Scroll.CanvasSize = UDim2.new(0, 0, 0, 50)
+    local scrollLayout = Instance.new("UIListLayout")
+    scrollLayout.Parent = Scroll
+    scrollLayout.Padding = UDim.new(0, 6)
+    scrollLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+    -- Barra inferior com cópia
+    local BottomBar = Instance.new("Frame")
+    BottomBar.Parent = Main
+    BottomBar.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
+    BottomBar.BorderSizePixel = 0
+    BottomBar.Position = UDim2.new(0, 8, 1, -56)
+    BottomBar.Size = UDim2.new(1, -16, 0, 48)
+    Instance.new("UICorner", BottomBar).CornerRadius = UDim.new(0, 8)
+    Instance.new("UIStroke", BottomBar).Color = Color3.fromRGB(108, 92, 231)
+
+    local CopyBox = Instance.new("TextBox")
+    CopyBox.Parent = BottomBar
+    CopyBox.BackgroundTransparency = 1
+    CopyBox.Position = UDim2.new(0, 6, 0, 4)
+    CopyBox.Size = UDim2.new(1, -52, 1, -8)
+    CopyBox.Font = Enum.Font.Code
+    CopyBox.Text = "Clique em 'Inspecionar'..."
+    CopyBox.TextColor3 = Color3.fromRGB(180, 180, 200)
+    CopyBox.TextSize = 10
+    CopyBox.ClearTextOnFocus = false
+    CopyBox.TextEditable = false
+    CopyBox.TextWrapped = true
+    CopyBox.TextXAlignment = Enum.TextXAlignment.Left
+    CopyBox.TextYAlignment = Enum.TextYAlignment.Top
+
+    local CopyBtn = Instance.new("TextButton")
+    CopyBtn.Parent = BottomBar
+    CopyBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+    CopyBtn.BorderSizePixel = 0
+    CopyBtn.Position = UDim2.new(1, -46, 0, 9)
+    CopyBtn.Size = UDim2.new(0, 40, 0, 30)
+    CopyBtn.Text = "📋"
+    CopyBtn.Font = Enum.Font.GothamBold
+    CopyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CopyBtn.TextSize = 16
+    Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 6)
+
+    -- Botão Inspecionar
+    local InspectBtn = Instance.new("TextButton")
+    InspectBtn.Parent = Main
+    InspectBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+    InspectBtn.BorderSizePixel = 0
+    InspectBtn.Position = UDim2.new(0, 10, 1, -62)
+    InspectBtn.Size = UDim2.new(1, -20, 0, 42)
+    InspectBtn.Text = "🔍 INSPECIONAR ITEM NA MÃO"
+    InspectBtn.Font = Enum.Font.GothamBlack
+    InspectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    InspectBtn.TextSize = 14
+    Instance.new("UICorner", InspectBtn).CornerRadius = UDim.new(0, 8)
+
+    -- Função para popular cards
+    local function ClearCards()
+        for _, c in ipairs(Scroll:GetChildren()) do
+            if c:IsA("Frame") then c:Destroy() end
+        end
+    end
+
+    local function AddCard(title, value, color)
+        color = color or Color3.fromRGB(108, 92, 231)
+        local card = Instance.new("Frame")
+        card.Parent = Scroll
+        card.BackgroundColor3 = Color3.fromRGB(22, 22, 35)
+        card.BorderSizePixel = 0
+        card.Size = UDim2.new(1, -6, 0, 36)
+        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 6)
         
-        if success then
-            CopyButton.Text = "✅"
-            Notificar("Dados copiados!")
-        else
-            -- Fallback: selecionar o texto manualmente
-            CopyTextBox.TextEditable = true
-            CopyTextBox:CaptureFocus()
-            CopyTextBox.SelectionStart = 0
-            CopyTextBox.CursorPosition = #CopyTextBox.Text + 1
-            Notificar("Selecione o texto e pressione Ctrl+C")
+        local titleLbl = Instance.new("TextLabel")
+        titleLbl.Parent = card
+        titleLbl.BackgroundTransparency = 1
+        titleLbl.Position = UDim2.new(0, 8, 0, 0)
+        titleLbl.Size = UDim2.new(0, 120, 1, 0)
+        titleLbl.Font = Enum.Font.GothamBold
+        titleLbl.Text = title
+        titleLbl.TextColor3 = color
+        titleLbl.TextSize = 11
+        titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+        
+        local valLbl = Instance.new("TextLabel")
+        valLbl.Parent = card
+        valLbl.BackgroundTransparency = 1
+        valLbl.Position = UDim2.new(0, 130, 0, 0)
+        valLbl.Size = UDim2.new(1, -140, 1, 0)
+        valLbl.Font = Enum.Font.Code
+        valLbl.Text = value
+        valLbl.TextColor3 = Color3.fromRGB(200, 200, 220)
+        valLbl.TextSize = 10
+        valLbl.TextXAlignment = Enum.TextXAlignment.Left
+        valLbl.TextWrapped = true
+        return card
+    end
+
+    local function AddSection(text)
+        local lbl = Instance.new("TextLabel")
+        lbl.Parent = Scroll
+        lbl.BackgroundTransparency = 1
+        lbl.Size = UDim2.new(1, -6, 0, 24)
+        lbl.Font = Enum.Font.GothamBlack
+        lbl.Text = "  " .. text
+        lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+        lbl.TextSize = 13
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+        return lbl
+    end
+
+    local function UpdateDisplay(dataText)
+        ClearCards()
+        if not dataText or dataText == "" then
+            AddSection("Nenhum dado disponível")
+            Scroll.CanvasSize = UDim2.new(0, 0, 0, 30)
+            return
         end
         
-        task.wait(1.5)
-        CopyButton.Text = "📋"
-        CopyTextBox.TextEditable = false
+        -- Divide o texto em linhas e cria cards para as linhas que têm ":" 
+        -- ou mantém o formato original com seções.
+        -- Vou apenas criar um card grande com o texto completo, mas é melhor exibir as propriedades principais em cards e o resto como texto.
+        -- Para ser profissional, vou recriar a exibição usando os mesmos dados coletados pela função InspectItem.
+        -- Como a função InspectItem já retorna o texto formatado, posso exibi-lo em um único TextBox ou quebrar em cards.
+        -- Para aproveitar a GUI, vou mostrar o texto completo no CopyBox e cards para as propriedades principais.
+        -- Vou fazer uma segunda coleta para os cards.
+        local tool = Player.Character and Player.Character:FindFirstChildOfClass("Tool")
+        if not tool then tool = Player.Backpack:FindFirstChildOfClass("Tool") end
+        if tool then
+            AddSection("📋 " .. tool.Name .. " [" .. tool.ClassName .. "]")
+            AddCard("Nome", tool.Name)
+            AddCard("Classe", tool.ClassName)
+            AddCard("Parent", tool.Parent and tool.Parent:GetFullName() or "nil")
+            AddCard("ToolTip", SafeGet(tool, "ToolTip") or "Nenhum")
+            AddCard("CanBeDropped", tostring(SafeGet(tool, "CanBeDropped")))
+            AddCard("RequiresHandle", tostring(SafeGet(tool, "RequiresHandle")))
+            local grip = SafeGet(tool, "Grip")
+            if grip then AddCard("Grip", FormatValue(grip)) end
+            AddCard("GripForward", FormatValue(SafeGet(tool, "GripForward")))
+            AddCard("GripRight", FormatValue(SafeGet(tool, "GripRight")))
+            AddCard("GripUp", FormatValue(SafeGet(tool, "GripUp")))
+            AddCard("GripPos", FormatValue(SafeGet(tool, "GripPos")))
+            
+            local partCount = #tool:GetDescendants():Filter(function(c) return c:IsA("BasePart") end)
+            AddCard("Partes", tostring(partCount))
+            local scriptCount = #tool:GetDescendants():Filter(function(c) return c:IsA("BaseScript") end)
+            AddCard("Scripts", tostring(scriptCount))
+            local attrCount = 0
+            for _ in pairs(tool:GetAttributes()) do attrCount += 1 end
+            AddCard("Atributos", tostring(attrCount))
+            local tags = CollectionService:GetTags(tool)
+            AddCard("Tags", #tags > 0 and table.concat(tags, ", ") or "Nenhuma")
+        end
+        Scroll.CanvasSize = UDim2.new(0, 0, 0, #Scroll:GetChildren() * 42 + 20)
     end
-end)
 
--- ============================================
--- BOTÃO FECHAR
--- ============================================
-CloseButton.MouseButton1Click:Connect(function()
-    Notificar("Item Inspector fechado")
-    ScreenGui:Destroy()
-end)
+    -- Ações
+    InspectBtn.MouseButton1Click:Connect(function()
+        local tool, result = InspectItem()
+        CopyBox.Text = result or "Erro na inspeção."
+        UpdateDisplay(result)
+        Notify(tool and ("Inspecionado: " .. tool.Name) or result)
+    end)
 
--- ============================================
--- INICIALIZAÇÃO
--- ============================================
-Notificar("🔍 Item Inspector carregado! Segure um item e clique em 'Inspecionar'")
-print("Item Inspector carregado com sucesso!")
+    CopyBtn.MouseButton1Click:Connect(function()
+        if CopyBox.Text ~= "" then
+            local ok = pcall(function()
+                if setclipboard then setclipboard(CopyBox.Text)
+                elseif writefile then writefile("item_data.txt", CopyBox.Text) end
+            end)
+            CopyBtn.Text = ok and "✅" or "⚠️"
+            Notify(ok and "Copiado!" or "Selecione e Ctrl+C")
+            task.wait(1.5)
+            CopyBtn.Text = "📋"
+        end
+    end)
+
+    -- Arraste
+    local dragging, startPos, startGuiPos
+    TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            startPos = input.Position
+            startGuiPos = Main.Position
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - startPos
+            Main.Position = UDim2.new(
+                startGuiPos.X.Scale, startGuiPos.X.Offset + delta.X,
+                startGuiPos.Y.Scale, startGuiPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    return gui
+end
+
+-- ==================== INICIALIZAÇÃO ====================
+local gui = CreateGUI()
+Notify("🔍 Item Inspector Pro carregado!")
+print("Item Inspector Pro iniciado. Segure um item e clique no botão.")
