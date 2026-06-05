@@ -1,8 +1,8 @@
 --[[
-    🎲 Dice Duplicator - Bug de Dados Infinitos
-    Interface arrastável com botão de fechar.
-    Clique no botão para reiniciar sua sessão (rejoin) e preservar os dados no chão.
-    Funciona com itens "Dice" ou "Dice roll" que caem ao usar.
+    🎲 Dice Duplicator v2 – Reinício local sem sair do servidor
+    Força o respawn do teu personagem para simular um "rejoin"
+    sem realmente saíres do jogo. Os dados no chão permanecem,
+    e tu recebes um inventário novo.
 --]]
 
 local Players = game:GetService("Players")
@@ -10,7 +10,6 @@ local Player = Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
-local TeleportService = game:GetService("TeleportService")
 
 -- Aguarda o personagem
 repeat task.wait() until Player.Character
@@ -53,13 +52,12 @@ gui.Parent = CoreGui
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
 
--- Frame principal
 local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 260, 0, 140)
-Main.Position = UDim2.new(0.5, -130, 0.5, -70)
+Main.Size = UDim2.new(0, 260, 0, 150)
+Main.Position = UDim2.new(0.5, -130, 0.5, -75)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
@@ -98,7 +96,6 @@ TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 13
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 
--- Botão fechar
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Parent = TitleBar
 CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 71, 87)
@@ -125,42 +122,42 @@ Content.Size = UDim2.new(1, -20, 1, -50)
 local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Parent = Content
 InfoLabel.BackgroundTransparency = 1
-InfoLabel.Size = UDim2.new(1, 0, 0, 34)
+InfoLabel.Size = UDim2.new(1, 0, 0, 40)
 InfoLabel.Font = Enum.Font.Gotham
-InfoLabel.Text = "Jogue o dado no chão e clique no botão para reiniciar sua sessão, preservando o dado."
+InfoLabel.Text = "Jogue o dado no chão e clica no botão para renasceres. O dado fica no chão e tu recebes um inventário novo."
 InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
 InfoLabel.TextSize = 10
 InfoLabel.TextWrapped = true
 InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local RejoinBtn = Instance.new("TextButton")
-RejoinBtn.Parent = Content
-RejoinBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-RejoinBtn.BorderSizePixel = 0
-RejoinBtn.Position = UDim2.new(0, 0, 0, 40)
-RejoinBtn.Size = UDim2.new(1, 0, 0, 38)
-RejoinBtn.Text = "🔄 REINICIAR SESSÃO"
-RejoinBtn.Font = Enum.Font.GothamBlack
-RejoinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-RejoinBtn.TextSize = 13
-Instance.new("UICorner", RejoinBtn).CornerRadius = UDim.new(0, 8)
+local RespawnBtn = Instance.new("TextButton")
+RespawnBtn.Parent = Content
+RespawnBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+RespawnBtn.BorderSizePixel = 0
+RespawnBtn.Position = UDim2.new(0, 0, 0, 44)
+RespawnBtn.Size = UDim2.new(1, 0, 0, 38)
+RespawnBtn.Text = "🔄 RENASCER (SIMULAR REJOIN)"
+RespawnBtn.Font = Enum.Font.GothamBlack
+RespawnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+RespawnBtn.TextSize = 11
+Instance.new("UICorner", RespawnBtn).CornerRadius = UDim.new(0, 8)
 
-RejoinBtn.MouseButton1Click:Connect(function()
-    RejoinBtn.Text = "⏳ Reconectando..."
-    RejoinBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-    RejoinBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    Notify("Reiniciando sessão, aguarde...")
-    -- Pequena pausa para o dado cair
-    task.wait(0.5)
-    -- Teleport para o mesmo lugar (rejoin)
-    pcall(function()
-        TeleportService:Teleport(game.PlaceId, Player)
-    end)
-    -- Se o teleport falhar, volta o botão
-    task.wait(2)
-    RejoinBtn.Text = "🔄 REINICIAR SESSÃO"
-    RejoinBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-    RejoinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+RespawnBtn.MouseButton1Click:Connect(function()
+    RespawnBtn.Text = "⏳ A renascer..."
+    RespawnBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    RespawnBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Notify("A forçar renascimento...")
+    -- Mata o personagem para forçar um respawn (reinicia o inventário)
+    if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+        Player.Character.Humanoid.Health = 0
+    else
+        -- Se não tiver Humanoid, tentamos quebrar as juntas
+        if Player.Character then Player.Character:BreakJoints() end
+    end
+    task.wait(0.2)
+    RespawnBtn.Text = "🔄 RENASCER (SIMULAR REJOIN)"
+    RespawnBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+    RespawnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 end)
 
 -- Arraste
@@ -187,4 +184,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Dice Duplicator carregado! Arraste para mover.")
+Notify("🎲 Dice Duplicator carregado! Arrasta a janela.")
