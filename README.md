@@ -1,8 +1,8 @@
 --[[
-    🎲 Dice Duplicator v2 – Reinício local sem sair do servidor
-    Força o respawn do teu personagem para simular um "rejoin"
-    sem realmente saíres do jogo. Os dados no chão permanecem,
-    e tu recebes um inventário novo.
+    🎲 Dice Duplicator v3 – Reset de personagem sem morrer
+    Usa Player:LoadCharacter() para forçar um novo personagem
+    sem sair do servidor e sem matar o personagem atual.
+    Os dados no chão permanecem e você recebe um inventário limpo.
 --]]
 
 local Players = game:GetService("Players")
@@ -124,40 +124,50 @@ InfoLabel.Parent = Content
 InfoLabel.BackgroundTransparency = 1
 InfoLabel.Size = UDim2.new(1, 0, 0, 40)
 InfoLabel.Font = Enum.Font.Gotham
-InfoLabel.Text = "Jogue o dado no chão e clica no botão para renasceres. O dado fica no chão e tu recebes um inventário novo."
+InfoLabel.Text = "Jogue o dado no chão e clique no botão para resetar seu personagem. O dado permanece no chão e você recebe um inventário novo."
 InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
 InfoLabel.TextSize = 10
 InfoLabel.TextWrapped = true
 InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local RespawnBtn = Instance.new("TextButton")
-RespawnBtn.Parent = Content
-RespawnBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-RespawnBtn.BorderSizePixel = 0
-RespawnBtn.Position = UDim2.new(0, 0, 0, 44)
-RespawnBtn.Size = UDim2.new(1, 0, 0, 38)
-RespawnBtn.Text = "🔄 RENASCER (SIMULAR REJOIN)"
-RespawnBtn.Font = Enum.Font.GothamBlack
-RespawnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-RespawnBtn.TextSize = 11
-Instance.new("UICorner", RespawnBtn).CornerRadius = UDim.new(0, 8)
+local ResetBtn = Instance.new("TextButton")
+ResetBtn.Parent = Content
+ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+ResetBtn.BorderSizePixel = 0
+ResetBtn.Position = UDim2.new(0, 0, 0, 44)
+ResetBtn.Size = UDim2.new(1, 0, 0, 38)
+ResetBtn.Text = "🔄 RESETAR PERSONAGEM"
+ResetBtn.Font = Enum.Font.GothamBlack
+ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ResetBtn.TextSize = 11
+Instance.new("UICorner", ResetBtn).CornerRadius = UDim.new(0, 8)
 
-RespawnBtn.MouseButton1Click:Connect(function()
-    RespawnBtn.Text = "⏳ A renascer..."
-    RespawnBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-    RespawnBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    Notify("A forçar renascimento...")
-    -- Mata o personagem para forçar um respawn (reinicia o inventário)
-    if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-        Player.Character.Humanoid.Health = 0
-    else
-        -- Se não tiver Humanoid, tentamos quebrar as juntas
-        if Player.Character then Player.Character:BreakJoints() end
+ResetBtn.MouseButton1Click:Connect(function()
+    ResetBtn.Text = "⏳ Resetando..."
+    ResetBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    ResetBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Notify("Resetando personagem...")
+    
+    -- Usa LoadCharacter para forçar um novo personagem sem matar o atual
+    -- Isso faz o personagem antigo sumir e um novo aparecer no spawn,
+    -- mas os dados no chão não são afetados.
+    local success = pcall(function()
+        Player:LoadCharacter()
+    end)
+    
+    if not success then
+        -- Fallback: se LoadCharacter falhar, tenta despawning via Humanoid
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            -- Apenas remove o personagem atual (sem matar)
+            Player.Character:Destroy()
+        end
     end
-    task.wait(0.2)
-    RespawnBtn.Text = "🔄 RENASCER (SIMULAR REJOIN)"
-    RespawnBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-    RespawnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    
+    task.wait(0.5)
+    ResetBtn.Text = "🔄 RESETAR PERSONAGEM"
+    ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+    ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Notify("Personagem resetado! Pegue outro dado.")
 end)
 
 -- Arraste
@@ -184,4 +194,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Dice Duplicator carregado! Arrasta a janela.")
+Notify("🎲 Dice Duplicator carregado! Arraste a janela.")
