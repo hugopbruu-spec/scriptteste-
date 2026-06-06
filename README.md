@@ -1,6 +1,6 @@
 --[[
     🔥 ServerSide Executor Pro – Bypass extremo e backdoors múltiplas
-    Interface completa, arrastável, com botão de fechar.
+    Interface arrastável corrigida, botão de fechar funcional.
     Tenta executar scripts no servidor através de todas as brechas encontradas.
 --]]
 
@@ -229,14 +229,12 @@ local backdoorsFound = {}
 
 local function scanForBackdoors()
     backdoorsFound = {}
-    -- Limpa lista visual
     for _, child in ipairs(BackdoorList:GetChildren()) do
         if child:IsA("TextLabel") then child:Destroy() end
     end
     Console.Text = ""
     Log("🔍 Iniciando escaneamento agressivo...")
 
-    -- 1. _G, shared, plugin
     local globalFuncs = {"loadstring", "execute", "run", "eval", "exec", "RunScript", "ServerScript", "require", "getfenv", "setfenv", "newcclosure"}
     for _, funcName in ipairs(globalFuncs) do
         if _G[funcName] and type(_G[funcName]) == "function" then
@@ -267,7 +265,6 @@ local function scanForBackdoors()
         end
     end
 
-    -- 2. RemoteEvents e RemoteFunctions suspeitos
     local suspiciousNames = {"Execute", "Run", "Load", "Eval", "Script", "Server", "Command", "Admin", "Backdoor", "Grab", "Fire", "Invoke", "DoScript", "RunCode", "Exec"}
     local function searchContainer(container, depth)
         if depth > 100 then return end
@@ -313,7 +310,6 @@ local function scanForBackdoors()
         searchContainer(Player.Character, 0)
     end
 
-    -- 3. ModuleScripts com conteúdo suspeito
     local function searchModules(container, depth)
         if depth > 100 then return end
         for _, obj in ipairs(container:GetChildren()) do
@@ -429,38 +425,52 @@ ExecBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+-- ==================== ARRASTE CORRIGIDO ====================
+local dragging = false
+local dragStartPos = nil
+local dragStartMainPos = nil
+
+-- Conecta o início do arraste a todos os elementos da barra de título (exceto o botão de fechar)
+local function connectDrag(element)
+    element.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStartPos = input.Position
+            dragStartMainPos = Main.Position
+        end
+    end)
+end
+
+connectDrag(TitleBar)
+connectDrag(TitleText)
+-- TitleBar não tem ícone separado, mas se tivesse, conectaríamos também.
+
+-- Movimento e fim do arraste continuam no UIS
+UIS.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStartPos
+        Main.Position = UDim2.new(
+            dragStartMainPos.X.Scale,
+            dragStartMainPos.X.Offset + delta.X,
+            dragStartMainPos.Y.Scale,
+            dragStartMainPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
 -- ==================== INICIALIZAÇÃO ====================
 scanForBackdoors()
 
--- Atualização periódica
 task.spawn(function()
     while gui and gui.Parent do
         task.wait(10)
         scanForBackdoors()
-    end
-end)
-
--- ==================== ARRASTE ====================
-local dragging, startPos, startGuiPos
-TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        startPos = input.Position
-        startGuiPos = Main.Position
-    end
-end)
-UIS.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - startPos
-        Main.Position = UDim2.new(
-            startGuiPos.X.Scale, startGuiPos.X.Offset + delta.X,
-            startGuiPos.Y.Scale, startGuiPos.Y.Offset + delta.Y
-        )
-    end
-end)
-UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
     end
 end)
 
