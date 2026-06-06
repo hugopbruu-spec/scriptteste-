@@ -1,9 +1,9 @@
 --[[
-    🎯 Dice Sniper Pro – Knockback garantido via distância
-    Ative o modo e jogue o dado. Ele voará como um projétil.
-    Qualquer jogador que se aproximar do dado será arremessado.
-    Interface com botão de ativar/desativar e fechar.
-    Funciona 100% porque não depende do evento Touched.
+    🎯 Dice Sniper Visual – Projétil local com explosão
+    Ative o modo e jogue o dado. Um projétil fantasma será disparado
+    na direção da câmera. Se atingir um jogador, uma explosão visual
+    ocorrerá (apenas você vê). Não afeta outros jogadores.
+    Interface arrastável com botão de fechar.
 --]]
 
 local Players = game:GetService("Players")
@@ -15,7 +15,7 @@ local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local Camera = Workspace.CurrentCamera
 
--- Aguarda o personagem existir
+-- Aguarda o personagem
 repeat task.wait() until Player.Character
 
 -- ==================== NOTIFICAÇÕES ====================
@@ -116,102 +116,97 @@ ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.TextSize = 10
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
 
--- ==================== LÓGICA PRINCIPAL (baseada em distância) ====================
+-- ==================== LÓGICA DO PROJÉTIL LOCAL ====================
 local active = false
-local activeDice = {}      -- tabela de dados ativos: {part, ...}
-local scanConnection = nil  -- conexão do Heartbeat
+local projectileInFlight = false
 
--- Configurações
-local BULLET_SPEED = 300      -- velocidade inicial do dado
-local KNOCKBACK_POWER = 250   -- força do empurrão
-local HIT_RADIUS = 5          -- raio de detecção para knockback
+local function createProjectile()
+    local camPos = Camera.CFrame.Position
+    local camDir = Camera.CFrame.LookVector
 
--- Aplica knockback em um personagem
-local function applyKnockback(character, dicePosition)
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+    -- Cria o projétil (visível apenas para o cliente)
+    local part = Instance.new("Part")
+    part.Name = "SniperProjectile"
+    part.Shape = Enum.PartType.Ball
+    part.Size = Vector3.new(0.5, 0.5, 0.5)
+    part.BrickColor = BrickColor.new("Bright red")
+    part.Material = Enum.Material.Neon
+    part.Anchored = false
+    part.CanCollide = false -- não colide com o mundo
+    part.Position = camPos + camDir * 2
+    part.Velocity = camDir * 300
+    part.Parent = Workspace
 
-    local direction = (root.Position - dicePosition).Unit
-    -- Mantém majoritariamente horizontal com um pouco para cima
-    direction = (direction * Vector3.new(1, 0, 1) + Vector3.new(0, 0.5, 0)).Unit
+    projectileInFlight = true
 
-    root.Velocity = direction * KNOCKBACK_POWER
-
-    local bodyVel = Instance.new("BodyVelocity")
-    bodyVel.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bodyVel.Velocity = direction * KNOCKBACK_POWER
-    bodyVel.Parent = root
-    game.Debris:AddItem(bodyVel, 0.3)
-end
-
--- Escaneia por novos dados e verifica proximidade
-local function onHeartbeat()
-    -- 1. Encontrar novos DiceRoll em Workspace.Temp
-    local tempFolder = Workspace:FindFirstChild("Temp")
-    if tempFolder then
-        for _, obj in ipairs(tempFolder:GetChildren()) do
-            if obj:IsA("MeshPart") and obj.Name == "DiceRoll" then
-                if not activeDice[obj] then
-                    -- Novo dado detectado!
-                    activeDice[obj] = true
-                    -- Aplica velocidade na direção da câmera
-                    local camDir = Camera.CFrame.LookVector
-                    obj.Velocity = camDir * BULLET_SPEED
-                    -- Remove gravidade temporariamente
-                    local bodyForce = Instance.new("BodyForce")
-                    bodyForce.Force = Vector3.new(0, obj:GetMass() * Workspace.Gravity, 0)
-                    bodyForce.Parent = obj
-                    game.Debris:AddItem(bodyForce, 2)
-                end
+    -- Remove após 3 segundos ou ao colidir
+    local connection
+    connection = part.Touched:Connect(function(hit)
+        if not projectileInFlight then return end
+        local character = hit:FindFirstAncestorOfClass("Model")
+        if character and character:FindFirstChild("Humanoid") then
+            local targetPlayer = Players:GetPlayerFromCharacter(character)
+            if targetPlayer and targetPlayer ~= Player then
+                -- Explosão visual
+                local explosion = Instance.new("Explosion")
+                explosion.BlastRadius = 8
+                explosion.BlastPressure = 0
+                explosion.Position = part.Position
+                explosion.Parent = Workspace
+                Notify("💥 Acertou " .. targetPlayer.Name .. "!")
             end
         end
-    end
+        -- Remove o projétil
+        connection:Disconnect()
+        part:Destroy()
+        projectileInFlight = false
+    end)
 
-    -- 2. Verificar distância entre dados ativos e outros jogadores
-    if not active then return end
-    local players = Players:GetPlayers()
-    for dicePart, _ in pairs(activeDice) do
-        if not dicePart:IsDescendantOf(Workspace) then
-            activeDice[dicePart] = nil -- remove dados que não existem mais
-            continue
+    task.delay(3, function()
+        if part and part.Parent then
+            part:Destroy()
+            projectileInFlight = false
         end
-        local dicePos = dicePart.Position
-        for _, otherPlayer in ipairs(players) do
-            if otherPlayer == Player then continue end
-            local char = otherPlayer.Character
-            if char then
-                local root = char:FindFirstChild("HumanoidRootPart")
-                if root then
-                    local distance = (root.Position - dicePos).Magnitude
-                    if distance <= HIT_RADIUS then
-                        applyKnockback(char, dicePos)
-                        -- Opcional: remover o dado após acertar para não aplicar múltiplas vezes
-                        activeDice[dicePart] = nil
-                        break
-                    end
-                end
-            end
-        end
-    end
+    end)
 end
 
--- Ativa/Desativa
+-- Detecta quando o jogador joga o dado (a ferramenta some da mão)
+local function startMonitoring()
+    local tool = nil
+    for _, child in ipairs(Player.Character:GetChildren()) do
+        if child:IsA("Tool") and child.Name == "Dice" then
+            tool = child
+            break
+        end
+    end
+    if not tool then return end
+
+    -- Monitora a remoção da ferramenta
+    local connection
+    connection = tool.AncestryChanged:Connect(function()
+        if not active then return end
+        if not tool:IsDescendantOf(Player.Character) and not tool:IsDescendantOf(Player.Backpack) then
+            -- Foi jogada, cria o projétil
+            createProjectile()
+            connection:Disconnect()
+            -- Reagenda o monitoramento para a próxima ferramenta
+            task.wait(0.2)
+            startMonitoring()
+        end
+    end)
+end
+
+-- Ativa/Desativa o modo
 local function toggleActive()
     active = not active
     if active then
         ToggleBtn.Text = "🔴 DESATIVAR"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        activeDice = {}
-        scanConnection = RunService.Heartbeat:Connect(onHeartbeat)
-        Notify("🎯 Modo sniper ativado! Jogue o dado para ver a mágica.")
+        startMonitoring()
+        Notify("🎯 Modo sniper ativado! Jogue o dado para disparar.")
     else
         ToggleBtn.Text = "🟢 ATIVAR MODO SNIPER"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        if scanConnection then
-            scanConnection:Disconnect()
-            scanConnection = nil
-        end
-        activeDice = {}
         Notify("🔴 Modo sniper desativado.")
     end
 end
@@ -242,4 +237,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎯 Modo sniper carregado! Ative e jogue o dado.")
+Notify("🎯 Ative o modo sniper e jogue o dado para disparar um projétil!")
