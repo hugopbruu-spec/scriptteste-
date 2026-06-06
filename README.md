@@ -1,8 +1,8 @@
 --[[
-    🎲 Dice Duplicator – Lançamento infinito de dados
-    Ative a duplicação e jogue dados sem parar.
+    🎲 Dice Duplicator Universal – Robusto e Garantido
+    Ative a duplicação e jogue quantos dados quiser.
     Cada dado lançado permanece no chão, visível para todos.
-    Você sempre terá um novo dado na mão para jogar novamente.
+    Você sempre recebe um novo dado funcional na mão.
 --]]
 
 local Players = game:GetService("Players")
@@ -13,6 +13,7 @@ local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local Backpack = Player:WaitForChild("Backpack")
 
+-- Aguarda o personagem existir
 repeat task.wait() until Player.Character
 
 -- ==================== NOTIFICAÇÕES ====================
@@ -107,7 +108,7 @@ ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 ToggleBtn.BorderSizePixel = 0
 ToggleBtn.Position = UDim2.new(0, 8, 0, 34)
 ToggleBtn.Size = UDim2.new(1, -16, 0, 28)
-ToggleBtn.Text = "🟢 ATIVAR LANÇAMENTO INFINITO"
+ToggleBtn.Text = "🟢 ATIVAR DUPLICAÇÃO"
 ToggleBtn.Font = Enum.Font.GothamBlack
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.TextSize = 10
@@ -115,29 +116,37 @@ Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
 
 -- ==================== LÓGICA PRINCIPAL ====================
 local active = false
-local diceTemplate = nil
-local currentTool = nil
-local toolConnections = {}
+local diceTemplate = nil      -- clone da ferramenta original
+local currentTool = nil       -- referência à ferramenta atualmente na mão
+local toolConnections = {}    -- conexões de eventos para a ferramenta atual
 
+-- Encontra a ferramenta Dice na mão ou mochila
 local function findDiceTool()
     for _, tool in ipairs(Player.Character:GetChildren()) do
-        if tool:IsA("Tool") and tool.Name == "Dice" then return tool end
+        if tool:IsA("Tool") and tool.Name == "Dice" then
+            return tool
+        end
     end
     for _, tool in ipairs(Backpack:GetChildren()) do
-        if tool:IsA("Tool") and tool.Name == "Dice" then return tool end
+        if tool:IsA("Tool") and tool.Name == "Dice" then
+            return tool
+        end
     end
     return nil
 end
 
+-- Salva um clone da ferramenta atual como template
 local function updateTemplate()
     local tool = findDiceTool()
     if tool then
         diceTemplate = tool:Clone()
+        return true
     end
+    return false
 end
 
-local function cleanupAndGiveNewTool()
-    -- Remove qualquer ferramenta Dice da mão e mochila (a original pode estar invisível)
+-- Remove todas as ferramentas "Dice" da mão e da mochila
+local function removeAllDiceTools()
     local toRemove = {}
     for _, tool in ipairs(Player.Character:GetChildren()) do
         if tool:IsA("Tool") and tool.Name == "Dice" then
@@ -152,42 +161,49 @@ local function cleanupAndGiveNewTool()
     for _, tool in ipairs(toRemove) do
         tool:Destroy()
     end
-
-    -- Aguarda um frame
-    task.wait(0.1)
-
-    -- Cria nova ferramenta baseada no template
-    if diceTemplate then
-        local newTool = diceTemplate:Clone()
-        newTool.Parent = Player.Character  -- coloca diretamente na mão
-        currentTool = newTool
-        setupToolWatcher(newTool)
-    else
-        -- Fallback genérico
-        local newTool = Instance.new("Tool")
-        newTool.Name = "Dice"
-        newTool.RequiresHandle = true
-        newTool.CanBeDropped = false
-        newTool.ManualActivationOnly = false
-        newTool.Grip = CFrame.new(0,0,0, 1,0,0, 0,1,0, 0,0,1)
-        newTool.GripForward = Vector3.new(0,0,-1)
-        newTool.GripRight = Vector3.new(1,0,0)
-        newTool.GripUp = Vector3.new(0,1,0)
-        newTool.GripPos = Vector3.new(0,0,0)
-        local handle = Instance.new("MeshPart")
-        handle.Name = "Handle"
-        handle.Size = Vector3.new(0.662, 0.662, 0.662)
-        handle.MeshId = "rbxassetid://90561183096956"
-        handle.Material = Enum.Material.Plastic
-        handle.Color = Color3.fromRGB(163, 162, 165)
-        handle.Parent = newTool
-        newTool.Parent = Player.Character
-        currentTool = newTool
-        setupToolWatcher(newTool)
-    end
 end
 
--- Configura monitoramento para quando a ferramenta atual for removida (jogada)
+-- Cria uma nova ferramenta a partir do template e a equipa na mão
+local function giveNewTool()
+    -- Se não há template, tenta obter de uma ferramenta existente
+    if not diceTemplate then
+        if not updateTemplate() then
+            -- Fallback genérico (cria um dado básico)
+            local newTool = Instance.new("Tool")
+            newTool.Name = "Dice"
+            newTool.RequiresHandle = true
+            newTool.CanBeDropped = false
+            newTool.ManualActivationOnly = false
+            newTool.Grip = CFrame.new(0,0,0, 1,0,0, 0,1,0, 0,0,1)
+            newTool.GripForward = Vector3.new(0,0,-1)
+            newTool.GripRight = Vector3.new(1,0,0)
+            newTool.GripUp = Vector3.new(0,1,0)
+            newTool.GripPos = Vector3.new(0,0,0)
+            local handle = Instance.new("MeshPart")
+            handle.Name = "Handle"
+            handle.Size = Vector3.new(0.662, 0.662, 0.662)
+            handle.MeshId = "rbxassetid://90561183096956"
+            handle.Material = Enum.Material.Plastic
+            handle.Color = Color3.fromRGB(163, 162, 165)
+            handle.Parent = newTool
+            newTool.Parent = Player.Character
+            currentTool = newTool
+            setupToolWatcher(newTool)
+            Notify("🎲 Dado genérico criado. Lance-o!")
+            return
+        end
+    end
+
+    -- Cria clone do template
+    local newTool = diceTemplate:Clone()
+    -- Garante que a nova ferramenta seja equipada imediatamente
+    newTool.Parent = Player.Character
+    currentTool = newTool
+    setupToolWatcher(newTool)
+    Notify("🎲 Novo dado na mão! Lance novamente.")
+end
+
+-- Configura monitoramento para quando a ferramenta for removida (jogada)
 local function setupToolWatcher(tool)
     -- Desconecta conexões anteriores
     for _, conn in ipairs(toolConnections) do
@@ -196,11 +212,11 @@ local function setupToolWatcher(tool)
     toolConnections = {}
 
     local function onToolRemoved()
-        -- A ferramenta foi jogada, agora precisamos aguardar o dado aparecer no chão
+        -- Pequena pausa para garantir que o dado físico apareça no chão
         task.wait(0.5)
         if not active then return end
 
-        -- Garante que o dado no chão fique com NetworkOwner nil
+        -- Garante que o dado no chão (Workspace.Temp) não seja removido
         local tempFolder = Workspace:FindFirstChild("Temp")
         if tempFolder then
             for _, obj in ipairs(tempFolder:GetChildren()) do
@@ -210,17 +226,23 @@ local function setupToolWatcher(tool)
             end
         end
 
+        -- Remove qualquer ferramenta restante (inclusive a que pode ter ficado invisível)
+        removeAllDiceTools()
+
+        -- Aguarda um frame para a remoção ser processada
+        task.wait(0.1)
+
         -- Dá uma nova ferramenta ao jogador
-        cleanupAndGiveNewTool()
-        Notify("🎲 Dado lançado! Outro já está na sua mão.")
+        giveNewTool()
     end
 
-    -- Monitora quando a ferramenta é removida do jogador
+    -- Monitora quando a ferramenta é removida do personagem/mochila
     local conn1 = tool.AncestryChanged:Connect(function()
         if not tool:IsDescendantOf(Player) and not tool:IsDescendantOf(Backpack) then
             onToolRemoved()
         end
     end)
+    -- Monitora se a ferramenta for destruída por qualquer motivo
     local conn2 = tool.Destroying:Connect(function()
         onToolRemoved()
     end)
@@ -235,46 +257,55 @@ local function toggleActive()
     if active then
         ToggleBtn.Text = "🔴 DESATIVAR"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        -- Atualiza template e configura monitoramento no dado atual
-        updateTemplate()
+        -- Salva template da ferramenta atual
+        if not updateTemplate() then
+            Notify("⚠️ Pegue um dado primeiro!")
+            active = false
+            ToggleBtn.Text = "🟢 ATIVAR DUPLICAÇÃO"
+            ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+            return
+        end
+        -- Configura monitoramento na ferramenta atual
         currentTool = findDiceTool()
         if currentTool then
             setupToolWatcher(currentTool)
-            Notify("🟢 Lançamento infinito ativado! Jogue o dado.")
+            Notify("🟢 Duplicação ativada! Jogue o dado.")
         else
-            Notify("⚠️ Pegue um dado primeiro!")
+            Notify("⚠️ Dado não encontrado. Pegue-o novamente.")
+            active = false
+            ToggleBtn.Text = "🟢 ATIVAR DUPLICAÇÃO"
+            ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
         end
     else
-        ToggleBtn.Text = "🟢 ATIVAR LANÇAMENTO INFINITO"
+        ToggleBtn.Text = "🟢 ATIVAR DUPLICAÇÃO"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        -- Desconecta todos os monitores
+        -- Desconecta monitoramentos
         for _, conn in ipairs(toolConnections) do
             conn:Disconnect()
         end
         toolConnections = {}
-        Notify("🔴 Lançamento infinito desativado.")
+        Notify("🔴 Duplicação desativada.")
     end
 end
 
 ToggleBtn.MouseButton1Click:Connect(toggleActive)
 
--- Atualiza template quando um novo dado aparece (por exemplo, pego da mochila)
-Player.ChildAdded:Connect(function(child)
+-- Atualiza template quando um novo dado é adicionado (por exemplo, ao pegar da mochila)
+local function onNewTool(child)
     if active and child:IsA("Tool") and child.Name == "Dice" then
         task.wait(0.1)
         updateTemplate()
-        currentTool = child
-        setupToolWatcher(child)
+        -- Se não há ferramenta atual monitorada, configure esta
+        if not currentTool or not currentTool:IsDescendantOf(Player) then
+            currentTool = child
+            setupToolWatcher(child)
+        end
     end
-end)
-Backpack.ChildAdded:Connect(function(child)
-    if active and child:IsA("Tool") and child.Name == "Dice" then
-        task.wait(0.1)
-        updateTemplate()
-    end
-end)
+end
+Player.ChildAdded:Connect(onNewTool)
+Backpack.ChildAdded:Connect(onNewTool)
 
--- Arraste
+-- Arraste da interface
 local dragging, startPos, startGuiPos
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -298,4 +329,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Ative o lançamento infinito e jogue quantos dados quiser!")
+Notify("🎲 Pegue o dado, ative a duplicação e jogue à vontade!")
