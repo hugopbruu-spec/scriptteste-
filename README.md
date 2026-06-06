@@ -1,9 +1,8 @@
 --[[
-    🎲 Dice Duplicator Funcional
-    1. Jogue o dado no chão (ele aparecerá em Workspace.Temp).
-    2. Clique em "DUPLICAR DADO".
-    3. O dado no chão permanecerá, a ferramenta invisível sumirá,
-       e uma nova ferramenta Dice aparecerá na sua mochila.
+    🎲 Dice Duplicator Universal
+    Salva o modelo do dado na mão. Ao clicar em DUPLICAR,
+    remove a ferramenta atual (inclusive a invisível) e cria
+    uma nova cópia na mochila. O dado no chão permanece intocado.
 --]]
 
 local Players = game:GetService("Players")
@@ -58,8 +57,8 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 250, 0, 100)
-Main.Position = UDim2.new(0.5, -125, 0.5, -50)
+Main.Size = UDim2.new(0, 220, 0, 90)
+Main.Position = UDim2.new(0.5, -110, 0.5, -45)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
@@ -69,7 +68,7 @@ local TitleBar = Instance.new("Frame")
 TitleBar.Parent = Main
 TitleBar.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 TitleBar.BorderSizePixel = 0
-TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.Size = UDim2.new(1, 0, 0, 28)
 local tc = Instance.new("UICorner", TitleBar)
 tc.CornerRadius = UDim.new(0, 12)
 local tf = Instance.new("Frame")
@@ -86,85 +85,79 @@ TitleText.Size = UDim2.new(1, 0, 1, 0)
 TitleText.Font = Enum.Font.GothamBold
 TitleText.Text = "🎲 Dice Duplicator"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleText.TextSize = 12
+TitleText.TextSize = 11
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Parent = TitleBar
 CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 71, 87)
 CloseBtn.BorderSizePixel = 0
-CloseBtn.Position = UDim2.new(1, -28, 0, 4)
-CloseBtn.Size = UDim2.new(0, 20, 0, 20)
+CloseBtn.Position = UDim2.new(1, -26, 0, 3)
+CloseBtn.Size = UDim2.new(0, 18, 0, 18)
 CloseBtn.Text = "✕"
 CloseBtn.Font = Enum.Font.GothamBlack
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.TextSize = 10
+CloseBtn.TextSize = 9
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
 CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Fechado") end)
 
--- Conteúdo
-local Content = Instance.new("Frame")
-Content.Parent = Main
-Content.BackgroundTransparency = 1
-Content.Position = UDim2.new(0, 8, 0, 34)
-Content.Size = UDim2.new(1, -16, 1, -40)
-
+-- Botão
 local DupBtn = Instance.new("TextButton")
-DupBtn.Parent = Content
+DupBtn.Parent = Main
 DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 DupBtn.BorderSizePixel = 0
-DupBtn.Size = UDim2.new(1, 0, 0, 28)
+DupBtn.Position = UDim2.new(0, 8, 0, 34)
+DupBtn.Size = UDim2.new(1, -16, 0, 30)
 DupBtn.Text = "🔄 DUPLICAR DADO"
 DupBtn.Font = Enum.Font.GothamBlack
 DupBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 DupBtn.TextSize = 11
 Instance.new("UICorner", DupBtn).CornerRadius = UDim.new(0, 6)
 
--- ==================== LÓGICA PRINCIPAL ====================
-local originalToolTemplate = nil  -- guarda o clone da ferramenta original
+-- ==================== LÓGICA ====================
+local diceTemplate = nil  -- clone do dado original
 
--- Salva o modelo da ferramenta assim que o script carrega (ou quando o jogador pega um dado)
-local function SaveToolTemplate()
-    -- Procura ferramenta "Dice" na mão ou mochila
+local function findAndSaveTool()
     for _, tool in ipairs(Player.Character:GetChildren()) do
         if tool:IsA("Tool") and tool.Name == "Dice" then
-            originalToolTemplate = tool:Clone()
-            return
+            diceTemplate = tool:Clone()
+            return true
         end
     end
     for _, tool in ipairs(Backpack:GetChildren()) do
         if tool:IsA("Tool") and tool.Name == "Dice" then
-            originalToolTemplate = tool:Clone()
-            return
+            diceTemplate = tool:Clone()
+            return true
         end
     end
+    return false
 end
-SaveToolTemplate()
 
--- Monitora quando um novo dado é adicionado ao jogador (para atualizar o template)
-Player.ChildAdded:Connect(function(child)
+-- Tenta salvar ao iniciar
+findAndSaveTool()
+
+-- Atualiza template quando um novo dado é pego
+local function onNewTool(child)
     if child:IsA("Tool") and child.Name == "Dice" then
-        SaveToolTemplate()
+        task.wait(0.1) -- pequena pausa para propriedades carregarem
+        diceTemplate = child:Clone()
     end
-end)
-Backpack.ChildAdded:Connect(function(child)
-    if child:IsA("Tool") and child.Name == "Dice" then
-        SaveToolTemplate()
-    end
-end)
+end
+Player.ChildAdded:Connect(onNewTool)
+Backpack.ChildAdded:Connect(onNewTool)
 
 DupBtn.MouseButton1Click:Connect(function()
-    -- 1. Garante que os dados no chão (Workspace.Temp) não serão removidos
-    --    Eles já estão com NetworkOwner nil, mas podemos iterar e garantir
-    local tempFolder = Workspace:FindFirstChild("Temp")
-    if tempFolder then
-        for _, obj in ipairs(tempFolder:GetChildren()) do
-            if obj:IsA("MeshPart") and obj.Name == "DiceRoll" then
+    -- 1. Garantir que dados no chão (Workspace.Temp) não sejam removidos
+    --    (não faremos nada, apenas garantir NetworkOwner nil, mas já está)
+    local temp = Workspace:FindFirstChild("Temp")
+    if temp then
+        for _, obj in ipairs(temp:GetChildren()) do
+            if obj.Name == "DiceRoll" then
                 pcall(function() obj:SetNetworkOwner(nil) end)
             end
         end
     end
 
-    -- 2. Remove todas as ferramentas "Dice" da mão e da mochila (incluindo a invisível)
+    -- 2. Remover todas as ferramentas "Dice" da mão e mochila
     local toRemove = {}
     for _, tool in ipairs(Player.Character:GetChildren()) do
         if tool:IsA("Tool") and tool.Name == "Dice" then
@@ -180,17 +173,33 @@ DupBtn.MouseButton1Click:Connect(function()
         tool:Destroy()
     end
 
-    -- 3. Cria uma nova ferramenta a partir do template salvo
-    if originalToolTemplate then
-        local newTool = originalToolTemplate:Clone()
+    -- 3. Criar nova ferramenta a partir do template
+    if diceTemplate then
+        local newTool = diceTemplate:Clone()
         newTool.Parent = Backpack
-        Notify("🎲 Novo dado criado! O do chão permanece.")
+        Notify("🎲 Novo dado na mochila!")
     else
-        -- Fallback genérico
+        -- Fallback: cria um dado genérico com as propriedades conhecidas
         local newTool = Instance.new("Tool")
         newTool.Name = "Dice"
+        newTool.RequiresHandle = true
+        newTool.CanBeDropped = false
+        newTool.ManualActivationOnly = false
+        newTool.Grip = CFrame.new(0,0,0, 1,0,0, 0,1,0, 0,0,1)
+        newTool.GripForward = Vector3.new(0,0,-1)
+        newTool.GripRight = Vector3.new(1,0,0)
+        newTool.GripUp = Vector3.new(0,1,0)
+        newTool.GripPos = Vector3.new(0,0,0)
+        -- Adiciona um Handle básico
+        local handle = Instance.new("MeshPart")
+        handle.Name = "Handle"
+        handle.Size = Vector3.new(0.662, 0.662, 0.662)
+        handle.MeshId = "rbxassetid://90561183096956"
+        handle.Material = Enum.Material.Plastic
+        handle.Color = Color3.fromRGB(163, 162, 165)
+        handle.Parent = newTool
         newTool.Parent = Backpack
-        Notify("🎲 Dado genérico criado (template não encontrado).")
+        Notify("🎲 Dado genérico criado (template ausente).")
     end
 end)
 
@@ -218,4 +227,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Jogue o dado e clique em DUPLICAR!")
+Notify("🎲 Pronto! Jogue o dado e clique em DUPLICAR.")
