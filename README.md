@@ -1,9 +1,10 @@
 --[[
-    🎲 Dice Duplicator v4 – Preserva dados no chão sem matar o personagem
-    Usa Player:LoadCharacter() para forçar um novo corpo (inventário limpo)
-    sem matar o personagem atual. Após o novo personagem carregar,
-    teleporta-o de volta para onde estava.
-    Os dados que estavam no chão não são afetados.
+    🎲 Dice Duplicator v5 – Reset de Inventário Sem Mexer no Personagem
+    Guarda os itens iniciais assim que entras no jogo.
+    Clica no botão para removeres todos os itens atuais e
+    receberes cópias dos itens iniciais.
+    O teu personagem NÃO é afetado, não morres, não ficas invisível.
+    Os dados que estão no chão continuam lá.
 --]]
 
 local Players = game:GetService("Players")
@@ -12,8 +13,46 @@ local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 
--- Aguarda o personagem carregar pela primeira vez
+-- Aguarda o primeiro personagem e recolhe os itens iniciais
+local initialTools = {}   -- guarda nome, classe, propriedades principais
+
+local function CaptureInitialItems()
+    initialTools = {}
+    local function addFromContainer(container)
+        for _, obj in ipairs(container:GetChildren()) do
+            if obj:IsA("Tool") then
+                local data = {
+                    Name = obj.Name,
+                    ClassName = obj.ClassName,
+                    -- guarda as propriedades que o jogo costuma definir
+                    RequiresHandle = obj.RequiresHandle,
+                    CanBeDropped = obj.CanBeDropped,
+                    ManualActivationOnly = obj.ManualActivationOnly,
+                    ToolTip = obj.ToolTip,
+                    TextureId = obj.TextureId,
+                    Grip = obj.Grip,
+                    GripForward = obj.GripForward,
+                    GripRight = obj.GripRight,
+                    GripUp = obj.GripUp,
+                    GripPos = obj.GripPos,
+                }
+                table.insert(initialTools, data)
+            end
+        end
+    end
+    -- Procura no Backpack e no personagem
+    if Player.Backpack then
+        addFromContainer(Player.Backpack)
+    end
+    if Player.Character then
+        addFromContainer(Player.Character)
+    end
+end
+
+-- Aguarda o jogo carregar (personagem pronto)
 repeat task.wait() until Player.Character
+task.wait(1)  -- dá um tempinho extra para o jogo distribuir os itens iniciais
+CaptureInitialItems()
 
 -- ==================== NOTIFICAÇÕES ====================
 local function Notify(text, duration)
@@ -57,8 +96,8 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 280, 0, 160)
-Main.Position = UDim2.new(0.5, -140, 0.5, -80)
+Main.Size = UDim2.new(0, 280, 0, 170)
+Main.Position = UDim2.new(0.5, -140, 0.5, -85)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
@@ -92,7 +131,7 @@ TitleText.BackgroundTransparency = 1
 TitleText.Position = UDim2.new(0, 36, 0, 0)
 TitleText.Size = UDim2.new(1, -70, 1, 0)
 TitleText.Font = Enum.Font.GothamBold
-TitleText.Text = "Dice Duplicator"
+TitleText.Text = "Dice Duplicator v5"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 13
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
@@ -123,9 +162,9 @@ Content.Size = UDim2.new(1, -20, 1, -50)
 local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Parent = Content
 InfoLabel.BackgroundTransparency = 1
-InfoLabel.Size = UDim2.new(1, 0, 0, 44)
+InfoLabel.Size = UDim2.new(1, 0, 0, 48)
 InfoLabel.Font = Enum.Font.Gotham
-InfoLabel.Text = "1. Jogue o dado no chão\n2. Clique no botão abaixo\nO dado fica no chão e você ganha um inventário limpo SEM MORRER."
+InfoLabel.Text = "1. Joga o dado no chão\n2. Clica em RESETAR INVENTÁRIO\nO dado fica no chão e ganhas um novo inventário (sem mexer no boneco)."
 InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
 InfoLabel.TextSize = 10
 InfoLabel.TextWrapped = true
@@ -135,54 +174,56 @@ local ResetBtn = Instance.new("TextButton")
 ResetBtn.Parent = Content
 ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 ResetBtn.BorderSizePixel = 0
-ResetBtn.Position = UDim2.new(0, 0, 0, 48)
+ResetBtn.Position = UDim2.new(0, 0, 0, 52)
 ResetBtn.Size = UDim2.new(1, 0, 0, 40)
-ResetBtn.Text = "🔄 RESETAR INVENTÁRIO (SEM MORRER)"
+ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
 ResetBtn.Font = Enum.Font.GothamBlack
 ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ResetBtn.TextSize = 10
+ResetBtn.TextSize = 12
 Instance.new("UICorner", ResetBtn).CornerRadius = UDim.new(0, 8)
 
 ResetBtn.MouseButton1Click:Connect(function()
-    ResetBtn.Text = "⏳ Resetando inventário..."
+    ResetBtn.Text = "⏳ Resetando..."
     ResetBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
     ResetBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    Notify("Resetando inventário, aguarde...")
+    Notify("A resetar inventário...")
 
-    -- Salva a posição atual (se houver personagem)
-    local savedPos = nil
-    if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-        savedPos = Player.Character.HumanoidRootPart.CFrame
-    end
-
-    -- Força um novo personagem SEM matar o antigo (LoadCharacter)
-    local success = pcall(function()
-        Player:LoadCharacter()
-    end)
-
-    -- Aguarda o novo personagem carregar (timeout de 10 segundos)
-    local newCharacter = nil
-    if success then
-        newCharacter = Player.CharacterAdded:Wait()
-    else
-        -- Fallback: se LoadCharacter falhou, tenta Destroy no antigo
-        if Player.Character then
-            Player.Character:Destroy()
-        end
-        newCharacter = Player.CharacterAdded:Wait()
-    end
-
-    -- Se tínhamos uma posição salva, teleporta o novo personagem para lá
-    if savedPos and newCharacter then
-        task.wait(0.1) -- pequena pausa para o personagem se estabelecer
-        if newCharacter:FindFirstChild("HumanoidRootPart") then
-            newCharacter.HumanoidRootPart.CFrame = savedPos
-            Notify("Inventário resetado! Você foi teletransportado de volta.")
+    -- Remove todas as ferramentas atuais (Backpack + personagem)
+    local function removeTools(container)
+        for _, obj in ipairs(container:GetChildren()) do
+            if obj:IsA("Tool") then
+                obj:Destroy()
+            end
         end
     end
+    if Player.Backpack then
+        removeTools(Player.Backpack)
+    end
+    if Player.Character then
+        removeTools(Player.Character)
+    end
 
-    -- Restaura o botão
-    ResetBtn.Text = "🔄 RESETAR INVENTÁRIO (SEM MORRER)"
+    -- Recria os itens iniciais a partir dos dados guardados
+    for _, itemData in ipairs(initialTools) do
+        local newTool = Instance.new(itemData.ClassName)
+        newTool.Name = itemData.Name
+        -- Copia as propriedades que guardámos
+        pcall(function() newTool.RequiresHandle = itemData.RequiresHandle end)
+        pcall(function() newTool.CanBeDropped = itemData.CanBeDropped end)
+        pcall(function() newTool.ManualActivationOnly = itemData.ManualActivationOnly end)
+        pcall(function() newTool.ToolTip = itemData.ToolTip end)
+        pcall(function() newTool.TextureId = itemData.TextureId end)
+        pcall(function() newTool.Grip = itemData.Grip end)
+        pcall(function() newTool.GripForward = itemData.GripForward end)
+        pcall(function() newTool.GripRight = itemData.GripRight end)
+        pcall(function() newTool.GripUp = itemData.GripUp end)
+        pcall(function() newTool.GripPos = itemData.GripPos end)
+        -- Coloca na mochila
+        newTool.Parent = Player.Backpack
+    end
+
+    Notify("Inventário resetado! O dado no chão continua lá.")
+    ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
     ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
     ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 end)
@@ -211,4 +252,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Dice Duplicator carregado! Arraste a janela.")
+Notify("🎲 Dice Duplicator v5 carregado! Arrasta a janela.")
