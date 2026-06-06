@@ -1,57 +1,73 @@
 --[[
-    🎯 Dice Sniper Definitivo – Modificação direta da ferramenta
-    Ative o modo. Quando você equipar o dado, ele será modificado
-    para voar como um projétil e arremessar qualquer jogador que atingir.
-    Interface com botão de ativar/desativar e fechar.
-    Funciona 100% no cliente, com efeito visível para todos.
---]]
+    🔥 ServerScript Hub – Executor de scripts no servidor
+    Interface completa, arrastável, com botão de fechar.
+    Tenta executar seus scripts no servidor através de backdoors.
+]]
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
 local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
-local Camera = Workspace.CurrentCamera
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
 
--- Aguarda o personagem existir
+-- Aguarda o personagem
 repeat task.wait() until Player.Character
 
 -- ==================== NOTIFICAÇÕES ====================
-local function Notify(text, duration)
-    duration = duration or 3
+local function Notify(title, text, duration)
+    duration = duration or 4
     local gui = Instance.new("ScreenGui")
     gui.Parent = CoreGui
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    local f = Instance.new("Frame")
-    f.Parent = gui
-    f.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-    f.BorderSizePixel = 0
-    f.Position = UDim2.new(0.5, -140, 0, 10)
-    f.Size = UDim2.new(0, 280, 0, 34)
-    f.AnchorPoint = Vector2.new(0.5, 0)
-    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
-    Instance.new("UIStroke", f).Color = Color3.fromRGB(108, 92, 231)
-    local l = Instance.new("TextLabel")
-    l.Parent = f
-    l.BackgroundTransparency = 1
-    l.Size = UDim2.new(1, 0, 1, 0)
-    l.Font = Enum.Font.GothamBold
-    l.Text = text
-    l.TextColor3 = Color3.fromRGB(255, 255, 255)
-    l.TextSize = 12
-    local t = Tween:Create(f, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, 16)})
-    t:Play()
+    local frame = Instance.new("Frame")
+    frame.Parent = gui
+    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    frame.BorderSizePixel = 0
+    frame.Position = UDim2.new(1, -260, 1, -80)
+    frame.Size = UDim2.new(0, 250, 0, 70)
+    frame.AnchorPoint = Vector2.new(1, 1)
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Parent = frame
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Position = UDim2.new(0, 12, 0, 8)
+    titleLabel.Size = UDim2.new(1, -24, 0, 20)
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Text = title
+    titleLabel.TextColor3 = Color3.fromRGB(108, 92, 231)
+    titleLabel.TextSize = 14
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Parent = frame
+    textLabel.BackgroundTransparency = 1
+    textLabel.Position = UDim2.new(0, 12, 0, 30)
+    textLabel.Size = UDim2.new(1, -24, 0, 30)
+    textLabel.Font = Enum.Font.Gotham
+    textLabel.Text = text
+    textLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+    textLabel.TextSize = 11
+    textLabel.TextXAlignment = Enum.TextXAlignment.Left
+    textLabel.TextWrapped = true
+    
+    local tween = Tween:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+        {Position = UDim2.new(1, -20, 1, -80)})
+    tween:Play()
     task.wait(duration)
-    local t2 = Tween:Create(f, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, -34)})
-    t2:Play()
-    t2.Completed:Connect(function() gui:Destroy() end)
+    local tweenOut = Tween:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+        {Position = UDim2.new(1, 300, 1, -80)})
+    tweenOut:Play()
+    tweenOut.Completed:Connect(function() gui:Destroy() end)
 end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui")
-gui.Name = "DiceSniper"
+gui.Name = "ServerScriptHub"
 gui.Parent = CoreGui
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
@@ -60,158 +76,278 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 250, 0, 95)
-Main.Position = UDim2.new(0.5, -125, 0.5, -48)
+Main.Size = UDim2.new(0, 500, 0, 420)
+Main.Position = UDim2.new(0.5, -250, 0.5, -210)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
-Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
+Instance.new("UIStroke", Main).Color = Color3.fromRGB(255, 71, 87)
 
 -- Título
 local TitleBar = Instance.new("Frame")
 TitleBar.Parent = Main
-TitleBar.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
 TitleBar.BorderSizePixel = 0
-TitleBar.Size = UDim2.new(1, 0, 0, 28)
-local tc = Instance.new("UICorner", TitleBar)
-tc.CornerRadius = UDim.new(0, 12)
-local tf = Instance.new("Frame")
-tf.Parent = TitleBar
-tf.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-tf.BorderSizePixel = 0
-tf.Size = UDim2.new(1, 0, 0, 12)
-tf.Position = UDim2.new(0, 0, 1, -12)
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+local titleGradient = Instance.new("UIGradient", TitleBar)
+titleGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 71, 87)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 50, 50)),
+})
+titleGradient.Rotation = 90
+local titleCorner = Instance.new("UICorner", TitleBar)
+titleCorner.CornerRadius = UDim.new(0, 12)
+local titleFix = Instance.new("Frame")
+titleFix.Parent = TitleBar
+titleFix.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+titleFix.BorderSizePixel = 0
+titleFix.Size = UDim2.new(1, 0, 0, 12)
+titleFix.Position = UDim2.new(0, 0, 1, -12)
 
 local TitleText = Instance.new("TextLabel")
 TitleText.Parent = TitleBar
 TitleText.BackgroundTransparency = 1
-TitleText.Size = UDim2.new(1, 0, 1, 0)
-TitleText.Font = Enum.Font.GothamBold
-TitleText.Text = "🎯 Dice Sniper"
+TitleText.Position = UDim2.new(0, 15, 0, 0)
+TitleText.Size = UDim2.new(1, -50, 1, 0)
+TitleText.Font = Enum.Font.GothamBlack
+TitleText.Text = "🔥 ServerScript Hub"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleText.TextSize = 12
+TitleText.TextSize = 16
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Parent = TitleBar
 CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 71, 87)
 CloseBtn.BorderSizePixel = 0
-CloseBtn.Position = UDim2.new(1, -26, 0, 3)
-CloseBtn.Size = UDim2.new(0, 18, 0, 18)
+CloseBtn.Position = UDim2.new(1, -35, 0, 8)
+CloseBtn.Size = UDim2.new(0, 24, 0, 24)
 CloseBtn.Text = "✕"
 CloseBtn.Font = Enum.Font.GothamBlack
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.TextSize = 9
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
-CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Fechado") end)
+CloseBtn.TextSize = 12
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
+CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Hub", "Fechado") end)
 
--- Botão Ativar/Desativar
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Parent = Main
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-ToggleBtn.BorderSizePixel = 0
-ToggleBtn.Position = UDim2.new(0, 8, 0, 34)
-ToggleBtn.Size = UDim2.new(1, -16, 0, 28)
-ToggleBtn.Text = "🟢 ATIVAR MODO SNIPER"
-ToggleBtn.Font = Enum.Font.GothamBlack
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.TextSize = 10
-Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
+-- Área de script
+local ScriptEditor = Instance.new("TextBox")
+ScriptEditor.Parent = Main
+ScriptEditor.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
+ScriptEditor.BorderSizePixel = 0
+ScriptEditor.Position = UDim2.new(0, 10, 0, 50)
+ScriptEditor.Size = UDim2.new(1, -20, 0, 180)
+ScriptEditor.Font = Enum.Font.Code
+ScriptEditor.Text = "-- Cole seu script aqui\nprint('Hello, Server!')"
+ScriptEditor.TextColor3 = Color3.fromRGB(200, 200, 220)
+ScriptEditor.TextSize = 12
+ScriptEditor.ClearTextOnFocus = false
+ScriptEditor.TextEditable = true
+ScriptEditor.TextWrapped = true
+ScriptEditor.TextXAlignment = Enum.TextXAlignment.Left
+ScriptEditor.TextYAlignment = Enum.TextYAlignment.Top
+Instance.new("UICorner", ScriptEditor).CornerRadius = UDim.new(0, 8)
 
--- ==================== LÓGICA DE INJEÇÃO NA FERRAMENTA ====================
-local active = false
-local bulletScript = [[
-    local tool = script.Parent
-    local handle = tool:WaitForChild("Handle")
-    local originalParent = nil
+-- Botões de ação
+local ExecuteBtn = Instance.new("TextButton")
+ExecuteBtn.Parent = Main
+ExecuteBtn.BackgroundColor3 = Color3.fromRGB(255, 71, 87)
+ExecuteBtn.BorderSizePixel = 0
+ExecuteBtn.Position = UDim2.new(0, 10, 0, 238)
+ExecuteBtn.Size = UDim2.new(0, 230, 0, 34)
+ExecuteBtn.Text = "🚀 EXECUTAR NO SERVIDOR"
+ExecuteBtn.Font = Enum.Font.GothamBlack
+ExecuteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ExecuteBtn.TextSize = 12
+Instance.new("UICorner", ExecuteBtn).CornerRadius = UDim.new(0, 8)
 
-    tool.Equipped:Connect(function()
-        originalParent = tool.Parent
-    end)
+local ClearBtn = Instance.new("TextButton")
+ClearBtn.Parent = Main
+ClearBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+ClearBtn.BorderSizePixel = 0
+ClearBtn.Position = UDim2.new(1, -250, 0, 238)
+ClearBtn.Size = UDim2.new(0, 240, 0, 34)
+ClearBtn.Text = "🧹 LIMPAR"
+ClearBtn.Font = Enum.Font.GothamBlack
+ClearBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+ClearBtn.TextSize = 12
+Instance.new("UICorner", ClearBtn).CornerRadius = UDim.new(0, 8)
 
-    tool.Unequipped:Connect(function()
-        task.wait(0.1)
-        local tempFolder = workspace:FindFirstChild("Temp")
-        if not tempFolder then return end
-        for _, obj in ipairs(tempFolder:GetChildren()) do
-            if obj:IsA("MeshPart") and obj.Name == "DiceRoll" then
-                local camDir = workspace.CurrentCamera.CFrame.LookVector
-                obj.Velocity = camDir * 300
-                local bodyForce = Instance.new("BodyForce")
-                bodyForce.Force = Vector3.new(0, obj:GetMass() * workspace.Gravity, 0)
-                bodyForce.Parent = obj
-                game:GetService("Debris"):AddItem(bodyForce, 1)
-                local connection
-                connection = obj.Touched:Connect(function(hit)
-                    local character = hit:FindFirstAncestorOfClass("Model")
-                    if character and character:FindFirstChild("Humanoid") then
-                        local targetPlayer = game:GetService("Players"):GetPlayerFromCharacter(character)
-                        if targetPlayer and targetPlayer ~= game:GetService("Players").LocalPlayer then
-                            local root = character:FindFirstChild("HumanoidRootPart")
-                            if root then
-                                local direction = (root.Position - obj.Position).Unit
-                                direction = (direction * Vector3.new(1, 0, 1) + Vector3.new(0, 0.5, 0)).Unit
-                                root.Velocity = direction * 200
-                                local bodyVel = Instance.new("BodyVelocity")
-                                bodyVel.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                                bodyVel.Velocity = direction * 200
-                                bodyVel.Parent = root
-                                game:GetService("Debris"):AddItem(bodyVel, 0.3)
-                            end
-                        end
+-- Console
+local Console = Instance.new("TextBox")
+Console.Parent = Main
+Console.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
+Console.BorderSizePixel = 0
+Console.Position = UDim2.new(0, 10, 0, 280)
+Console.Size = UDim2.new(1, -20, 0, 130)
+Console.Font = Enum.Font.Code
+Console.Text = "Console: Aguardando comandos...\n"
+Console.TextColor3 = Color3.fromRGB(180, 180, 200)
+Console.TextSize = 11
+Console.ClearTextOnFocus = false
+Console.TextEditable = false
+Console.TextWrapped = true
+Console.TextXAlignment = Enum.TextXAlignment.Left
+Console.TextYAlignment = Enum.TextYAlignment.Top
+Instance.new("UICorner", Console).CornerRadius = UDim.new(0, 8)
+
+local function Log(msg)
+    Console.Text = Console.Text .. msg .. "\n"
+end
+
+-- ==================== MÓDULO DE EXPLORAÇÃO DE BACKDOORS ====================
+local backdoorsFound = {}
+
+local function scanForBackdoors()
+    Log("🔍 Escaneando o jogo por backdoors...")
+    backdoorsFound = {}
+
+    -- 1. Verificar _G e shared
+    if _G.loadstring then
+        table.insert(backdoorsFound, {name = "_G.loadstring", func = _G.loadstring})
+        Log("✅ Encontrado: _G.loadstring")
+    end
+    if _G.execute then
+        table.insert(backdoorsFound, {name = "_G.execute", func = _G.execute})
+        Log("✅ Encontrado: _G.execute")
+    end
+    if shared and shared.loadstring then
+        table.insert(backdoorsFound, {name = "shared.loadstring", func = shared.loadstring})
+        Log("✅ Encontrado: shared.loadstring")
+    end
+
+    -- 2. Procurar RemoteEvents com nomes suspeitos
+    local suspiciousNames = {"Execute", "Run", "Load", "Eval", "Script", "Server", "Command", "Admin", "Backdoor"}
+    local function searchContainer(container)
+        for _, obj in ipairs(container:GetChildren()) do
+            local lowerName = obj.Name:lower()
+            for _, name in ipairs(suspiciousNames) do
+                if lowerName:find(name:lower()) then
+                    if obj:IsA("RemoteEvent") then
+                        table.insert(backdoorsFound, {
+                            name = "RemoteEvent: " .. obj:GetFullName(),
+                            remote = obj,
+                            type = "RemoteEvent"
+                        })
+                        Log("✅ Encontrado RemoteEvent: " .. obj:GetFullName())
+                    elseif obj:IsA("RemoteFunction") then
+                        table.insert(backdoorsFound, {
+                            name = "RemoteFunction: " .. obj:GetFullName(),
+                            remote = obj,
+                            type = "RemoteFunction"
+                        })
+                        Log("✅ Encontrado RemoteFunction: " .. obj:GetFullName())
                     end
-                    connection:Disconnect()
-                end)
-                break
+                end
+            end
+            -- Recursivo
+            searchContainer(obj)
+        end
+    end
+
+    searchContainer(Workspace)
+    searchContainer(ReplicatedStorage)
+    searchContainer(Lighting)
+
+    -- 3. Procurar por require em ModuleScripts expostos
+    local function findRequireBackdoors()
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("ModuleScript") then
+                local source = pcall(function() return obj.Source end)
+                if source and type(source) == "string" then
+                    if source:find("loadstring") or source:find("execute") then
+                        table.insert(backdoorsFound, {
+                            name = "ModuleScript: " .. obj:GetFullName(),
+                            module = obj,
+                            type = "ModuleScript"
+                        })
+                        Log("✅ Encontrado ModuleScript suspeito: " .. obj:GetFullName())
+                    end
+                end
             end
         end
-    end)
-]]
+    end
+    findRequireBackdoors()
 
-local function injectScriptIntoTool(tool)
-    local existingScript = tool:FindFirstChild("DiceSniperScript")
-    if existingScript then existingScript:Destroy() end
-
-    local newScript = Instance.new("LocalScript")
-    newScript.Name = "DiceSniperScript"
-    newScript.Source = bulletScript
-    newScript.Parent = tool
+    Log("📊 Total de backdoors encontradas: " .. #backdoorsFound)
 end
 
-local function monitorTools()
-    local function checkChild(child)
-        if child:IsA("Tool") and child.Name == "Dice" then
-            injectScriptIntoTool(child)
+-- ==================== EXECUÇÃO DE SCRIPTS ====================
+local function executeScript(scriptCode)
+    if #backdoorsFound == 0 then
+        Log("❌ Nenhuma backdoor encontrada. Tente escanear novamente.")
+        return false
+    end
+
+    Log("🚀 Tentando executar via " .. #backdoorsFound .. " backdoors...")
+    local success = false
+
+    for _, backdoor in ipairs(backdoorsFound) do
+        if backdoor.type == "RemoteEvent" then
+            -- Tenta FireServer com o script como argumento
+            pcall(function()
+                backdoor.remote:FireServer(scriptCode)
+                Log("✅ Enviado via RemoteEvent: " .. backdoor.name)
+                success = true
+            end)
+        elseif backdoor.type == "RemoteFunction" then
+            -- Tenta InvokeServer
+            local result = pcall(function()
+                return backdoor.remote:InvokeServer(scriptCode)
+            end)
+            if result then
+                Log("✅ Executado via RemoteFunction: " .. backdoor.name)
+                Log("📤 Retorno: " .. tostring(result))
+                success = true
+            end
+        elseif backdoor.type == "ModuleScript" then
+            -- Tenta require + executar
+            pcall(function()
+                local module = require(backdoor.module)
+                if type(module) == "function" then
+                    module(scriptCode)
+                    Log("✅ Executado via ModuleScript: " .. backdoor.name)
+                    success = true
+                end
+            end)
+        elseif backdoor.func then
+            -- Função direta
+            pcall(function()
+                backdoor.func(scriptCode)
+                Log("✅ Executado via função: " .. backdoor.name)
+                success = true
+            end)
         end
     end
 
-    Player.Character.ChildAdded:Connect(checkChild)
-    Player.Backpack.ChildAdded:Connect(checkChild)
-
-    for _, tool in ipairs(Player.Character:GetChildren()) do
-        checkChild(tool)
+    if not success then
+        Log("❌ Nenhuma backdoor conseguiu executar o script.")
     end
-    for _, tool in ipairs(Player.Backpack:GetChildren()) do
-        checkChild(tool)
-    end
+    return success
 end
 
--- Ativa/Desativa o modo
-local function toggleActive()
-    active = not active
-    if active then
-        ToggleBtn.Text = "🔴 DESATIVAR"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        monitorTools()
-        Notify("🎯 Modo sniper ativado! Equipe o dado e jogue-o.")
+-- ==================== INICIALIZAÇÃO ====================
+scanForBackdoors()
+
+-- ==================== EVENTOS DOS BOTÕES ====================
+ExecuteBtn.MouseButton1Click:Connect(function()
+    local code = ScriptEditor.Text
+    if code:gsub("%s", "") == "" then
+        Notify("Aviso", "Digite um script primeiro!")
+        return
+    end
+    Log("📝 Executando script...")
+    local ok = executeScript(code)
+    if ok then
+        Notify("Sucesso", "Script enviado ao servidor!", 2)
     else
-        ToggleBtn.Text = "🟢 ATIVAR MODO SNIPER"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        Notify("🔴 Modo sniper desativado. Novos dados não serão afetados.")
+        Notify("Falha", "Nenhuma backdoor funcionou.")
     end
-end
+end)
 
-ToggleBtn.MouseButton1Click:Connect(toggleActive)
+ClearBtn.MouseButton1Click:Connect(function()
+    ScriptEditor.Text = "-- Cole seu script aqui"
+    Log("🧹 Console limpo.")
+end)
 
--- Arraste da interface
+-- ==================== ARRASTE ====================
 local dragging, startPos, startGuiPos
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -235,4 +371,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎯 Ative o modo sniper, equipe o dado e jogue-o nos inimigos!")
+Notify("🔥 ServerScript Hub", "Hub carregado! Escaneie backdoors e execute scripts.", 5)
