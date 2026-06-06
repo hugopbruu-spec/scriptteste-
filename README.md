@@ -1,10 +1,9 @@
 --[[
-    Dice Duplicator - Versão Definitiva (100% Garantida)
-    Jogue o dado no chão e clique no botão.
-    Uma tela preta esconde a recarga do personagem.
-    Você não morre, não sai do lugar, e o dado bugado fica no chão.
-    Inventário renovado automaticamente.
-]]
+    🎲 Dice Duplicator vFinal + Console de Depuração
+    Interface completa com botão de reset, tela preta, e console de erros.
+    Clique em "RESETAR INVENTÁRIO" para duplicar dados no chão.
+    Todos os erros são capturados e exibidos no console interno.
+--]]
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
@@ -14,30 +13,24 @@ local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local Camera = Workspace.CurrentCamera
 
--- Aguarda o personagem inicial
+-- Aguarda personagem
 repeat task.wait() until Player.Character
 
--- ==================== TELA PRETA FULL-SCREEN ====================
+-- ==================== TELA PRETA ====================
 local BlackGui = Instance.new("ScreenGui")
 BlackGui.Name = "BlackScreen"
 BlackGui.Parent = CoreGui
 BlackGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 BlackGui.IgnoreGuiInset = true
 BlackGui.Enabled = false
-
 local BlackFrame = Instance.new("Frame")
 BlackFrame.Parent = BlackGui
 BlackFrame.BackgroundColor3 = Color3.new(0, 0, 0)
 BlackFrame.BorderSizePixel = 0
 BlackFrame.Size = UDim2.new(1, 0, 1, 0)
 
-local function ShowBlackScreen()
-    BlackGui.Enabled = true
-end
-
-local function HideBlackScreen()
-    BlackGui.Enabled = false
-end
+local function ShowBlack() BlackGui.Enabled = true end
+local function HideBlack() BlackGui.Enabled = false end
 
 -- ==================== NOTIFICAÇÕES ====================
 local function Notify(text, duration)
@@ -45,29 +38,29 @@ local function Notify(text, duration)
     local gui = Instance.new("ScreenGui")
     gui.Parent = CoreGui
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    local frame = Instance.new("Frame")
-    frame.Parent = gui
-    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-    frame.BorderSizePixel = 0
-    frame.Position = UDim2.new(0.5, -140, 0, 10)
-    frame.Size = UDim2.new(0, 280, 0, 34)
-    frame.AnchorPoint = Vector2.new(0.5, 0)
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
-    Instance.new("UIStroke", frame).Color = Color3.fromRGB(108, 92, 231)
-    local lbl = Instance.new("TextLabel")
-    lbl.Parent = frame
-    lbl.BackgroundTransparency = 1
-    lbl.Size = UDim2.new(1, 0, 1, 0)
-    lbl.Font = Enum.Font.GothamBold
-    lbl.Text = text
-    lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-    lbl.TextSize = 12
-    local tw = Tween:Create(frame, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, 16)})
-    tw:Play()
+    local f = Instance.new("Frame")
+    f.Parent = gui
+    f.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    f.BorderSizePixel = 0
+    f.Position = UDim2.new(0.5, -140, 0, 10)
+    f.Size = UDim2.new(0, 280, 0, 34)
+    f.AnchorPoint = Vector2.new(0.5, 0)
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
+    Instance.new("UIStroke", f).Color = Color3.fromRGB(108, 92, 231)
+    local l = Instance.new("TextLabel")
+    l.Parent = f
+    l.BackgroundTransparency = 1
+    l.Size = UDim2.new(1, 0, 1, 0)
+    l.Font = Enum.Font.GothamBold
+    l.Text = text
+    l.TextColor3 = Color3.fromRGB(255, 255, 255)
+    l.TextSize = 12
+    local t = Tween:Create(f, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, 16)})
+    t:Play()
     task.wait(duration)
-    local tw2 = Tween:Create(frame, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, -34)})
-    tw2:Play()
-    tw2.Completed:Connect(function() gui:Destroy() end)
+    local t2 = Tween:Create(f, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, -34)})
+    t2:Play()
+    t2.Completed:Connect(function() gui:Destroy() end)
 end
 
 -- ==================== INTERFACE ====================
@@ -81,13 +74,13 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 280, 0, 150)
-Main.Position = UDim2.new(0.5, -140, 0.5, -75)
+Main.Size = UDim2.new(0, 320, 0, 320)  -- maior para o console
+Main.Position = UDim2.new(0.5, -160, 0.5, -160)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
 
--- Barra de título
+-- Título
 local TitleBar = Instance.new("Frame")
 TitleBar.Parent = Main
 TitleBar.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
@@ -132,10 +125,7 @@ CloseBtn.Font = Enum.Font.GothamBlack
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.TextSize = 12
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
-CloseBtn.MouseButton1Click:Connect(function()
-    gui:Destroy()
-    Notify("Dice Duplicator fechado")
-end)
+CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Fechado") end)
 
 -- Conteúdo
 local Content = Instance.new("Frame")
@@ -147,9 +137,9 @@ Content.Size = UDim2.new(1, -20, 1, -50)
 local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Parent = Content
 InfoLabel.BackgroundTransparency = 1
-InfoLabel.Size = UDim2.new(1, 0, 0, 44)
+InfoLabel.Size = UDim2.new(1, 0, 0, 36)
 InfoLabel.Font = Enum.Font.Gotham
-InfoLabel.Text = "1. Jogue o dado no chão.\n2. Clique em RESETAR INVENTÁRIO.\nVocê renasce no mesmo lugar, com itens novos."
+InfoLabel.Text = "1. Jogue o dado no chão\n2. Clique em RESETAR"
 InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
 InfoLabel.TextSize = 10
 InfoLabel.TextWrapped = true
@@ -159,93 +149,160 @@ local ResetBtn = Instance.new("TextButton")
 ResetBtn.Parent = Content
 ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 ResetBtn.BorderSizePixel = 0
-ResetBtn.Position = UDim2.new(0, 0, 0, 48)
-ResetBtn.Size = UDim2.new(1, 0, 0, 38)
+ResetBtn.Position = UDim2.new(0, 0, 0, 38)
+ResetBtn.Size = UDim2.new(1, 0, 0, 34)
 ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
 ResetBtn.Font = Enum.Font.GothamBlack
 ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ResetBtn.TextSize = 11
 Instance.new("UICorner", ResetBtn).CornerRadius = UDim.new(0, 8)
 
+-- Mini console
+local ConsoleLabel = Instance.new("TextLabel")
+ConsoleLabel.Parent = Content
+ConsoleLabel.BackgroundTransparency = 1
+ConsoleLabel.Position = UDim2.new(0, 0, 0, 80)
+ConsoleLabel.Size = UDim2.new(1, 0, 0, 18)
+ConsoleLabel.Font = Enum.Font.GothamBold
+ConsoleLabel.Text = "📋 Console de erros:"
+ConsoleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+ConsoleLabel.TextSize = 11
+ConsoleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local ConsoleBox = Instance.new("TextBox")
+ConsoleBox.Parent = Content
+ConsoleBox.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
+ConsoleBox.BorderSizePixel = 0
+ConsoleBox.Position = UDim2.new(0, 0, 0, 100)
+ConsoleBox.Size = UDim2.new(1, 0, 0, 100)
+ConsoleBox.Font = Enum.Font.Code
+ConsoleBox.Text = "Nenhum erro ainda."
+ConsoleBox.TextColor3 = Color3.fromRGB(200, 200, 220)
+ConsoleBox.TextSize = 10
+ConsoleBox.ClearTextOnFocus = false
+ConsoleBox.TextEditable = false
+ConsoleBox.TextWrapped = true
+ConsoleBox.TextXAlignment = Enum.TextXAlignment.Left
+ConsoleBox.TextYAlignment = Enum.TextYAlignment.Top
+Instance.new("UICorner", ConsoleBox).CornerRadius = UDim.new(0, 6)
+Instance.new("UIStroke", ConsoleBox).Color = Color3.fromRGB(108, 92, 231)
+
+local CopyErrBtn = Instance.new("TextButton")
+CopyErrBtn.Parent = Content
+CopyErrBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+CopyErrBtn.BorderSizePixel = 0
+CopyErrBtn.Position = UDim2.new(1, -60, 0, 205)
+CopyErrBtn.Size = UDim2.new(0, 56, 0, 22)
+CopyErrBtn.Text = "📋 Copiar"
+CopyErrBtn.Font = Enum.Font.GothamBold
+CopyErrBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CopyErrBtn.TextSize = 10
+Instance.new("UICorner", CopyErrBtn).CornerRadius = UDim.new(0, 6)
+
+-- Função para logar erro no console
+local function LogError(msg)
+    ConsoleBox.Text = ConsoleBox.Text .. "\n" .. msg
+end
+
+-- Botão copiar
+CopyErrBtn.MouseButton1Click:Connect(function()
+    pcall(function()
+        if setclipboard then setclipboard(ConsoleBox.Text)
+        elseif writefile then writefile("dice_errors.txt", ConsoleBox.Text) end
+    end)
+    Notify("Erros copiados!")
+end)
+
+-- ==================== AÇÃO PRINCIPAL ====================
 ResetBtn.MouseButton1Click:Connect(function()
     ResetBtn.Text = "⏳ Resetando..."
     ResetBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
     ResetBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
     ResetBtn.Interactable = false
+    ConsoleBox.Text = ""  -- limpa erros anteriores
 
     local oldCharacter = Player.Character
-    if not oldCharacter or not oldCharacter:FindFirstChild("HumanoidRootPart") then
+    if not oldCharacter then
+        LogError("ERRO: Personagem não existe.")
         ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
         ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         ResetBtn.Interactable = true
-        Notify("Personagem não encontrado. Tente novamente.")
         return
     end
 
-    -- Salva posição e câmera
-    local oldRoot = oldCharacter.HumanoidRootPart
+    local oldRoot = oldCharacter:FindFirstChild("HumanoidRootPart")
+    if not oldRoot then
+        LogError("ERRO: HumanoidRootPart não encontrado no personagem antigo.")
+        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
+        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ResetBtn.Interactable = true
+        return
+    end
+
     local savedCFrame = oldRoot.CFrame
     local savedCamCFrame = Camera.CFrame
+    LogError("OK: Posição salva: " .. tostring(savedCFrame))
 
-    -- Ativa a tela preta (cobre tudo instantaneamente)
-    ShowBlackScreen()
+    ShowBlack()
+    LogError("OK: Tela preta ativada.")
 
-    -- Recarrega o personagem (sem morte)
-    local success = pcall(function()
+    local success, err = pcall(function()
         Player:LoadCharacter()
     end)
 
     if not success then
-        HideBlackScreen()
+        LogError("ERRO LoadCharacter: " .. tostring(err))
+        HideBlack()
         ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
         ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         ResetBtn.Interactable = true
-        Notify("Falha ao recarregar. Tente novamente.")
         return
     end
+    LogError("OK: LoadCharacter executado.")
 
-    -- Aguarda o novo personagem com timeout de 10 segundos
     local newCharacter = nil
-    local startTime = tick()
+    local start = tick()
     repeat
         newCharacter = Player.Character
         task.wait(0.05)
-    until (newCharacter and newCharacter ~= oldCharacter) or (tick() - startTime > 10)
+    until (newCharacter and newCharacter ~= oldCharacter) or (tick() - start > 10)
 
     if not newCharacter or newCharacter == oldCharacter then
-        HideBlackScreen()
+        LogError("ERRO: Novo personagem não apareceu após 10s.")
+        HideBlack()
         ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
         ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         ResetBtn.Interactable = true
-        Notify("Novo personagem não carregou.")
         return
     end
+    LogError("OK: Novo personagem detectado.")
 
-    -- Aguarda o HumanoidRootPart (essencial)
     local newRoot = newCharacter:WaitForChild("HumanoidRootPart", 5)
     if not newRoot then
-        HideBlackScreen()
+        LogError("ERRO: HumanoidRootPart não carregou no novo personagem.")
+        HideBlack()
         ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
         ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         ResetBtn.Interactable = true
-        Notify("HumanoidRootPart não encontrado.")
         return
     end
 
-    -- Teleporta o novo personagem para a posição salva (ainda com tela preta)
     newRoot.CFrame = savedCFrame
     Camera.CameraSubject = newCharacter:FindFirstChild("Humanoid")
     Camera.CFrame = savedCamCFrame
+    LogError("OK: Teleporte e câmera restaurados.")
 
-    -- Pequena pausa para garantir que a tela preta permaneça um instante a mais, evitando flicker
     task.wait(0.15)
-    HideBlackScreen()
+    HideBlack()
+    LogError("OK: Tela preta removida.")
+    LogError("SUCESSO: Inventário resetado!")
 
-    Notify("Inventário resetado! O dado no chão continua lá.")
+    Notify("Inventário resetado! Dado no chão mantido.")
     ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
     ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
     ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -276,4 +333,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Dice Duplicator carregado! Arraste a janela.")
+Notify("🎲 Console de erros ativo. Copie e cole aqui se falhar.")
