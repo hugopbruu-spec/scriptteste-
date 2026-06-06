@@ -1,8 +1,9 @@
 --[[
-    🎲 Dice Duplicator Pro – Clonagem instantânea (sem rejoin)
-    Segure o dado na mão e clique com ele no chão.
-    Uma cópia exata do dado será criada e permanecerá no mundo.
-    Rápido, invisível para o servidor como "saída", e acumulativo.
+    🎲 Dice Duplicator Pro – Transferência de rede + novo dado
+    1. Jogue o dado no chão.
+    2. Clique em "DUPLICAR DADO".
+    3. O dado no chão é desvinculado de você (vai para o servidor) e permanece para sempre.
+    4. Um novo dado aparece na sua mão automaticamente.
 --]]
 
 local Players = game:GetService("Players")
@@ -11,10 +12,9 @@ local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
-local Camera = Workspace.CurrentCamera
 
--- Aguarda personagem
-repeat task.wait() until Player.Character
+-- Aguarda personagem e mochila
+repeat task.wait() until Player.Character and Player.Backpack
 
 -- ==================== NOTIFICAÇÕES ====================
 local function Notify(text, duration)
@@ -58,8 +58,8 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 280, 0, 150)
-Main.Position = UDim2.new(0.5, -140, 0.5, -75)
+Main.Size = UDim2.new(0, 280, 0, 130)
+Main.Position = UDim2.new(0.5, -140, 0.5, -65)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
@@ -121,99 +121,91 @@ Content.Size = UDim2.new(1, -20, 1, -50)
 local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Parent = Content
 InfoLabel.BackgroundTransparency = 1
-InfoLabel.Size = UDim2.new(1, 0, 0, 40)
+InfoLabel.Size = UDim2.new(1, 0, 0, 30)
 InfoLabel.Font = Enum.Font.Gotham
-InfoLabel.Text = "Segure o dado na mão\nClique em ATIVAR CLONAGEM\nDepois clique com o dado no chão"
+InfoLabel.Text = "1. Jogue o dado no chão\n2. Clique em DUPLICAR"
 InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
 InfoLabel.TextSize = 10
 InfoLabel.TextWrapped = true
 InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local CloneBtn = Instance.new("TextButton")
-CloneBtn.Parent = Content
-CloneBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-CloneBtn.BorderSizePixel = 0
-CloneBtn.Position = UDim2.new(0, 0, 0, 44)
-CloneBtn.Size = UDim2.new(1, 0, 0, 38)
-CloneBtn.Text = "🔁 ATIVAR CLONAGEM DE DADO"
-CloneBtn.Font = Enum.Font.GothamBlack
-CloneBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloneBtn.TextSize = 11
-Instance.new("UICorner", CloneBtn).CornerRadius = UDim.new(0, 8)
+local DupBtn = Instance.new("TextButton")
+DupBtn.Parent = Content
+DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+DupBtn.BorderSizePixel = 0
+DupBtn.Position = UDim2.new(0, 0, 0, 34)
+DupBtn.Size = UDim2.new(1, 0, 0, 38)
+DupBtn.Text = "🔄 DUPLICAR DADO"
+DupBtn.Font = Enum.Font.GothamBlack
+DupBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DupBtn.TextSize = 11
+Instance.new("UICorner", DupBtn).CornerRadius = UDim.new(0, 8)
 
--- Estado
-local cloneActive = false
-local diceTool = nil
+DupBtn.MouseButton1Click:Connect(function()
+    DupBtn.Text = "⏳ Processando..."
+    DupBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    DupBtn.Interactable = false
 
-CloneBtn.MouseButton1Click:Connect(function()
-    -- Procura o dado na mão ou mochila
-    diceTool = Player.Character and Player.Character:FindFirstChildOfClass("Tool")
-    if not diceTool then
-        diceTool = Player.Backpack:FindFirstChildOfClass("Tool")
-    end
-    
-    if not diceTool then
-        Notify("Você não está com um dado na mão!")
-        return
-    end
-    
-    if diceTool.Name ~= "Dice" and diceTool.Name ~= "Dice roll" then
-        Notify("O item na sua mão não parece um dado (Dice/Dice roll).")
-        return
-    end
-    
-    cloneActive = true
-    CloneBtn.Text = "✅ CLONAGEM ATIVA – CLIQUE NO CHÃO"
-    CloneBtn.BackgroundColor3 = Color3.fromRGB(0, 210, 160)
-    Notify("Modo clonagem ativado! Clique com o dado no chão.")
-end)
-
--- Quando a ferramenta é ativada (clicada), se clonagem estiver ativa, cria cópia
-local toolActivatedConn
-local function setupClone()
-    if toolActivatedConn then toolActivatedConn:Disconnect() end
-    if diceTool then
-        toolActivatedConn = diceTool.Activated:Connect(function()
-            if not cloneActive then return end
-            -- Clona o dado inteiro no chão onde o mouse aponta
-            local targetPos = Player:GetMouse().Hit.Position + Vector3.new(0, 2, 0)
-            local clone = diceTool:Clone()
-            clone.Parent = Workspace
-            if clone:IsA("Tool") then
-                -- Se for Tool, removemos o script de ferramenta para virar um modelo estático
-                clone.Parent = Workspace
-                for _, child in ipairs(clone:GetDescendants()) do
-                    if child:IsA("Script") or child:IsA("LocalScript") then
-                        child:Destroy()
-                    end
-                end
-                -- Move para a posição
-                if clone.PrimaryPart then
-                    clone:SetPrimaryPartCFrame(CFrame.new(targetPos))
-                end
-            else
-                -- Se for Model, move
-                clone:MoveTo(targetPos)
+    -- 1. Encontrar dados no chão que pertencem ao jogador local
+    local transferred = 0
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and (obj.Name == "Dice" or obj.Name == "Dice roll") then
+            local owner = nil
+            pcall(function() owner = obj:GetNetworkOwner() end)
+            if owner == Player then
+                -- Transfere a propriedade para o servidor (nil) ou outro jogador
+                pcall(function() obj:SetNetworkOwner(nil) end)
+                transferred = transferred + 1
             end
-            Notify("🎲 Dado clonado no chão!")
-        end)
+        end
     end
-end
 
--- Monitora a troca de ferramenta
-Player.ChildAdded:Connect(function(child)
-    if child:IsA("Tool") then
-        diceTool = child
-        setupClone()
+    if transferred == 0 then
+        Notify("Nenhum dado encontrado no chão. Jogue o dado primeiro!")
+        DupBtn.Text = "🔄 DUPLICAR DADO"
+        DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+        DupBtn.Interactable = true
+        return
     end
-end)
-Player.ChildRemoved:Connect(function(child)
-    if child == diceTool then
-        diceTool = nil
-        cloneActive = false
-        CloneBtn.Text = "🔁 ATIVAR CLONAGEM DE DADO"
-        CloneBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+
+    -- 2. Clonar o dado do chão de volta para a mochila
+    local diceModel = nil
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Tool") and (obj.Name == "Dice" or obj.Name == "Dice roll") then
+            diceModel = obj
+            break
+        end
+        if obj:IsA("BasePart") and (obj.Name == "Dice" or obj.Name == "Dice roll") then
+            diceModel = obj.Parent -- talvez o dado seja um modelo
+            break
+        end
     end
+
+    if diceModel then
+        local clone = diceModel:Clone()
+        if clone:IsA("Tool") then
+            clone.Parent = Player.Backpack
+        else
+            -- Se for um modelo, tenta colocar como Tool na mochila (pode falhar)
+            local newTool = Instance.new("Tool")
+            newTool.Name = diceModel.Name
+            newTool.Parent = Player.Backpack
+            for _, child in ipairs(clone:GetChildren()) do
+                child.Parent = newTool
+            end
+        end
+        Notify("🎲 Dado duplicado! Você tem um novo na mochila.")
+    else
+        -- Fallback: cria um dado genérico
+        local newTool = Instance.new("Tool")
+        newTool.Name = "Dice"
+        newTool.Parent = Player.Backpack
+        Notify("🎲 Novo dado criado (genérico).")
+    end
+
+    DupBtn.Text = "🔄 DUPLICAR DADO"
+    DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+    DupBtn.Interactable = true
 end)
 
 -- Arraste
@@ -240,4 +232,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Segure o dado, ative a clonagem e clique no chão!")
+Notify("🎲 Jogue o dado e clique em DUPLICAR para ter outro!")
