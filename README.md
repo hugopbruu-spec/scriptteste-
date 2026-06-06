@@ -1,78 +1,19 @@
 --[[
-    🎲 Dice Duplicator – Rejoin Flash (Imperceptível)
-    Sai e volta ao mesmo servidor tão rápido que parece um "lag".
-    Restaura posição e câmera automaticamente.
-    O dado no chão permanece e você ganha um novo.
+    🎲 Dice Duplicator Pro – Clonagem instantânea (sem rejoin)
+    Segure o dado na mão e clique com ele no chão.
+    Uma cópia exata do dado será criada e permanecerá no mundo.
+    Rápido, invisível para o servidor como "saída", e acumulativo.
 --]]
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
-local TeleportService = game:GetService("TeleportService")
-local CoreGui = game:GetService("CoreGui")
 local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local Camera = Workspace.CurrentCamera
 
--- ==================== TELA PRETA PERSISTENTE ====================
--- Usamos PlayerGui porque sobrevive ao teleporte se ResetOnSpawn = false
-local function ShowBlack()
-    local black = Instance.new("ScreenGui")
-    black.Name = "RejoinBlack"
-    black.Parent = Player.PlayerGui  -- não CoreGui, para persistir
-    black.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    black.ResetOnSpawn = false       -- ESSENCIAL para não ser destruído
-    black.IgnoreGuiInset = true
-    local frame = Instance.new("Frame")
-    frame.Parent = black
-    frame.BackgroundColor3 = Color3.new(0, 0, 0)
-    frame.BorderSizePixel = 0
-    frame.Size = UDim2.new(1, 0, 1, 0)
-end
-
-local function RemoveBlack()
-    for _, gui in ipairs(Player.PlayerGui:GetChildren()) do
-        if gui.Name == "RejoinBlack" then
-            gui:Destroy()
-        end
-    end
-end
-
--- ==================== RESTAURAÇÃO PÓS-REJOIN ====================
-local function TryRestorePosition()
-    local savedCFrame = Player:GetAttribute("DiceSavedCFrame")
-    local savedCamCFrame = Player:GetAttribute("DiceSavedCamCFrame")
-    if not savedCFrame then return false end
-    
-    -- Aguarda o novo personagem carregar
-    local char = Player.Character
-    if not char then return false end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then
-        root = char:WaitForChild("HumanoidRootPart", 5)
-    end
-    if not root then return false end
-    
-    root.CFrame = savedCFrame
-    if savedCamCFrame then
-        Camera.CFrame = savedCamCFrame
-    end
-    Camera.CameraSubject = char:FindFirstChild("Humanoid")
-    
-    -- Limpa os atributos
-    Player:SetAttribute("DiceSavedCFrame", nil)
-    Player:SetAttribute("DiceSavedCamCFrame", nil)
-    RemoveBlack()
-    return true
-end
-
--- Tenta restaurar se for um rejoin (atributos existem)
-if TryRestorePosition() then
-    -- Se restaurou, não precisa mostrar interface de novo? 
-    -- Mostra interface normalmente, mas a tela preta já foi removida.
-end
-
--- Aguarda personagem para prosseguir
+-- Aguarda personagem
 repeat task.wait() until Player.Character
 
 -- ==================== NOTIFICAÇÕES ====================
@@ -117,8 +58,8 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 280, 0, 130)
-Main.Position = UDim2.new(0.5, -140, 0.5, -65)
+Main.Size = UDim2.new(0, 280, 0, 150)
+Main.Position = UDim2.new(0.5, -140, 0.5, -75)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
@@ -180,49 +121,99 @@ Content.Size = UDim2.new(1, -20, 1, -50)
 local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Parent = Content
 InfoLabel.BackgroundTransparency = 1
-InfoLabel.Size = UDim2.new(1, 0, 0, 30)
+InfoLabel.Size = UDim2.new(1, 0, 0, 40)
 InfoLabel.Font = Enum.Font.Gotham
-InfoLabel.Text = "1. Jogue o dado no chão\n2. Clique em DUPLICAR"
+InfoLabel.Text = "Segure o dado na mão\nClique em ATIVAR CLONAGEM\nDepois clique com o dado no chão"
 InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
 InfoLabel.TextSize = 10
 InfoLabel.TextWrapped = true
 InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local DupBtn = Instance.new("TextButton")
-DupBtn.Parent = Content
-DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-DupBtn.BorderSizePixel = 0
-DupBtn.Position = UDim2.new(0, 0, 0, 34)
-DupBtn.Size = UDim2.new(1, 0, 0, 38)
-DupBtn.Text = "🔄 DUPLICAR (REJOIN INVISÍVEL)"
-DupBtn.Font = Enum.Font.GothamBlack
-DupBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-DupBtn.TextSize = 11
-Instance.new("UICorner", DupBtn).CornerRadius = UDim.new(0, 8)
+local CloneBtn = Instance.new("TextButton")
+CloneBtn.Parent = Content
+CloneBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+CloneBtn.BorderSizePixel = 0
+CloneBtn.Position = UDim2.new(0, 0, 0, 44)
+CloneBtn.Size = UDim2.new(1, 0, 0, 38)
+CloneBtn.Text = "🔁 ATIVAR CLONAGEM DE DADO"
+CloneBtn.Font = Enum.Font.GothamBlack
+CloneBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloneBtn.TextSize = 11
+Instance.new("UICorner", CloneBtn).CornerRadius = UDim.new(0, 8)
 
-DupBtn.MouseButton1Click:Connect(function()
-    DupBtn.Text = "⏳ Duplicando..."
-    DupBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-    DupBtn.Interactable = false
-    
-    -- Salva posição atual nos atributos do jogador (persiste após rejoin)
-    local char = Player.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        Player:SetAttribute("DiceSavedCFrame", char.HumanoidRootPart.CFrame)
-        Player:SetAttribute("DiceSavedCamCFrame", Camera.CFrame)
+-- Estado
+local cloneActive = false
+local diceTool = nil
+
+CloneBtn.MouseButton1Click:Connect(function()
+    -- Procura o dado na mão ou mochila
+    diceTool = Player.Character and Player.Character:FindFirstChildOfClass("Tool")
+    if not diceTool then
+        diceTool = Player.Backpack:FindFirstChildOfClass("Tool")
     end
     
-    -- Mostra tela preta PERSISTENTE (PlayerGui)
-    ShowBlack()
+    if not diceTool then
+        Notify("Você não está com um dado na mão!")
+        return
+    end
     
-    -- Rejoin para o mesmo servidor
-    pcall(function()
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Player)
-    end)
-    -- Se falhar, teleporta para o mesmo jogo (sem preservar servidor)
-    pcall(function()
-        TeleportService:Teleport(game.PlaceId, Player)
-    end)
+    if diceTool.Name ~= "Dice" and diceTool.Name ~= "Dice roll" then
+        Notify("O item na sua mão não parece um dado (Dice/Dice roll).")
+        return
+    end
+    
+    cloneActive = true
+    CloneBtn.Text = "✅ CLONAGEM ATIVA – CLIQUE NO CHÃO"
+    CloneBtn.BackgroundColor3 = Color3.fromRGB(0, 210, 160)
+    Notify("Modo clonagem ativado! Clique com o dado no chão.")
+end)
+
+-- Quando a ferramenta é ativada (clicada), se clonagem estiver ativa, cria cópia
+local toolActivatedConn
+local function setupClone()
+    if toolActivatedConn then toolActivatedConn:Disconnect() end
+    if diceTool then
+        toolActivatedConn = diceTool.Activated:Connect(function()
+            if not cloneActive then return end
+            -- Clona o dado inteiro no chão onde o mouse aponta
+            local targetPos = Player:GetMouse().Hit.Position + Vector3.new(0, 2, 0)
+            local clone = diceTool:Clone()
+            clone.Parent = Workspace
+            if clone:IsA("Tool") then
+                -- Se for Tool, removemos o script de ferramenta para virar um modelo estático
+                clone.Parent = Workspace
+                for _, child in ipairs(clone:GetDescendants()) do
+                    if child:IsA("Script") or child:IsA("LocalScript") then
+                        child:Destroy()
+                    end
+                end
+                -- Move para a posição
+                if clone.PrimaryPart then
+                    clone:SetPrimaryPartCFrame(CFrame.new(targetPos))
+                end
+            else
+                -- Se for Model, move
+                clone:MoveTo(targetPos)
+            end
+            Notify("🎲 Dado clonado no chão!")
+        end)
+    end
+end
+
+-- Monitora a troca de ferramenta
+Player.ChildAdded:Connect(function(child)
+    if child:IsA("Tool") then
+        diceTool = child
+        setupClone()
+    end
+end)
+Player.ChildRemoved:Connect(function(child)
+    if child == diceTool then
+        diceTool = nil
+        cloneActive = false
+        CloneBtn.Text = "🔁 ATIVAR CLONAGEM DE DADO"
+        CloneBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+    end
 end)
 
 -- Arraste
@@ -249,4 +240,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Tela preta cobre o rejoin. É quase instantâneo!")
+Notify("🎲 Segure o dado, ative a clonagem e clique no chão!")
