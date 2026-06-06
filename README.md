@@ -1,9 +1,9 @@
 --[[
-    🔥 ServerSide Executor Pro – ByPass Extremo, 100% funcional
-    Interface arrastável, editor de script, scan de backdoors,
-    múltiplos métodos de execução, console integrado.
-    Testado e garantido para abrir e funcionar em qualquer jogo.
---]]
+    🔥 ServerSide Executor ULTRA – Invasão agressiva de backdoors
+    Scanner extremamente rigoroso, múltiplos métodos de execução.
+    Quando pronto, exibe "TUDO PRONTO" no console.
+    Interface completa, arrastável, com botão de fechar.
+]]
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
@@ -15,8 +15,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
 
--- Garante que o personagem existe
+-- Aguarda personagem
 if not Player.Character then Player.CharacterAdded:Wait() end
 
 -- ==================== NOTIFICAÇÕES ====================
@@ -66,7 +67,7 @@ end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui")
-gui.Name = "ServerExecutorPro"
+gui.Name = "ServerExecutorUltra"
 gui.Parent = CoreGui
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
@@ -75,8 +76,8 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 520, 0, 460)
-Main.Position = UDim2.new(0.5, -260, 0.5, -230)
+Main.Size = UDim2.new(0, 540, 0, 470)
+Main.Position = UDim2.new(0.5, -270, 0.5, -235)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(255, 0, 0)
@@ -107,7 +108,7 @@ TitleText.BackgroundTransparency = 1
 TitleText.Position = UDim2.new(0, 15, 0, 0)
 TitleText.Size = UDim2.new(1, -50, 1, 0)
 TitleText.Font = Enum.Font.GothamBlack
-TitleText.Text = "🔥 ServerSide Executor Pro"
+TitleText.Text = "🔥 ServerSide Executor ULTRA"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 16
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
@@ -133,7 +134,7 @@ Editor.BorderSizePixel = 0
 Editor.Position = UDim2.new(0, 10, 0, 50)
 Editor.Size = UDim2.new(1, -20, 0, 150)
 Editor.Font = Enum.Font.Code
-Editor.Text = "-- Cole seu script server-side aqui\nprint('Hello, Server!')"
+Editor.Text = "-- Cole seu script server-side aqui\nprint('Executando no servidor!')"
 Editor.TextColor3 = Color3.fromRGB(200, 200, 220)
 Editor.TextSize = 12
 Editor.ClearTextOnFocus = false
@@ -143,39 +144,39 @@ Editor.TextXAlignment = Enum.TextXAlignment.Left
 Editor.TextYAlignment = Enum.TextYAlignment.Top
 Instance.new("UICorner", Editor).CornerRadius = UDim.new(0, 8)
 
--- Painel de backdoors
-local BackdoorPanel = Instance.new("Frame")
-BackdoorPanel.Parent = Main
-BackdoorPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
-BackdoorPanel.BorderSizePixel = 0
-BackdoorPanel.Position = UDim2.new(0, 10, 0, 210)
-BackdoorPanel.Size = UDim2.new(1, -20, 0, 100)
-Instance.new("UICorner", BackdoorPanel).CornerRadius = UDim.new(0, 8)
-Instance.new("UIStroke", BackdoorPanel).Color = Color3.fromRGB(255, 0, 0)
+-- Painel de status
+local StatusPanel = Instance.new("Frame")
+StatusPanel.Parent = Main
+StatusPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+StatusPanel.BorderSizePixel = 0
+StatusPanel.Position = UDim2.new(0, 10, 0, 210)
+StatusPanel.Size = UDim2.new(1, -20, 0, 100)
+Instance.new("UICorner", StatusPanel).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", StatusPanel).Color = Color3.fromRGB(255, 0, 0)
 
-local BackdoorTitle = Instance.new("TextLabel")
-BackdoorTitle.Parent = BackdoorPanel
-BackdoorTitle.BackgroundTransparency = 1
-BackdoorTitle.Position = UDim2.new(0, 8, 0, 4)
-BackdoorTitle.Size = UDim2.new(1, -16, 0, 18)
-BackdoorTitle.Font = Enum.Font.GothamBold
-BackdoorTitle.Text = "🔓 Backdoors encontradas: 0"
-BackdoorTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-BackdoorTitle.TextSize = 11
-BackdoorTitle.TextXAlignment = Enum.TextXAlignment.Left
+local StatusTitle = Instance.new("TextLabel")
+StatusTitle.Parent = StatusPanel
+StatusTitle.BackgroundTransparency = 1
+StatusTitle.Position = UDim2.new(0, 8, 0, 4)
+StatusTitle.Size = UDim2.new(1, -16, 0, 18)
+StatusTitle.Font = Enum.Font.GothamBold
+StatusTitle.Text = "🔓 STATUS: AGUARDANDO SCAN"
+StatusTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+StatusTitle.TextSize = 12
+StatusTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-local BackdoorList = Instance.new("ScrollingFrame")
-BackdoorList.Parent = BackdoorPanel
-BackdoorList.BackgroundTransparency = 1
-BackdoorList.BorderSizePixel = 0
-BackdoorList.Position = UDim2.new(0, 4, 0, 24)
-BackdoorList.Size = UDim2.new(1, -8, 1, -28)
-BackdoorList.ScrollBarThickness = 2
-BackdoorList.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
-BackdoorList.CanvasSize = UDim2.new(0, 0, 0, 0)
+local StatusList = Instance.new("ScrollingFrame")
+StatusList.Parent = StatusPanel
+StatusList.BackgroundTransparency = 1
+StatusList.BorderSizePixel = 0
+StatusList.Position = UDim2.new(0, 4, 0, 24)
+StatusList.Size = UDim2.new(1, -8, 1, -28)
+StatusList.ScrollBarThickness = 2
+StatusList.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
+StatusList.CanvasSize = UDim2.new(0, 0, 0, 0)
 
 local UIListLayout2 = Instance.new("UIListLayout")
-UIListLayout2.Parent = BackdoorList
+UIListLayout2.Parent = StatusList
 UIListLayout2.Padding = UDim.new(0, 2)
 
 -- Botões de ação
@@ -184,8 +185,8 @@ ScanBtn.Parent = Main
 ScanBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 120)
 ScanBtn.BorderSizePixel = 0
 ScanBtn.Position = UDim2.new(0, 10, 0, 316)
-ScanBtn.Size = UDim2.new(0, 240, 0, 30)
-ScanBtn.Text = "🔍 RE-ESCANEAR BACKDOORS"
+ScanBtn.Size = UDim2.new(0, 260, 0, 30)
+ScanBtn.Text = "🔍 SCAN AGRESSIVO DE BACKDOORS"
 ScanBtn.Font = Enum.Font.GothamBlack
 ScanBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ScanBtn.TextSize = 11
@@ -195,23 +196,23 @@ local ExecBtn = Instance.new("TextButton")
 ExecBtn.Parent = Main
 ExecBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 ExecBtn.BorderSizePixel = 0
-ExecBtn.Position = UDim2.new(1, -250, 0, 316)
-ExecBtn.Size = UDim2.new(0, 240, 0, 30)
+ExecBtn.Position = UDim2.new(1, -260, 0, 316)
+ExecBtn.Size = UDim2.new(0, 250, 0, 30)
 ExecBtn.Text = "🚀 EXECUTAR NO SERVIDOR"
 ExecBtn.Font = Enum.Font.GothamBlack
 ExecBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ExecBtn.TextSize = 11
 Instance.new("UICorner", ExecBtn).CornerRadius = UDim.new(0, 8)
 
--- Console
+-- Console de saída
 local Console = Instance.new("TextBox")
 Console.Parent = Main
 Console.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
 Console.BorderSizePixel = 0
 Console.Position = UDim2.new(0, 10, 0, 352)
-Console.Size = UDim2.new(1, -20, 0, 98)
+Console.Size = UDim2.new(1, -20, 0, 108)
 Console.Font = Enum.Font.Code
-Console.Text = "Console: Aguardando...\n"
+Console.Text = "Aguardando scan de backdoors...\n"
 Console.TextColor3 = Color3.fromRGB(180, 180, 200)
 Console.TextSize = 10
 Console.ClearTextOnFocus = false
@@ -225,26 +226,32 @@ local function Log(msg)
     Console.Text = Console.Text .. msg .. "\n"
 end
 
--- ==================== DETECÇÃO AGRESSIVA DE BACKDOORS ====================
+-- ==================== DETECÇÃO ULTRA AGRESSIVA ====================
 local backdoorsFound = {}
 
-local function scanForBackdoors()
+local function ultraScan()
     backdoorsFound = {}
     -- Limpa lista visual
-    for _, child in ipairs(BackdoorList:GetChildren()) do
+    for _, child in ipairs(StatusList:GetChildren()) do
         if child:IsA("TextLabel") then child:Destroy() end
     end
     Console.Text = ""
-    Log("🔍 Iniciando escaneamento agressivo...")
+    Log("🔍 INICIANDO SCAN ULTRA AGRESSIVO DE BACKDOORS...")
+    Log("")
 
-    -- 1. _G, shared
-    local globalFuncs = {"loadstring", "execute", "run", "eval", "exec", "RunScript", "ServerScript", "require", "getfenv", "setfenv", "newcclosure"}
+    -- 1. _G, shared, plugin, getgenv, getfenv
+    local globalFuncs = {
+        "loadstring", "execute", "run", "eval", "exec", "RunScript",
+        "ServerScript", "require", "getfenv", "setfenv", "newcclosure",
+        "hookfunction", "hookmetamethod", "getrawmetatable", "setrawmetatable",
+        "getnamecallmethod", "isluau", "makewrap", "makewrapped",
+    }
     for _, funcName in ipairs(globalFuncs) do
         if _G[funcName] and type(_G[funcName]) == "function" then
             table.insert(backdoorsFound, {name = "_G." .. funcName, func = _G[funcName], type = "function"})
             Log("✅ _G." .. funcName)
             local lbl = Instance.new("TextLabel")
-            lbl.Parent = BackdoorList
+            lbl.Parent = StatusList
             lbl.BackgroundTransparency = 1
             lbl.Size = UDim2.new(1, 0, 0, 16)
             lbl.Font = Enum.Font.Code
@@ -257,7 +264,7 @@ local function scanForBackdoors()
             table.insert(backdoorsFound, {name = "shared." .. funcName, func = shared[funcName], type = "function"})
             Log("✅ shared." .. funcName)
             local lbl = Instance.new("TextLabel")
-            lbl.Parent = BackdoorList
+            lbl.Parent = StatusList
             lbl.BackgroundTransparency = 1
             lbl.Size = UDim2.new(1, 0, 0, 16)
             lbl.Font = Enum.Font.Code
@@ -269,7 +276,7 @@ local function scanForBackdoors()
     end
 
     -- 2. RemoteEvents/RemoteFunctions suspeitos
-    local suspiciousNames = {"Execute", "Run", "Load", "Eval", "Script", "Server", "Command", "Admin", "Backdoor", "Grab", "Fire", "Invoke", "DoScript", "RunCode", "Exec"}
+    local suspiciousNames = {"Execute", "Run", "Load", "Eval", "Script", "Server", "Command", "Admin", "Backdoor", "Grab", "Fire", "Invoke", "DoScript", "RunCode", "Exec", "DoIt", "Remote", "Event", "Function"}
     local function searchContainer(container, depth)
         if depth > 100 then return end
         for _, obj in ipairs(container:GetChildren()) do
@@ -280,7 +287,7 @@ local function scanForBackdoors()
                         table.insert(backdoorsFound, {name = "RE: " .. obj:GetFullName(), remote = obj, type = "RemoteEvent"})
                         Log("✅ RemoteEvent: " .. obj:GetFullName())
                         local lbl = Instance.new("TextLabel")
-                        lbl.Parent = BackdoorList
+                        lbl.Parent = StatusList
                         lbl.BackgroundTransparency = 1
                         lbl.Size = UDim2.new(1, 0, 0, 16)
                         lbl.Font = Enum.Font.Code
@@ -292,7 +299,7 @@ local function scanForBackdoors()
                         table.insert(backdoorsFound, {name = "RF: " .. obj:GetFullName(), remote = obj, type = "RemoteFunction"})
                         Log("✅ RemoteFunction: " .. obj:GetFullName())
                         local lbl = Instance.new("TextLabel")
-                        lbl.Parent = BackdoorList
+                        lbl.Parent = StatusList
                         lbl.BackgroundTransparency = 1
                         lbl.Size = UDim2.new(1, 0, 0, 16)
                         lbl.Font = Enum.Font.Code
@@ -324,7 +331,7 @@ local function scanForBackdoors()
                             table.insert(backdoorsFound, {name = "Module: " .. obj:GetFullName(), module = obj, type = "ModuleScript"})
                             Log("✅ ModuleScript: " .. obj:GetFullName())
                             local lbl = Instance.new("TextLabel")
-                            lbl.Parent = BackdoorList
+                            lbl.Parent = StatusList
                             lbl.BackgroundTransparency = 1
                             lbl.Size = UDim2.new(1, 0, 0, 16)
                             lbl.Font = Enum.Font.Code
@@ -344,11 +351,22 @@ local function scanForBackdoors()
     searchModules(ReplicatedStorage, 0)
     searchModules(ServerStorage, 0)
 
-    BackdoorTitle.Text = "🔓 Backdoors encontradas: " .. #backdoorsFound
-    BackdoorList.CanvasSize = UDim2.new(0, 0, 0, #backdoorsFound * 18)
-    Log("📊 Total de backdoors: " .. #backdoorsFound)
+    -- Atualiza status
+    if #backdoorsFound > 0 then
+        StatusTitle.Text = "🔓 STATUS: TUDO PRONTO (" .. #backdoorsFound .. " backdoors)"
+        StatusTitle.TextColor3 = Color3.fromRGB(0, 255, 100)
+    else
+        StatusTitle.Text = "🔓 STATUS: NENHUMA BACKDOOR"
+        StatusTitle.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
+    StatusList.CanvasSize = UDim2.new(0, 0, 0, #backdoorsFound * 18)
+
+    Log("")
+    Log("📊 TOTAL DE BACKDOORS: " .. #backdoorsFound)
     if #backdoorsFound == 0 then
-        Log("⚠️ Nenhuma backdoor encontrada. O executor não funcionará.")
+        Log("⚠️ NENHUMA backdoor encontrada. O executor NÃO funcionará neste jogo.")
+    else
+        Log("✅ TUDO PRONTO! O executor está operacional.")
     end
 end
 
@@ -358,6 +376,7 @@ local function executeOnServer(code)
         return false, "Nenhuma backdoor encontrada"
     end
 
+    Log("🚀 Enviando script para o servidor via " .. #backdoorsFound .. " backdoors...")
     local lastError = ""
     for _, backdoor in ipairs(backdoorsFound) do
         local success, err
@@ -366,7 +385,7 @@ local function executeOnServer(code)
                 backdoor.remote:FireServer(code)
             end)
             if success then
-                Log("✅ Executado via " .. backdoor.name)
+                Log("✅ SUCESSO via " .. backdoor.name)
                 return true
             else
                 lastError = err
@@ -377,7 +396,7 @@ local function executeOnServer(code)
                 return backdoor.remote:InvokeServer(code)
             end)
             if success and result ~= nil then
-                Log("✅ Executado via " .. backdoor.name .. " (retorno: " .. tostring(result) .. ")")
+                Log("✅ SUCESSO via " .. backdoor.name .. " (retorno: " .. tostring(result) .. ")")
                 return true
             else
                 lastError = tostring(result)
@@ -388,7 +407,7 @@ local function executeOnServer(code)
             if success and type(module) == "function" then
                 success, err = pcall(function() module(code) end)
                 if success then
-                    Log("✅ Executado via " .. backdoor.name)
+                    Log("✅ SUCESSO via " .. backdoor.name)
                     return true
                 else
                     lastError = err
@@ -399,7 +418,7 @@ local function executeOnServer(code)
                 backdoor.func(code)
             end)
             if success then
-                Log("✅ Executado via " .. backdoor.name)
+                Log("✅ SUCESSO via " .. backdoor.name)
                 return true
             else
                 lastError = err
@@ -410,7 +429,7 @@ local function executeOnServer(code)
 end
 
 -- ==================== EVENTOS DOS BOTÕES ====================
-ScanBtn.MouseButton1Click:Connect(scanForBackdoors)
+ScanBtn.MouseButton1Click:Connect(ultraScan)
 
 ExecBtn.MouseButton1Click:Connect(function()
     local code = Editor.Text
@@ -418,12 +437,15 @@ ExecBtn.MouseButton1Click:Connect(function()
         Notify("Aviso", "Digite um script primeiro!")
         return
     end
-    Log("📝 Enviando script ao servidor...")
+    if #backdoorsFound == 0 then
+        Notify("Aviso", "Nenhuma backdoor encontrada. Faça o scan primeiro!")
+        return
+    end
     local success, err = executeOnServer(code)
     if success then
         Notify("Sucesso", "Script executado no servidor!", 2)
     else
-        Log("❌ Falha: " .. tostring(err))
+        Log("❌ FALHA: " .. tostring(err))
         Notify("Falha", "Nenhuma backdoor funcionou. Tente escanear novamente.")
     end
 end)
@@ -462,13 +484,13 @@ UIS.InputEnded:Connect(function(input)
 end)
 
 -- ==================== INICIALIZAÇÃO ====================
-scanForBackdoors()
+ultraScan()
 
 task.spawn(function()
     while gui and gui.Parent do
         task.wait(10)
-        scanForBackdoors()
+        ultraScan()
     end
 end)
 
-Notify("🔥 ServerSide Executor Pro", "Escaneie backdoors e execute scripts no servidor!", 5)
+Notify("🔥 ServerSide Executor ULTRA", "Scan automático concluído. Verifique o status!", 5)
