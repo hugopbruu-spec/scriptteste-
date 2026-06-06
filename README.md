@@ -1,53 +1,60 @@
 --[[
-    🎲 Dice Duplicator Universal – Robusto e Funcional
+    🎲 Dice Duplicator – Rejoin Automático com Restauração
     Jogue o dado no chão e clique em DUPLICAR.
-    O dado no chão permanece, a ferramenta invisível some,
-    e um novo dado equipável aparece na sua mão.
-    Funciona com qualquer inventário.
+    Sai e volta ao mesmo servidor em segundos.
+    O dado no chão permanece e um novo aparece na sua mão.
+    Console incluso para verificar o progresso.
 --]]
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
-local UIS = game:GetService("UserInputService")
-local Tween = game:GetService("TweenService")
+local TeleportService = game:GetService("TeleportService")
 local CoreGui = game:GetService("CoreGui")
+local UIS = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-local Backpack = Player:WaitForChild("Backpack")
+local Camera = Workspace.CurrentCamera
 
+-- Aguarda o personagem
 repeat task.wait() until Player.Character
 
--- ==================== NOTIFICAÇÕES ====================
-local function Notify(text, duration)
-    duration = duration or 3
-    local gui = Instance.new("ScreenGui")
-    gui.Parent = CoreGui
-    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    local f = Instance.new("Frame")
-    f.Parent = gui
-    f.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-    f.BorderSizePixel = 0
-    f.Position = UDim2.new(0.5, -140, 0, 10)
-    f.Size = UDim2.new(0, 280, 0, 34)
-    f.AnchorPoint = Vector2.new(0.5, 0)
-    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
-    Instance.new("UIStroke", f).Color = Color3.fromRGB(108, 92, 231)
-    local l = Instance.new("TextLabel")
-    l.Parent = f
-    l.BackgroundTransparency = 1
-    l.Size = UDim2.new(1, 0, 1, 0)
-    l.Font = Enum.Font.GothamBold
-    l.Text = text
-    l.TextColor3 = Color3.fromRGB(255, 255, 255)
-    l.TextSize = 12
-    local t = Tween:Create(f, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, 16)})
-    t:Play()
-    task.wait(duration)
-    local t2 = Tween:Create(f, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, -34)})
-    t2:Play()
-    t2.Completed:Connect(function() gui:Destroy() end)
+-- ============== RESTAURAÇÃO PÓS-REJOIN ==============
+-- Se o script rodar e encontrar atributos salvos, restaura a posição e remove a tela preta
+local function TryRestore()
+    local savedCFrame = Player:GetAttribute("DiceSavedCFrame")
+    local savedCamCFrame = Player:GetAttribute("DiceSavedCamCFrame")
+    if not savedCFrame then return false end
+
+    -- Aguarda o novo personagem
+    local char = Player.Character
+    if not char then
+        char = Player.CharacterAdded:Wait()
+    end
+    local root = char:WaitForChild("HumanoidRootPart", 10)
+    if not root then return false end
+
+    root.CFrame = savedCFrame
+    if savedCamCFrame then
+        Camera.CFrame = savedCamCFrame
+    end
+    Camera.CameraSubject = char:FindFirstChild("Humanoid")
+
+    -- Limpa atributos
+    Player:SetAttribute("DiceSavedCFrame", nil)
+    Player:SetAttribute("DiceSavedCamCFrame", nil)
+
+    -- Remove a tela preta persistente
+    for _, gui in ipairs(Player.PlayerGui:GetChildren()) do
+        if gui.Name == "RejoinBlack" then
+            gui:Destroy()
+        end
+    end
+    return true
 end
 
--- ==================== INTERFACE ====================
+-- Tenta restaurar ao iniciar (se for rejoin)
+local restored = TryRestore()
+
+-- ============== INTERFACE ==============
 local gui = Instance.new("ScreenGui")
 gui.Name = "DiceDuplicator"
 gui.Parent = CoreGui
@@ -58,8 +65,8 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 220, 0, 90)
-Main.Position = UDim2.new(0.5, -110, 0.5, -45)
+Main.Size = UDim2.new(0, 260, 0, 160)
+Main.Position = UDim2.new(0.5, -130, 0.5, -80)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
@@ -69,7 +76,7 @@ local TitleBar = Instance.new("Frame")
 TitleBar.Parent = Main
 TitleBar.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 TitleBar.BorderSizePixel = 0
-TitleBar.Size = UDim2.new(1, 0, 0, 28)
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
 local tc = Instance.new("UICorner", TitleBar)
 tc.CornerRadius = UDim.new(0, 12)
 local tf = Instance.new("Frame")
@@ -78,7 +85,6 @@ tf.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 tf.BorderSizePixel = 0
 tf.Size = UDim2.new(1, 0, 0, 12)
 tf.Position = UDim2.new(0, 0, 1, -12)
-
 local TitleText = Instance.new("TextLabel")
 TitleText.Parent = TitleBar
 TitleText.BackgroundTransparency = 1
@@ -86,7 +92,7 @@ TitleText.Size = UDim2.new(1, 0, 1, 0)
 TitleText.Font = Enum.Font.GothamBold
 TitleText.Text = "🎲 Dice Duplicator"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleText.TextSize = 11
+TitleText.TextSize = 12
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Parent = TitleBar
@@ -99,7 +105,7 @@ CloseBtn.Font = Enum.Font.GothamBlack
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.TextSize = 9
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
-CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Fechado") end)
+CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
 
 -- Botão
 local DupBtn = Instance.new("TextButton")
@@ -108,105 +114,79 @@ DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 DupBtn.BorderSizePixel = 0
 DupBtn.Position = UDim2.new(0, 8, 0, 34)
 DupBtn.Size = UDim2.new(1, -16, 0, 30)
-DupBtn.Text = "🔄 DUPLICAR DADO"
+DupBtn.Text = "🔄 DUPLICAR (REJOIN)"
 DupBtn.Font = Enum.Font.GothamBlack
 DupBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 DupBtn.TextSize = 11
 Instance.new("UICorner", DupBtn).CornerRadius = UDim.new(0, 6)
 
--- ==================== LÓGICA PRINCIPAL ====================
-local diceTemplate = nil  -- template atualizado sempre que um dado é detectado
+-- Console
+local Console = Instance.new("TextBox")
+Console.Parent = Main
+Console.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
+Console.BorderSizePixel = 0
+Console.Position = UDim2.new(0, 8, 0, 70)
+Console.Size = UDim2.new(1, -16, 0, 80)
+Console.Font = Enum.Font.Code
+Console.Text = "Pronto.\n"
+Console.TextColor3 = Color3.fromRGB(200, 200, 220)
+Console.TextSize = 10
+Console.ClearTextOnFocus = false
+Console.TextEditable = false
+Console.TextWrapped = true
+Console.TextXAlignment = Enum.TextXAlignment.Left
+Console.TextYAlignment = Enum.TextYAlignment.Top
+Instance.new("UICorner", Console).CornerRadius = UDim.new(0, 4)
 
--- Atualiza o template com um clone da ferramenta (incluindo scripts, mas preservando a funcionalidade)
-local function UpdateTemplate()
-    -- Procura por qualquer ferramenta "Dice" no personagem (mão) ou mochila
-    for _, tool in ipairs(Player.Character:GetChildren()) do
-        if tool:IsA("Tool") and tool.Name == "Dice" then
-            diceTemplate = tool:Clone()
-            return
-        end
-    end
-    for _, tool in ipairs(Backpack:GetChildren()) do
-        if tool:IsA("Tool") and tool.Name == "Dice" then
-            diceTemplate = tool:Clone()
-            return
-        end
-    end
+local function Log(msg)
+    Console.Text = Console.Text .. msg .. "\n"
 end
 
--- Ao iniciar, tenta salvar o template
-UpdateTemplate()
-
--- Atualiza o template sempre que um novo dado aparece (pegou da mochila ou spawnou)
-local function onNewTool(child)
-    if child:IsA("Tool") and child.Name == "Dice" then
-        task.wait(0.2) -- espera propriedades carregarem completamente
-        UpdateTemplate()
-    end
-end
-Player.ChildAdded:Connect(onNewTool)
-Backpack.ChildAdded:Connect(onNewTool)
-
+-- ============== AÇÃO ==============
 DupBtn.MouseButton1Click:Connect(function()
-    -- 1. Preservar dados no chão: garantir NetworkOwner nil para todos os DiceRoll em Workspace.Temp
-    local tempFolder = Workspace:FindFirstChild("Temp")
-    if tempFolder then
-        for _, obj in ipairs(tempFolder:GetChildren()) do
-            if obj:IsA("MeshPart") and obj.Name == "DiceRoll" then
-                pcall(function() obj:SetNetworkOwner(nil) end)
-            end
-        end
-    end
+    DupBtn.Text = "⏳ Aguarde..."
+    DupBtn.Interactable = false
 
-    -- 2. Remover todas as ferramentas "Dice" da mão e da mochila (inclusive a invisível)
-    local toRemove = {}
-    for _, tool in ipairs(Player.Character:GetChildren()) do
-        if tool:IsA("Tool") and tool.Name == "Dice" then
-            table.insert(toRemove, tool)
-        end
-    end
-    for _, tool in ipairs(Backpack:GetChildren()) do
-        if tool:IsA("Tool") and tool.Name == "Dice" then
-            table.insert(toRemove, tool)
-        end
-    end
-    for _, tool in ipairs(toRemove) do
-        tool:Destroy()
-    end
-
-    -- Aguarda um frame para garantir que a destruição seja processada
-    task.wait(0.1)
-
-    -- 3. Criar nova ferramenta baseada no template salvo, ou genérica se não houver
-    local newTool
-    if diceTemplate then
-        newTool = diceTemplate:Clone()
-        -- Remove scripts problemáticos? Não, o script é necessário para jogar o dado.
-        -- Apenas garantimos que a ferramenta seja equipável
+    local char = Player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        Player:SetAttribute("DiceSavedCFrame", char.HumanoidRootPart.CFrame)
+        Player:SetAttribute("DiceSavedCamCFrame", Camera.CFrame)
+        Log("Posição salva.")
     else
-        -- Fallback genérico com as propriedades conhecidas
-        newTool = Instance.new("Tool")
-        newTool.Name = "Dice"
-        newTool.RequiresHandle = true
-        newTool.CanBeDropped = false
-        newTool.ManualActivationOnly = false
-        newTool.Grip = CFrame.new(0,0,0, 1,0,0, 0,1,0, 0,0,1)
-        newTool.GripForward = Vector3.new(0,0,-1)
-        newTool.GripRight = Vector3.new(1,0,0)
-        newTool.GripUp = Vector3.new(0,1,0)
-        newTool.GripPos = Vector3.new(0,0,0)
-        local handle = Instance.new("MeshPart")
-        handle.Name = "Handle"
-        handle.Size = Vector3.new(0.662, 0.662, 0.662)
-        handle.MeshId = "rbxassetid://90561183096956"
-        handle.Material = Enum.Material.Plastic
-        handle.Color = Color3.fromRGB(163, 162, 165)
-        handle.Parent = newTool
+        Log("ERRO: Personagem sem HumanoidRootPart.")
+        DupBtn.Text = "🔄 DUPLICAR (REJOIN)"
+        DupBtn.Interactable = true
+        return
     end
 
-    -- Coloca a nova ferramenta diretamente na mão do jogador (equipa automaticamente)
-    newTool.Parent = Player.Character
-    Notify("🎲 Novo dado equipado! Jogue novamente.")
+    -- Cria tela preta persistente
+    local black = Instance.new("ScreenGui")
+    black.Name = "RejoinBlack"
+    black.Parent = Player.PlayerGui
+    black.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    black.ResetOnSpawn = false
+    black.IgnoreGuiInset = true
+    local frame = Instance.new("Frame")
+    frame.Parent = black
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)
+    frame.BorderSizePixel = 0
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    Log("Tela preta criada.")
+
+    -- Rejoin
+    local ok, err = pcall(function()
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Player)
+    end)
+    if not ok then
+        Log("Falha ao teleportar para mesma instância: " .. tostring(err))
+        -- Tenta teleportar para o jogo (servidor aleatório)
+        pcall(function()
+            TeleportService:Teleport(game.PlaceId, Player)
+        end)
+        Log("Tentando teleporte genérico...")
+    else
+        Log("Teleporte para mesma instância executado.")
+    end
 end)
 
 -- Arraste
@@ -233,4 +213,8 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Dado pronto. Clique em DUPLICAR após jogar.")
+if restored then
+    Log("Restauração pós-rejoin concluída. Novo dado disponível.")
+else
+    Log("Aguardando clique em DUPLICAR.")
+end
