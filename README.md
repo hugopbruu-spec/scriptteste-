@@ -1,8 +1,8 @@
 --[[
-    🔍 Dice Tracker Pro – Rastreamento completo e preciso
-    Ative o rastreador, jogue o dado, e TODOS os objetos
-    que surgirem no mundo serão exibidos no console.
-    Copie os dados e cole aqui para eu analisar.
+    🔍 Click Inspector – Clique em qualquer objeto para ver seus dados
+    Interface com console e botão copiar.
+    Ative o inspector, clique em um dado no chão, e todos os detalhes aparecerão.
+    Copie e cole aqui para eu analisar.
 --]]
 
 local Players = game:GetService("Players")
@@ -11,7 +11,6 @@ local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
-local Backpack = Player:WaitForChild("Backpack")
 
 repeat task.wait() until Player.Character
 
@@ -48,7 +47,7 @@ end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui")
-gui.Name = "DiceTracker"
+gui.Name = "ClickInspector"
 gui.Parent = CoreGui
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
@@ -92,7 +91,7 @@ TitleText.BackgroundTransparency = 1
 TitleText.Position = UDim2.new(0, 36, 0, 0)
 TitleText.Size = UDim2.new(1, -70, 1, 0)
 TitleText.Font = Enum.Font.GothamBold
-TitleText.Text = "Dice Tracker Pro"
+TitleText.Text = "Click Inspector"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 13
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
@@ -122,13 +121,13 @@ ActivateBtn.Parent = Content
 ActivateBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 ActivateBtn.BorderSizePixel = 0
 ActivateBtn.Size = UDim2.new(1, 0, 0, 34)
-ActivateBtn.Text = "🟢 ATIVAR RASTREADOR (com dado na mão)"
+ActivateBtn.Text = "🟢 ATIVAR INSPETOR (clique em objetos)"
 ActivateBtn.Font = Enum.Font.GothamBlack
 ActivateBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ActivateBtn.TextSize = 10
 Instance.new("UICorner", ActivateBtn).CornerRadius = UDim.new(0, 8)
 
--- Mini console
+-- Console
 local ConsoleBox = Instance.new("TextBox")
 ConsoleBox.Parent = Content
 ConsoleBox.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
@@ -136,7 +135,7 @@ ConsoleBox.BorderSizePixel = 0
 ConsoleBox.Position = UDim2.new(0, 0, 0, 40)
 ConsoleBox.Size = UDim2.new(1, 0, 0, 290)
 ConsoleBox.Font = Enum.Font.Code
-ConsoleBox.Text = "Console vazio. Ative o rastreador e jogue o dado."
+ConsoleBox.Text = "Console vazio. Ative o inspetor e clique em um objeto no mundo."
 ConsoleBox.TextColor3 = Color3.fromRGB(200, 200, 220)
 ConsoleBox.TextSize = 10
 ConsoleBox.ClearTextOnFocus = false
@@ -166,35 +165,22 @@ end
 CopyBtn.MouseButton1Click:Connect(function()
     pcall(function()
         if setclipboard then setclipboard(ConsoleBox.Text)
-        elseif writefile then writefile("dice_tracker.txt", ConsoleBox.Text) end
+        elseif writefile then writefile("inspector_data.txt", ConsoleBox.Text) end
     end)
-    Notify("Copiado para a área de transferência!")
+    Notify("Copiado!")
 end)
 
--- ==================== LÓGICA DO RASTREADOR MELHORADA ====================
-local activeTool = nil
-local toolDestroyConn = nil
-local toolAncestryConn = nil
-local initialObjects = {}  -- snapshot dos objetos no mundo antes de jogar
-local trackedNewObjects = {} -- objetos novos que apareceram
+-- ==================== LÓGICA DO INSPETOR ====================
+local active = false
+local clickConn = nil
 
-local function DeactivateTracker()
-    if toolDestroyConn then toolDestroyConn:Disconnect() toolDestroyConn = nil end
-    if toolAncestryConn then toolAncestryConn:Disconnect() toolAncestryConn = nil end
-    activeTool = nil
-    initialObjects = {}
-    trackedNewObjects = {}
-    ActivateBtn.Text = "🟢 ATIVAR RASTREADOR (com dado na mão)"
-    ActivateBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-end
-
--- Captura informações completas de um objeto do mundo
-local function DescribeWorldObject(obj)
+local function DescribeObject(obj)
     local lines = {}
-    table.insert(lines, "---")
+    table.insert(lines, "=== DETALHES DO OBJETO ===")
     table.insert(lines, "Nome: " .. obj.Name)
     table.insert(lines, "Classe: " .. obj.ClassName)
     table.insert(lines, "Parent: " .. (obj.Parent and obj.Parent:GetFullName() or "nil"))
+    
     if obj:IsA("BasePart") then
         table.insert(lines, "Tipo: BasePart")
         table.insert(lines, "Position: " .. tostring(obj.Position))
@@ -208,140 +194,84 @@ local function DescribeWorldObject(obj)
             local meshId = pcall(function() return obj.MeshId end)
             table.insert(lines, "MeshId: " .. tostring(meshId))
         end
-        -- Network Owner
-        local owner = pcall(function() return obj:GetNetworkOwner() end)
+        if obj:IsA("Part") and obj.Shape then
+            table.insert(lines, "Shape: " .. tostring(obj.Shape))
+        end
+        local owner = nil
+        pcall(function() owner = obj:GetNetworkOwner() end)
         table.insert(lines, "NetworkOwner: " .. tostring(owner))
     elseif obj:IsA("Model") then
         table.insert(lines, "Tipo: Model")
         local primary = obj.PrimaryPart
         if primary then
-            table.insert(lines, "PrimaryPart Position: " .. tostring(primary.Position))
+            table.insert(lines, "PrimaryPart: " .. primary.Name .. " (Position: " .. tostring(primary.Position) .. ")")
         end
         table.insert(lines, "Partes do modelo:")
         for _, child in ipairs(obj:GetDescendants()) do
             if child:IsA("BasePart") then
-                table.insert(lines, "  [" .. child.ClassName .. "] " .. child.Name .. " Pos: " .. tostring(child.Position))
+                table.insert(lines, "  [" .. child.ClassName .. "] " .. child.Name .. " Pos: " .. tostring(child.Position) .. " MeshId: " .. (child:IsA("MeshPart") and tostring(child.MeshId) or "N/A"))
             end
         end
+        local owner = nil
+        if primary then pcall(function() owner = primary:GetNetworkOwner() end) end
+        table.insert(lines, "NetworkOwner (via PrimaryPart): " .. tostring(owner))
     end
+    
     -- Atributos
-    local attrs = pcall(function() return obj:GetAttributes() end)
+    local attrs = nil
+    pcall(function() attrs = obj:GetAttributes() end)
     if attrs and type(attrs) == "table" and next(attrs) then
         table.insert(lines, "Atributos:")
         for k, v in pairs(attrs) do
             table.insert(lines, "  " .. k .. ": " .. tostring(v))
         end
+    else
+        table.insert(lines, "Atributos: nenhum")
     end
+    
     return table.concat(lines, "\n")
 end
 
--- Tira snapshot de todos os objetos no Workspace
-local function SnapshotWorkspace()
-    local snapshot = {}
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        snapshot[obj] = true  -- a chave é o próprio objeto (referência)
-    end
-    return snapshot
-end
-
--- Encontra objetos novos comparando com o snapshot
-local function FindNewObjects(snapshot)
-    local newObjects = {}
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if not snapshot[obj] then
-            table.insert(newObjects, obj)
-        end
-    end
-    return newObjects
-end
-
 ActivateBtn.MouseButton1Click:Connect(function()
-    if activeTool then
-        DeactivateTimer()
-        Log("Rastreador desativado.")
-        return
-    end
-
-    -- Procura ferramenta na mão/mochila
-    local function findTool()
-        for _, tool in ipairs(Player.Character:GetChildren()) do
-            if tool:IsA("Tool") and (tool.Name == "Dice" or tool.Name == "Dice roll") then return tool end
-        end
-        for _, tool in ipairs(Backpack:GetChildren()) do
-            if tool:IsA("Tool") and (tool.Name == "Dice" or tool.Name == "Dice roll") then return tool end
-        end
-        return nil
-    end
-
-    activeTool = findTool()
-    if not activeTool then
-        Notify("Você não está com um dado (Dice/Dice roll) na mão ou mochila!")
-        return
-    end
-
-    ActivateBtn.Text = "🔴 DESATIVAR RASTREADOR"
-    ActivateBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-
-    ConsoleBox.Text = "Rastreador ativado! Ferramenta encontrada:\n\n"
-    -- Descreve a ferramenta
-    local function describeTool(tool)
-        local lines = {}
-        table.insert(lines, "=== FERRAMENTA ===")
-        table.insert(lines, "Nome: " .. tool.Name)
-        table.insert(lines, "Classe: " .. tool.ClassName)
-        table.insert(lines, "Parent: " .. tostring(tool.Parent))
-        for _, prop in ipairs({"RequiresHandle", "CanBeDropped", "ManualActivationOnly", "ToolTip", "TextureId", "Grip", "GripForward", "GripRight", "GripUp", "GripPos"}) do
-            local ok, val = pcall(function() return tool[prop] end)
-            if ok and val ~= nil then
-                table.insert(lines, prop .. ": " .. tostring(val))
+    active = not active
+    if active then
+        ActivateBtn.Text = "🔴 DESATIVAR INSPETOR"
+        ActivateBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        ConsoleBox.Text = "Inspetor ativo. Clique em qualquer objeto no mundo para ver seus dados."
+        -- Conecta o clique do mouse
+        if clickConn then clickConn:Disconnect() end
+        clickConn = UIS.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end -- não interfere em cliques na GUI
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                -- Obtém o alvo do mouse
+                local mousePos = UIS:GetMouseLocation()
+                local ray = Workspace.CurrentCamera:ViewportPointToRay(mousePos.X, mousePos.Y)
+                local raycastParams = RaycastParams.new()
+                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                raycastParams.FilterDescendantsInstances = {Player.Character} -- ignora o próprio personagem
+                local raycastResult = Workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+                if raycastResult then
+                    local target = raycastResult.Instance
+                    -- Sobe na hierarquia até o modelo pai (se houver) que não seja Workspace
+                    local inspected = target
+                    while inspected.Parent and inspected.Parent ~= Workspace and inspected.Parent:IsA("Model") do
+                        inspected = inspected.Parent
+                    end
+                    ConsoleBox.Text = "Objeto clicado:\n" .. DescribeObject(inspected)
+                else
+                    -- Se não atingir nada, tenta pegar o objeto sob o mouse via Mouse.Target (se existir)
+                    -- Mas UIS não tem Mouse.Target, então permanece assim.
+                end
             end
-        end
-        table.insert(lines, "Filhos:")
-        for _, child in ipairs(tool:GetChildren()) do
-            table.insert(lines, "  [" .. child.ClassName .. "] " .. child.Name)
-        end
-        local attrs = tool:GetAttributes()
-        if next(attrs) then
-            table.insert(lines, "Atributos:")
-            for k, v in pairs(attrs) do
-                table.insert(lines, "  " .. k .. ": " .. tostring(v))
-            end
-        end
-        return table.concat(lines, "\n")
+        end)
+        Notify("Inspetor ativado! Clique em objetos no mundo.")
+    else
+        ActivateBtn.Text = "🟢 ATIVAR INSPETOR (clique em objetos)"
+        ActivateBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+        ConsoleBox.Text = "Inspetor desativado."
+        if clickConn then clickConn:Disconnect() clickConn = nil end
+        Notify("Inspetor desativado.")
     end
-    Log(describeTool(activeTool))
-    Log("\nAguardando você jogar o dado...")
-
-    -- Tira snapshot do Workspace antes de jogar
-    initialObjects = SnapshotWorkspace()
-
-    -- Monitora destruição ou remoção da ferramenta
-    local function onToolRemoved()
-        task.wait(0.8) -- espera o dado físico aparecer
-        Log("\n>>> DADO JOGADO! Objetos novos no Workspace:\n")
-        local newObjects = FindNewObjects(initialObjects)
-        if #newObjects == 0 then
-            Log("Nenhum objeto novo encontrado. Talvez o dado tenha sido removido sem criar um objeto físico?")
-        else
-            for _, obj in ipairs(newObjects) do
-                Log(DescribeWorldObject(obj))
-            end
-        end
-        Log("\nRastreamento concluído. Copie os dados e cole aqui.")
-        DeactivateTracker()
-    end
-
-    -- Conexões
-    toolDestroyConn = activeTool.Destroying:Connect(function()
-        onToolRemoved()
-    end)
-    toolAncestryConn = activeTool.AncestryChanged:Connect(function()
-        if not activeTool:IsDescendantOf(Player) and not activeTool:IsDescendantOf(Backpack) then
-            onToolRemoved()
-        end
-    end)
-
-    Notify("Rastreador ativo! Jogue o dado.")
 end)
 
 -- Arraste
@@ -368,4 +298,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🔍 Rastreador Pro ativo! Jogue o dado e veja os dados completos.")
+Notify("🔍 Click Inspector carregado! Ative e clique em objetos.")
