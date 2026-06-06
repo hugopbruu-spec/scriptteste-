@@ -1,100 +1,20 @@
 --[[
-    🎲 Dice Duplicator vFinal – Rejoin Automático Imediato
-    Ative o modo, jogue o dado e receba um novo automaticamente.
-    O dado no chão permanece para sempre. Sem bugs de inventário.
+    🎲 Dice Knockback – Dado com super empurrão
+    Ative o modo e jogue o dado. Se ele acertar um jogador,
+    esse jogador será arremessado para longe!
+    Interface com botão de ativar/desativar e fechar.
 --]]
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
-local TeleportService = game:GetService("TeleportService")
-local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
-local Camera = Workspace.CurrentCamera
+local CoreGui = game:GetService("CoreGui")
 
--- Aguarda o personagem carregar
+-- Aguarda o personagem
 repeat task.wait() until Player.Character
-
--- ==================== TELA PRETA PERSISTENTE ====================
-local function createBlackScreen()
-    local black = Instance.new("ScreenGui")
-    black.Name = "DiceRejoinBlack"
-    black.Parent = Player.PlayerGui
-    black.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    black.ResetOnSpawn = false       -- Sobrevive ao teleporte
-    black.IgnoreGuiInset = true
-    local frame = Instance.new("Frame")
-    frame.Parent = black
-    frame.BackgroundColor3 = Color3.new(0, 0, 0)
-    frame.BorderSizePixel = 0
-    frame.Size = UDim2.new(1, 0, 1, 0)
-end
-
-local function removeBlackScreen()
-    for _, gui in ipairs(Player.PlayerGui:GetChildren()) do
-        if gui.Name == "DiceRejoinBlack" then gui:Destroy() end
-    end
-end
-
--- ==================== RESTAURAÇÃO PÓS-REJOIN ====================
-local function restoreAfterRejoin()
-    local savedCFrame = Player:GetAttribute("DiceSavedCFrame")
-    local savedCamCFrame = Player:GetAttribute("DiceSavedCamCFrame")
-    if not savedCFrame then return false end
-
-    -- Aguarda o novo personagem carregar completamente
-    local char = Player.Character
-    if not char then
-        char = Player.CharacterAdded:Wait()
-    end
-    local root = char:WaitForChild("HumanoidRootPart", 10)
-    if not root then return false end
-
-    root.CFrame = savedCFrame
-    if savedCamCFrame then Camera.CFrame = savedCamCFrame end
-    Camera.CameraSubject = char:FindFirstChild("Humanoid")
-
-    -- Limpa os dados salvados
-    Player:SetAttribute("DiceSavedCFrame", nil)
-    Player:SetAttribute("DiceSavedCamCFrame", nil)
-
-    -- Remove a tela preta
-    removeBlackScreen()
-    return true
-end
-
--- Se for um rejoin, tenta restaurar e notifica
-if restoreAfterRejoin() then
-    task.wait(0.5)
-    -- Notificação rápida para o jogador saber que está pronto
-    local gui = Instance.new("ScreenGui")
-    gui.Parent = CoreGui
-    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    local f = Instance.new("Frame")
-    f.Parent = gui
-    f.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-    f.BorderSizePixel = 0
-    f.Position = UDim2.new(0.5, -140, 0, 10)
-    f.Size = UDim2.new(0, 280, 0, 30)
-    f.AnchorPoint = Vector2.new(0.5, 0)
-    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
-    Instance.new("UIStroke", f).Color = Color3.fromRGB(0, 210, 160)
-    local l = Instance.new("TextLabel")
-    l.Parent = f
-    l.BackgroundTransparency = 1
-    l.Size = UDim2.new(1, 0, 1, 0)
-    l.Font = Enum.Font.GothamBold
-    l.Text = "✅ Rejoin concluído! Novo dado na mão."
-    l.TextColor3 = Color3.fromRGB(255, 255, 255)
-    l.TextSize = 12
-    local t = Tween:Create(f, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, 16)})
-    t:Play()
-    task.wait(2)
-    local t2 = Tween:Create(f, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, -30)})
-    t2:Play()
-    t2.Completed:Connect(function() gui:Destroy() end)
-end
 
 -- ==================== NOTIFICAÇÕES ====================
 local function Notify(text, duration)
@@ -129,7 +49,7 @@ end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui")
-gui.Name = "DiceDuplicator"
+gui.Name = "DiceKnockback"
 gui.Parent = CoreGui
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
@@ -164,7 +84,7 @@ TitleText.Parent = TitleBar
 TitleText.BackgroundTransparency = 1
 TitleText.Size = UDim2.new(1, 0, 1, 0)
 TitleText.Font = Enum.Font.GothamBold
-TitleText.Text = "🎲 Dice Duplicator"
+TitleText.Text = "🎲 Dice Knockback"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 11
 
@@ -188,96 +108,75 @@ ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 ToggleBtn.BorderSizePixel = 0
 ToggleBtn.Position = UDim2.new(0, 8, 0, 34)
 ToggleBtn.Size = UDim2.new(1, -16, 0, 28)
-ToggleBtn.Text = "🟢 ATIVAR DUPLICAÇÃO"
+ToggleBtn.Text = "🟢 ATIVAR SUPER EMPURRÃO"
 ToggleBtn.Font = Enum.Font.GothamBlack
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.TextSize = 10
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
 
--- ==================== LÓGICA PRINCIPAL ====================
+-- ==================== LÓGICA DE KNOCKBACK ====================
 local active = false
-local currentTool = nil
-local unequippedConn = nil
+local monitoredParts = {}   -- tabela para rastrear quais DiceRoll já têm conexão
+local touchConnections = {} -- guarda as conexões Touched para desconectar depois
+local scanTimer = nil
 
--- Função que executa o rejoin
-local function executeRejoin()
-    local char = Player.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then
-        Notify("Erro: Personagem não carregado. Cancelei o rejoin.", 3)
-        return
-    end
+-- Força de knockback (quanto maior, mais longe)
+local KNOCKBACK_FORCE = 150
 
-    -- Salva posição e câmera
-    Player:SetAttribute("DiceSavedCFrame", char.HumanoidRootPart.CFrame)
-    Player:SetAttribute("DiceSavedCamCFrame", Camera.CFrame)
+-- Função que aplica o empurrão em um personagem
+local function applyKnockback(character, dicePosition)
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
 
-    -- Tela preta imediata
-    createBlackScreen()
+    -- Direção do dado para o personagem (empurra para longe do dado)
+    local direction = (root.Position - dicePosition).Unit
+    direction = direction * Vector3.new(1, 0, 1) -- remove componente vertical excessiva
+    direction = direction + Vector3.new(0, 0.3, 0) -- um pouco para cima para efeito dramático
 
-    -- Aguarda um frame para a tela preta ser desenhada
-    task.wait(0.1)
+    -- Aplica velocidade diretamente (mais simples e eficaz)
+    root.Velocity = direction * KNOCKBACK_FORCE
 
-    -- Executa o teleporte
-    local success, err = pcall(function()
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Player)
+    -- Opcional: usar BodyVelocity por um curto período para garantir o knockback
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bodyVelocity.Velocity = direction * KNOCKBACK_FORCE
+    bodyVelocity.Parent = root
+    task.delay(0.2, function()
+        bodyVelocity:Destroy()
     end)
-
-    if not success then
-        -- Se falhar, remove a tela preta e notifica
-        removeBlackScreen()
-        Notify("Falha no rejoin. Tente novamente.", 3)
-        active = false
-        ToggleBtn.Text = "🟢 ATIVAR DUPLICAÇÃO"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        if unequippedConn then unequippedConn:Disconnect() end
-    end
 end
 
--- Encontra e configura o monitoramento da ferramenta atual
-local function setupToolMonitoring()
-    -- Desconecta monitoramento anterior
-    if unequippedConn then unequippedConn:Disconnect() end
+-- Conecta o evento Touched em um DiceRoll
+local function connectDiceRoll(part)
+    if monitoredParts[part] then return end
+    monitoredParts[part] = true
 
-    -- Procura a ferramenta "Dice" na mão (personagem)
-    currentTool = nil
-    for _, tool in ipairs(Player.Character:GetChildren()) do
-        if tool:IsA("Tool") and tool.Name == "Dice" then
-            currentTool = tool
-            break
+    local connection = part.Touched:Connect(function(hit)
+        if not active then return end
+        -- Obtém o personagem a partir da parte atingida
+        local character = hit:FindFirstAncestorOfClass("Model")
+        if not character then return end
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not humanoid then return end
+        local targetPlayer = Players:GetPlayerFromCharacter(character)
+        if not targetPlayer or targetPlayer == Player then return end
+
+        -- Aplica o knockback
+        applyKnockback(character, part.Position)
+    end)
+
+    table.insert(touchConnections, {part = part, connection = connection})
+end
+
+-- Escaneia Workspace.Temp por novos DiceRoll e conecta o evento
+local function scanForDice()
+    local tempFolder = Workspace:FindFirstChild("Temp")
+    if not tempFolder then return end
+
+    for _, obj in ipairs(tempFolder:GetChildren()) do
+        if obj:IsA("MeshPart") and obj.Name == "DiceRoll" then
+            connectDiceRoll(obj)
         end
-    end
-
-    if not currentTool then
-        -- Se não está na mão, tenta pegar da mochila e equipar
-        for _, tool in ipairs(Player.Backpack:GetChildren()) do
-            if tool:IsA("Tool") and tool.Name == "Dice" then
-                tool.Parent = Player.Character
-                currentTool = tool
-                break
-            end
-        end
-    end
-
-    if currentTool then
-        -- Monitora quando a ferramenta é desequipada (jogada)
-        unequippedConn = currentTool.Unequipped:Connect(function()
-            if not active then return end
-            -- Aguarda o objeto físico aparecer no chão
-            task.wait(0.5)
-            -- Garante que o dado no chão fique independente
-            local tempFolder = Workspace:FindFirstChild("Temp")
-            if tempFolder then
-                for _, obj in ipairs(tempFolder:GetChildren()) do
-                    if obj:IsA("MeshPart") and obj.Name == "DiceRoll" then
-                        pcall(function() obj:SetNetworkOwner(nil) end)
-                    end
-                end
-            end
-            -- Executa o rejoin
-            executeRejoin()
-        end)
-    else
-        Notify("Nenhum dado encontrado. Pegue o dado primeiro.", 3)
     end
 end
 
@@ -287,26 +186,30 @@ local function toggleActive()
     if active then
         ToggleBtn.Text = "🔴 DESATIVAR"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        setupToolMonitoring()
-        if currentTool then
-            Notify("🟢 Modo duplicação ativado. Jogue o dado!")
-        end
+        -- Inicia o escaneamento periódico
+        scanForDice() -- verifica imediatamente
+        scanTimer = RunService.Heartbeat:Connect(function()
+            scanForDice()
+        end)
+        Notify("🟢 Modo super empurrão ativado! Jogue o dado.")
     else
-        ToggleBtn.Text = "🟢 ATIVAR DUPLICAÇÃO"
+        ToggleBtn.Text = "🟢 ATIVAR SUPER EMPURRÃO"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        if unequippedConn then unequippedConn:Disconnect() end
-        Notify("🔴 Modo duplicação desativado.")
+        -- Desconecta o timer e todos os eventos Touched
+        if scanTimer then
+            scanTimer:Disconnect()
+            scanTimer = nil
+        end
+        for _, item in ipairs(touchConnections) do
+            item.connection:Disconnect()
+        end
+        touchConnections = {}
+        monitoredParts = {}
+        Notify("🔴 Modo super empurrão desativado.")
     end
 end
 
 ToggleBtn.MouseButton1Click:Connect(toggleActive)
-
--- Monitora quando um novo dado é equipado (por exemplo, após pegar da mochila)
-Player.Character.ChildAdded:Connect(function(child)
-    if active and child:IsA("Tool") and child.Name == "Dice" then
-        setupToolMonitoring()  -- reconfigura o monitoramento para a nova ferramenta
-    end
-end)
 
 -- Arraste da interface
 local dragging, startPos, startGuiPos
@@ -332,4 +235,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Pegue o dado, ative a duplicação e jogue!")
+Notify("🎲 Ative o super empurrão e jogue o dado nos outros!")
