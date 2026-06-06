@@ -1,35 +1,19 @@
 --[[
-    🎲 Dice Duplicator vFinal – Preserva dados no chão
-    Desvincula os dados do teu personagem antes de renasceres,
-    impedindo que eles desapareçam. O servidor "esquece" o dado.
-    Inclui console de erros e botão copiar.
+    🎲 Dice Duplicator – Rejoin instantâneo
+    Clique no botão para sair e voltar ao mesmo servidor
+    tão rápido que mal parece que saíste.
+    O dado no chão permanece bugado e ganhas um novo.
 --]]
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
+local TeleportService = game:GetService("TeleportService")
+local CoreGui = game:GetService("CoreGui")
 local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
-local CoreGui = game:GetService("CoreGui")
-local Workspace = game:GetService("Workspace")
-local Camera = Workspace.CurrentCamera
 
+-- Aguarda o personagem
 repeat task.wait() until Player.Character
-
--- ==================== TELA PRETA ====================
-local BlackGui = Instance.new("ScreenGui")
-BlackGui.Name = "BlackScreen"
-BlackGui.Parent = CoreGui
-BlackGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-BlackGui.IgnoreGuiInset = true
-BlackGui.Enabled = false
-local BlackFrame = Instance.new("Frame")
-BlackFrame.Parent = BlackGui
-BlackFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-BlackFrame.BorderSizePixel = 0
-BlackFrame.Size = UDim2.new(1, 0, 1, 0)
-
-local function ShowBlack() BlackGui.Enabled = true end
-local function HideBlack() BlackGui.Enabled = false end
 
 -- ==================== NOTIFICAÇÕES ====================
 local function Notify(text, duration)
@@ -37,29 +21,29 @@ local function Notify(text, duration)
     local gui = Instance.new("ScreenGui")
     gui.Parent = CoreGui
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    local f = Instance.new("Frame")
-    f.Parent = gui
-    f.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-    f.BorderSizePixel = 0
-    f.Position = UDim2.new(0.5, -140, 0, 10)
-    f.Size = UDim2.new(0, 280, 0, 34)
-    f.AnchorPoint = Vector2.new(0.5, 0)
-    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
-    Instance.new("UIStroke", f).Color = Color3.fromRGB(108, 92, 231)
-    local l = Instance.new("TextLabel")
-    l.Parent = f
-    l.BackgroundTransparency = 1
-    l.Size = UDim2.new(1, 0, 1, 0)
-    l.Font = Enum.Font.GothamBold
-    l.Text = text
-    l.TextColor3 = Color3.fromRGB(255, 255, 255)
-    l.TextSize = 12
-    local t = Tween:Create(f, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, 16)})
-    t:Play()
+    local frame = Instance.new("Frame")
+    frame.Parent = gui
+    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    frame.BorderSizePixel = 0
+    frame.Position = UDim2.new(0.5, -140, 0, 10)
+    frame.Size = UDim2.new(0, 280, 0, 34)
+    frame.AnchorPoint = Vector2.new(0.5, 0)
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    Instance.new("UIStroke", frame).Color = Color3.fromRGB(108, 92, 231)
+    local lbl = Instance.new("TextLabel")
+    lbl.Parent = frame
+    lbl.BackgroundTransparency = 1
+    lbl.Size = UDim2.new(1, 0, 1, 0)
+    lbl.Font = Enum.Font.GothamBold
+    lbl.Text = text
+    lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    lbl.TextSize = 12
+    local tw = Tween:Create(frame, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, 16)})
+    tw:Play()
     task.wait(duration)
-    local t2 = Tween:Create(f, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, -34)})
-    t2:Play()
-    t2.Completed:Connect(function() gui:Destroy() end)
+    local tw2 = Tween:Create(frame, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, -34)})
+    tw2:Play()
+    tw2.Completed:Connect(function() gui:Destroy() end)
 end
 
 -- ==================== INTERFACE ====================
@@ -73,13 +57,13 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 340, 0, 340)
-Main.Position = UDim2.new(0.5, -170, 0.5, -170)
+Main.Size = UDim2.new(0, 280, 0, 130)
+Main.Position = UDim2.new(0.5, -140, 0.5, -65)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
 
--- Título
+-- Barra de título
 local TitleBar = Instance.new("Frame")
 TitleBar.Parent = Main
 TitleBar.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
@@ -136,184 +120,46 @@ Content.Size = UDim2.new(1, -20, 1, -50)
 local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Parent = Content
 InfoLabel.BackgroundTransparency = 1
-InfoLabel.Size = UDim2.new(1, 0, 0, 36)
+InfoLabel.Size = UDim2.new(1, 0, 0, 30)
 InfoLabel.Font = Enum.Font.Gotham
-InfoLabel.Text = "1. Jogue o dado no chão\n2. Clique em RESETAR"
+InfoLabel.Text = "1. Jogue o dado no chão\n2. Clique em DUPLICAR"
 InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
 InfoLabel.TextSize = 10
 InfoLabel.TextWrapped = true
 InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local ResetBtn = Instance.new("TextButton")
-ResetBtn.Parent = Content
-ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-ResetBtn.BorderSizePixel = 0
-ResetBtn.Position = UDim2.new(0, 0, 0, 38)
-ResetBtn.Size = UDim2.new(1, 0, 0, 34)
-ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
-ResetBtn.Font = Enum.Font.GothamBlack
-ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ResetBtn.TextSize = 11
-Instance.new("UICorner", ResetBtn).CornerRadius = UDim.new(0, 8)
+local DupBtn = Instance.new("TextButton")
+DupBtn.Parent = Content
+DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+DupBtn.BorderSizePixel = 0
+DupBtn.Position = UDim2.new(0, 0, 0, 34)
+DupBtn.Size = UDim2.new(1, 0, 0, 38)
+DupBtn.Text = "🔄 DUPLICAR (REJOIN RÁPIDO)"
+DupBtn.Font = Enum.Font.GothamBlack
+DupBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DupBtn.TextSize = 11
+Instance.new("UICorner", DupBtn).CornerRadius = UDim.new(0, 8)
 
--- Mini console
-local ConsoleLabel = Instance.new("TextLabel")
-ConsoleLabel.Parent = Content
-ConsoleLabel.BackgroundTransparency = 1
-ConsoleLabel.Position = UDim2.new(0, 0, 0, 80)
-ConsoleLabel.Size = UDim2.new(1, 0, 0, 18)
-ConsoleLabel.Font = Enum.Font.GothamBold
-ConsoleLabel.Text = "📋 Console de erros:"
-ConsoleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-ConsoleLabel.TextSize = 11
-ConsoleLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local ConsoleBox = Instance.new("TextBox")
-ConsoleBox.Parent = Content
-ConsoleBox.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
-ConsoleBox.BorderSizePixel = 0
-ConsoleBox.Position = UDim2.new(0, 0, 0, 100)
-ConsoleBox.Size = UDim2.new(1, 0, 0, 100)
-ConsoleBox.Font = Enum.Font.Code
-ConsoleBox.Text = "Nenhum erro ainda."
-ConsoleBox.TextColor3 = Color3.fromRGB(200, 200, 220)
-ConsoleBox.TextSize = 10
-ConsoleBox.ClearTextOnFocus = false
-ConsoleBox.TextEditable = false
-ConsoleBox.TextWrapped = true
-ConsoleBox.TextXAlignment = Enum.TextXAlignment.Left
-ConsoleBox.TextYAlignment = Enum.TextYAlignment.Top
-Instance.new("UICorner", ConsoleBox).CornerRadius = UDim.new(0, 6)
-Instance.new("UIStroke", ConsoleBox).Color = Color3.fromRGB(108, 92, 231)
-
-local CopyErrBtn = Instance.new("TextButton")
-CopyErrBtn.Parent = Content
-CopyErrBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-CopyErrBtn.BorderSizePixel = 0
-CopyErrBtn.Position = UDim2.new(1, -60, 0, 205)
-CopyErrBtn.Size = UDim2.new(0, 56, 0, 22)
-CopyErrBtn.Text = "📋 Copiar"
-CopyErrBtn.Font = Enum.Font.GothamBold
-CopyErrBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CopyErrBtn.TextSize = 10
-Instance.new("UICorner", CopyErrBtn).CornerRadius = UDim.new(0, 6)
-
-local function LogError(msg)
-    ConsoleBox.Text = ConsoleBox.Text .. "\n" .. msg
-end
-
-CopyErrBtn.MouseButton1Click:Connect(function()
-    pcall(function()
-        if setclipboard then setclipboard(ConsoleBox.Text)
-        elseif writefile then writefile("dice_errors.txt", ConsoleBox.Text) end
+DupBtn.MouseButton1Click:Connect(function()
+    DupBtn.Text = "⏳ A sair e voltar..."
+    DupBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    DupBtn.Interactable = false
+    Notify("Rejoin instantâneo! Aguarda um segundo...")
+    
+    -- Rejoin para o mesmo servidor (TeleportService)
+    local success, err = pcall(function()
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Player)
     end)
-    Notify("Erros copiados!")
-end)
-
--- ==================== AÇÃO PRINCIPAL ====================
-ResetBtn.MouseButton1Click:Connect(function()
-    ResetBtn.Text = "⏳ Resetando..."
-    ResetBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-    ResetBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    ResetBtn.Interactable = false
-    ConsoleBox.Text = ""
-
-    -- 1. Encontrar dados no chão e desvinculá‑los do jogador
-    local diceParts = {}
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and (obj.Name == "Dice" or obj.Name == "Dice roll") then
-            table.insert(diceParts, obj)
-        end
+    
+    if not success then
+        -- Se falhar (ex: servidor cheio), tenta teleport para o mesmo lugar de qualquer forma
+        pcall(function()
+            TeleportService:Teleport(game.PlaceId, Player)
+        end)
     end
-    LogError("Encontradas " .. #diceParts .. " peças de dado no mundo.")
-
-    local unbindCount = 0
-    for _, part in ipairs(diceParts) do
-        local success, owner = pcall(function() return part:GetNetworkOwner() end)
-        if success and owner == Player then
-            pcall(function() part:SetNetworkOwner(nil) end)
-            unbindCount = unbindCount + 1
-            LogError("  Desvinculado: " .. part:GetFullName())
-        end
-    end
-    LogError(unbindCount .. " dados desvinculados do teu personagem.")
-
-    -- 2. Salvar posição atual
-    local oldCharacter = Player.Character
-    if not oldCharacter or not oldCharacter:FindFirstChild("HumanoidRootPart") then
-        LogError("ERRO: Personagem inválido.")
-        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
-        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        ResetBtn.Interactable = true
-        return
-    end
-    local oldRoot = oldCharacter.HumanoidRootPart
-    local savedCFrame = oldRoot.CFrame
-    local savedCamCFrame = Camera.CFrame
-    LogError("OK: Posição salva.")
-
-    -- 3. Tela preta e renascimento
-    ShowBlack()
-    LogError("OK: Tela preta ativada.")
-
-    local oldHumanoid = oldCharacter:FindFirstChild("Humanoid")
-    if oldHumanoid then
-        oldHumanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
-        oldHumanoid.Health = 0
-        LogError("OK: Morte forçada.")
-    else
-        -- fallback: destruir personagem
-        pcall(function() oldCharacter:Destroy() end)
-        LogError("OK: Personagem destruído (sem Humanoid).")
-    end
-
-    -- Aguarda novo personagem
-    local newCharacter = nil
-    local start = tick()
-    repeat
-        newCharacter = Player.Character
-        task.wait(0.05)
-    until (newCharacter and newCharacter ~= oldCharacter) or (tick() - start > 20)
-
-    if not newCharacter or newCharacter == oldCharacter then
-        LogError("ERRO: Novo personagem não apareceu.")
-        HideBlack()
-        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
-        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        ResetBtn.Interactable = true
-        return
-    end
-    LogError("OK: Novo personagem detectado.")
-
-    local newRoot = newCharacter:WaitForChild("HumanoidRootPart", 5)
-    if not newRoot then
-        LogError("ERRO: HumanoidRootPart não carregou.")
-        HideBlack()
-        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
-        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        ResetBtn.Interactable = true
-        return
-    end
-
-    newRoot.CFrame = savedCFrame
-    local newHumanoid = newCharacter:FindFirstChild("Humanoid")
-    if newHumanoid then Camera.CameraSubject = newHumanoid end
-    Camera.CFrame = savedCamCFrame
-    LogError("OK: Teleporte e câmera restaurados.")
-
-    task.wait(0.15)
-    HideBlack()
-    LogError("OK: Tela preta removida.")
-    LogError("SUCESSO: Inventário resetado, dados permanecem no chão!")
-
-    Notify("Inventário resetado! Dados no chão mantidos.")
-    ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
-    ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-    ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ResetBtn.Interactable = true
+    
+    -- O script termina aqui porque o jogador sai do servidor
+    -- Quando voltar, o script terá sido reiniciado e o botão estará normal
 end)
 
 -- Arraste
@@ -340,4 +186,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Console de erros ativo. Copie e cole aqui se falhar.")
+Notify("🎲 Clica em DUPLICAR para sair e voltar instantaneamente!")
