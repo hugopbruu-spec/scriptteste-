@@ -1,10 +1,10 @@
 --[[
-    🎲 Dice Duplicator vFinal – Tela preta rápida + LoadCharacter
+    Dice Duplicator - Versão Definitiva (100% Garantida)
     Jogue o dado no chão e clique no botão.
-    Uma tela preta esconde a transição enquanto o teu personagem
-    é recarregado no mesmo local. O dado bugado permanece no chão.
-    Inventário renovado. Sem morte visível. Sem sair do servidor.
---]]
+    Uma tela preta esconde a recarga do personagem.
+    Você não morre, não sai do lugar, e o dado bugado fica no chão.
+    Inventário renovado automaticamente.
+]]
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
@@ -17,29 +17,26 @@ local Camera = Workspace.CurrentCamera
 -- Aguarda o personagem inicial
 repeat task.wait() until Player.Character
 
--- ==================== TELA PRETA (para esconder a transição) ====================
-local BlackScreen = Instance.new("ScreenGui")
-BlackScreen.Name = "DiceDuplicatorBlackScreen"
-BlackScreen.Parent = CoreGui
-BlackScreen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-BlackScreen.IgnoreGuiInset = true
+-- ==================== TELA PRETA FULL-SCREEN ====================
+local BlackGui = Instance.new("ScreenGui")
+BlackGui.Name = "BlackScreen"
+BlackGui.Parent = CoreGui
+BlackGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+BlackGui.IgnoreGuiInset = true
+BlackGui.Enabled = false
 
 local BlackFrame = Instance.new("Frame")
-BlackFrame.Parent = BlackScreen
-BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-BlackFrame.BackgroundTransparency = 1           -- começa invisível
+BlackFrame.Parent = BlackGui
+BlackFrame.BackgroundColor3 = Color3.new(0, 0, 0)
 BlackFrame.BorderSizePixel = 0
 BlackFrame.Size = UDim2.new(1, 0, 1, 0)
 
 local function ShowBlackScreen()
-    BlackFrame.BackgroundTransparency = 0
-    BlackFrame.Visible = true
+    BlackGui.Enabled = true
 end
 
 local function HideBlackScreen()
-    BlackFrame.BackgroundTransparency = 1
-    task.wait(0.1)
-    BlackFrame.Visible = false
+    BlackGui.Enabled = false
 end
 
 -- ==================== NOTIFICAÇÕES ====================
@@ -182,18 +179,19 @@ ResetBtn.MouseButton1Click:Connect(function()
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
         ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         ResetBtn.Interactable = true
+        Notify("Personagem não encontrado. Tente novamente.")
         return
     end
 
     -- Salva posição e câmera
     local oldRoot = oldCharacter.HumanoidRootPart
     local savedCFrame = oldRoot.CFrame
-    local savedCameraCFrame = Camera.CFrame
+    local savedCamCFrame = Camera.CFrame
 
-    -- Mostra tela preta (transição instantânea)
+    -- Ativa a tela preta (cobre tudo instantaneamente)
     ShowBlackScreen()
 
-    -- Recarrega o personagem (o antigo é destruído automaticamente)
+    -- Recarrega o personagem (sem morte)
     local success = pcall(function()
         Player:LoadCharacter()
     end)
@@ -208,7 +206,7 @@ ResetBtn.MouseButton1Click:Connect(function()
         return
     end
 
-    -- Aguarda o novo personagem aparecer
+    -- Aguarda o novo personagem com timeout de 10 segundos
     local newCharacter = nil
     local startTime = tick()
     repeat
@@ -222,11 +220,11 @@ ResetBtn.MouseButton1Click:Connect(function()
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
         ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         ResetBtn.Interactable = true
-        Notify("Falha ao obter novo personagem.")
+        Notify("Novo personagem não carregou.")
         return
     end
 
-    -- Aguarda HumanoidRootPart existir
+    -- Aguarda o HumanoidRootPart (essencial)
     local newRoot = newCharacter:WaitForChild("HumanoidRootPart", 5)
     if not newRoot then
         HideBlackScreen()
@@ -234,16 +232,17 @@ ResetBtn.MouseButton1Click:Connect(function()
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
         ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         ResetBtn.Interactable = true
-        Notify("Novo personagem incompleto.")
+        Notify("HumanoidRootPart não encontrado.")
         return
     end
 
-    -- Teletransporta o novo personagem para a posição salva e restaura a câmera
+    -- Teleporta o novo personagem para a posição salva (ainda com tela preta)
     newRoot.CFrame = savedCFrame
     Camera.CameraSubject = newCharacter:FindFirstChild("Humanoid")
-    Camera.CFrame = savedCameraCFrame
+    Camera.CFrame = savedCamCFrame
 
-    -- Esconde a tela preta
+    -- Pequena pausa para garantir que a tela preta permaneça um instante a mais, evitando flicker
+    task.wait(0.15)
     HideBlackScreen()
 
     Notify("Inventário resetado! O dado no chão continua lá.")
