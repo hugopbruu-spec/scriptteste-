@@ -1,10 +1,7 @@
 --[[
-    🎲 Dice Duplicator – Lançamento Infinito Automático
-    Ative a duplicação e jogue o dado.
-    Assim que o dado tocar o chão, um rejoin rápido é feito.
-    Você retorna ao mesmo lugar, com um novo dado na mão,
-    e o dado antigo permanece no chão para sempre.
-    Repita quantas vezes quiser.
+    🎲 Dice Duplicator vFinal – Rejoin Automático Imediato
+    Ative o modo, jogue o dado e receba um novo automaticamente.
+    O dado no chão permanece para sempre. Sem bugs de inventário.
 --]]
 
 local Players = game:GetService("Players")
@@ -12,19 +9,20 @@ local Player = Players.LocalPlayer
 local TeleportService = game:GetService("TeleportService")
 local CoreGui = game:GetService("CoreGui")
 local UIS = game:GetService("UserInputService")
+local Tween = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local Camera = Workspace.CurrentCamera
 
--- Aguarda o personagem carregar pela primeira vez
+-- Aguarda o personagem carregar
 repeat task.wait() until Player.Character
 
 -- ==================== TELA PRETA PERSISTENTE ====================
 local function createBlackScreen()
     local black = Instance.new("ScreenGui")
-    black.Name = "RejoinBlack"
+    black.Name = "DiceRejoinBlack"
     black.Parent = Player.PlayerGui
     black.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    black.ResetOnSpawn = false  -- importante: sobrevive ao rejoin
+    black.ResetOnSpawn = false       -- Sobrevive ao teleporte
     black.IgnoreGuiInset = true
     local frame = Instance.new("Frame")
     frame.Parent = black
@@ -35,9 +33,7 @@ end
 
 local function removeBlackScreen()
     for _, gui in ipairs(Player.PlayerGui:GetChildren()) do
-        if gui.Name == "RejoinBlack" then
-            gui:Destroy()
-        end
+        if gui.Name == "DiceRejoinBlack" then gui:Destroy() end
     end
 end
 
@@ -56,12 +52,10 @@ local function restoreAfterRejoin()
     if not root then return false end
 
     root.CFrame = savedCFrame
-    if savedCamCFrame then
-        Camera.CFrame = savedCamCFrame
-    end
+    if savedCamCFrame then Camera.CFrame = savedCamCFrame end
     Camera.CameraSubject = char:FindFirstChild("Humanoid")
 
-    -- Limpa atributos salvos
+    -- Limpa os dados salvados
     Player:SetAttribute("DiceSavedCFrame", nil)
     Player:SetAttribute("DiceSavedCamCFrame", nil)
 
@@ -70,8 +64,37 @@ local function restoreAfterRejoin()
     return true
 end
 
--- Tenta restaurar se for um rejoin (atributos existem)
-local restored = restoreAfterRejoin()
+-- Se for um rejoin, tenta restaurar e notifica
+if restoreAfterRejoin() then
+    task.wait(0.5)
+    -- Notificação rápida para o jogador saber que está pronto
+    local gui = Instance.new("ScreenGui")
+    gui.Parent = CoreGui
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    local f = Instance.new("Frame")
+    f.Parent = gui
+    f.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    f.BorderSizePixel = 0
+    f.Position = UDim2.new(0.5, -140, 0, 10)
+    f.Size = UDim2.new(0, 280, 0, 30)
+    f.AnchorPoint = Vector2.new(0.5, 0)
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
+    Instance.new("UIStroke", f).Color = Color3.fromRGB(0, 210, 160)
+    local l = Instance.new("TextLabel")
+    l.Parent = f
+    l.BackgroundTransparency = 1
+    l.Size = UDim2.new(1, 0, 1, 0)
+    l.Font = Enum.Font.GothamBold
+    l.Text = "✅ Rejoin concluído! Novo dado na mão."
+    l.TextColor3 = Color3.fromRGB(255, 255, 255)
+    l.TextSize = 12
+    local t = Tween:Create(f, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, 16)})
+    t:Play()
+    task.wait(2)
+    local t2 = Tween:Create(f, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, -30)})
+    t2:Play()
+    t2.Completed:Connect(function() gui:Destroy() end)
+end
 
 -- ==================== NOTIFICAÇÕES ====================
 local function Notify(text, duration)
@@ -115,8 +138,8 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 260, 0, 160)
-Main.Position = UDim2.new(0.5, -130, 0.5, -80)
+Main.Size = UDim2.new(0, 240, 0, 95)
+Main.Position = UDim2.new(0.5, -120, 0.5, -48)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
@@ -126,7 +149,7 @@ local TitleBar = Instance.new("Frame")
 TitleBar.Parent = Main
 TitleBar.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 TitleBar.BorderSizePixel = 0
-TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.Size = UDim2.new(1, 0, 0, 28)
 local tc = Instance.new("UICorner", TitleBar)
 tc.CornerRadius = UDim.new(0, 12)
 local tf = Instance.new("Frame")
@@ -143,7 +166,7 @@ TitleText.Size = UDim2.new(1, 0, 1, 0)
 TitleText.Font = Enum.Font.GothamBold
 TitleText.Text = "🎲 Dice Duplicator"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleText.TextSize = 12
+TitleText.TextSize = 11
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Parent = TitleBar
@@ -156,7 +179,7 @@ CloseBtn.Font = Enum.Font.GothamBlack
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.TextSize = 9
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
-CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
+CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Fechado") end)
 
 -- Botão Ativar/Desativar
 local ToggleBtn = Instance.new("TextButton")
@@ -164,90 +187,82 @@ ToggleBtn.Parent = Main
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 ToggleBtn.BorderSizePixel = 0
 ToggleBtn.Position = UDim2.new(0, 8, 0, 34)
-ToggleBtn.Size = UDim2.new(1, -16, 0, 30)
-ToggleBtn.Text = "🟢 ATIVAR LANÇAMENTO INFINITO"
+ToggleBtn.Size = UDim2.new(1, -16, 0, 28)
+ToggleBtn.Text = "🟢 ATIVAR DUPLICAÇÃO"
 ToggleBtn.Font = Enum.Font.GothamBlack
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.TextSize = 10
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
 
--- Console de depuração
-local Console = Instance.new("TextBox")
-Console.Parent = Main
-Console.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
-Console.BorderSizePixel = 0
-Console.Position = UDim2.new(0, 8, 0, 70)
-Console.Size = UDim2.new(1, -16, 0, 80)
-Console.Font = Enum.Font.Code
-Console.Text = "Console iniciado.\n"
-Console.TextColor3 = Color3.fromRGB(200, 200, 220)
-Console.TextSize = 10
-Console.ClearTextOnFocus = false
-Console.TextEditable = false
-Console.TextWrapped = true
-Console.TextXAlignment = Enum.TextXAlignment.Left
-Console.TextYAlignment = Enum.TextYAlignment.Top
-Instance.new("UICorner", Console).CornerRadius = UDim.new(0, 4)
-
-local function Log(msg)
-    Console.Text = Console.Text .. msg .. "\n"
-end
-
 -- ==================== LÓGICA PRINCIPAL ====================
 local active = false
-local toolMonitorConn = nil
+local currentTool = nil
+local unequippedConn = nil
 
--- Função que executa o rejoin rápido
-local function doRejoin()
+-- Função que executa o rejoin
+local function executeRejoin()
     local char = Player.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then
-        Log("ERRO: Personagem sem HumanoidRootPart. Rejoin cancelado.")
-        return false
+        Notify("Erro: Personagem não carregado. Cancelei o rejoin.", 3)
+        return
     end
 
-    -- Salva posição e câmera nos atributos do jogador
+    -- Salva posição e câmera
     Player:SetAttribute("DiceSavedCFrame", char.HumanoidRootPart.CFrame)
     Player:SetAttribute("DiceSavedCamCFrame", Camera.CFrame)
-    Log("Posição e câmera salvas.")
 
-    -- Cria tela preta
+    -- Tela preta imediata
     createBlackScreen()
-    Log("Tela preta criada.")
 
-    -- Tenta teleportar para a mesma instância do servidor
+    -- Aguarda um frame para a tela preta ser desenhada
+    task.wait(0.1)
+
+    -- Executa o teleporte
     local success, err = pcall(function()
         TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Player)
     end)
+
     if not success then
-        Log("Falha TeleportToPlaceInstance: " .. tostring(err))
-        -- Fallback: teleporta para o jogo em qualquer servidor
-        pcall(function()
-            TeleportService:Teleport(game.PlaceId, Player)
-        end)
-        Log("Teleport genérico executado.")
-    else
-        Log("Rejoin para a mesma instância iniciado.")
+        -- Se falhar, remove a tela preta e notifica
+        removeBlackScreen()
+        Notify("Falha no rejoin. Tente novamente.", 3)
+        active = false
+        ToggleBtn.Text = "🟢 ATIVAR DUPLICAÇÃO"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+        if unequippedConn then unequippedConn:Disconnect() end
     end
-    return true
 end
 
--- Monitora a ferramenta Dice na mão do jogador
-local function startMonitoring()
-    local function onToolChanged()
-        -- Verifica se o jogador ainda tem uma ferramenta "Dice" na mão ou mochila
-        local hasTool = false
-        for _, tool in ipairs(Player.Character:GetChildren()) do
-            if tool:IsA("Tool") and tool.Name == "Dice" then hasTool = true break end
+-- Encontra e configura o monitoramento da ferramenta atual
+local function setupToolMonitoring()
+    -- Desconecta monitoramento anterior
+    if unequippedConn then unequippedConn:Disconnect() end
+
+    -- Procura a ferramenta "Dice" na mão (personagem)
+    currentTool = nil
+    for _, tool in ipairs(Player.Character:GetChildren()) do
+        if tool:IsA("Tool") and tool.Name == "Dice" then
+            currentTool = tool
+            break
         end
-        if not hasTool then
-            for _, tool in ipairs(Player.Backpack:GetChildren()) do
-                if tool:IsA("Tool") and tool.Name == "Dice" then hasTool = true break end
+    end
+
+    if not currentTool then
+        -- Se não está na mão, tenta pegar da mochila e equipar
+        for _, tool in ipairs(Player.Backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.Name == "Dice" then
+                tool.Parent = Player.Character
+                currentTool = tool
+                break
             end
         end
+    end
 
-        -- Se a ferramenta sumiu (foi jogada)
-        if not hasTool and active then
-            Log("Dado jogado! Aguardando 0.5s e iniciando rejoin...")
+    if currentTool then
+        -- Monitora quando a ferramenta é desequipada (jogada)
+        unequippedConn = currentTool.Unequipped:Connect(function()
+            if not active then return end
+            -- Aguarda o objeto físico aparecer no chão
             task.wait(0.5)
             -- Garante que o dado no chão fique independente
             local tempFolder = Workspace:FindFirstChild("Temp")
@@ -255,53 +270,43 @@ local function startMonitoring()
                 for _, obj in ipairs(tempFolder:GetChildren()) do
                     if obj:IsA("MeshPart") and obj.Name == "DiceRoll" then
                         pcall(function() obj:SetNetworkOwner(nil) end)
-                        Log("NetworkOwner do dado no chão definido como nil.")
                     end
                 end
             end
             -- Executa o rejoin
-            if doRejoin() then
-                Log("Rejoin concluído. Após retornar, um novo dado estará disponível.")
-            end
-        end
+            executeRejoin()
+        end)
+    else
+        Notify("Nenhum dado encontrado. Pegue o dado primeiro.", 3)
     end
-
-    -- Conecta-se a mudanças nos filhos do personagem (ferramentas)
-    if toolMonitorConn then toolMonitorConn:Disconnect() end
-    toolMonitorConn = Player.Character.ChildAdded:Connect(onToolChanged)
-    Player.Character.ChildRemoved:Connect(onToolChanged)
-    Player.Backpack.ChildAdded:Connect(onToolChanged)
-    Player.Backpack.ChildRemoved:Connect(onToolChanged)
 end
 
--- Ativa/desativa o modo
+-- Ativa/Desativa o modo
 local function toggleActive()
     active = not active
     if active then
         ToggleBtn.Text = "🔴 DESATIVAR"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        Log("Lançamento infinito ativado. Jogue o dado!")
-        startMonitoring()
-        Notify("🟢 Modo infinito ativado. Jogue o dado!")
-    else
-        ToggleBtn.Text = "🟢 ATIVAR LANÇAMENTO INFINITO"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        if toolMonitorConn then
-            toolMonitorConn:Disconnect()
-            toolMonitorConn = nil
+        setupToolMonitoring()
+        if currentTool then
+            Notify("🟢 Modo duplicação ativado. Jogue o dado!")
         end
-        Log("Lançamento infinito desativado.")
-        Notify("🔴 Modo infinito desativado.")
+    else
+        ToggleBtn.Text = "🟢 ATIVAR DUPLICAÇÃO"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+        if unequippedConn then unequippedConn:Disconnect() end
+        Notify("🔴 Modo duplicação desativado.")
     end
 end
 
 ToggleBtn.MouseButton1Click:Connect(toggleActive)
 
--- Se o script foi carregado após um rejoin e a restauração foi feita, loga
-if restored then
-    Log("Restauração pós-rejoin bem-sucedida. Novo dado disponível.")
-    Notify("Rejoin concluído! Novo dado na mão.")
-end
+-- Monitora quando um novo dado é equipado (por exemplo, após pegar da mochila)
+Player.Character.ChildAdded:Connect(function(child)
+    if active and child:IsA("Tool") and child.Name == "Dice" then
+        setupToolMonitoring()  -- reconfigura o monitoramento para a nova ferramenta
+    end
+end)
 
 -- Arraste da interface
 local dragging, startPos, startGuiPos
@@ -327,4 +332,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Ative o lançamento infinito e jogue o dado!")
+Notify("🎲 Pegue o dado, ative a duplicação e jogue!")
