@@ -1,9 +1,9 @@
 --[[
-    🎲 Dice Duplicator vFinal – Reset via LoadCharacter()
-    Jogue o dado no chão, clique no botão.
-    Seu personagem renasce no mesmo lugar, com inventário novo,
-    e o dado que estava no chão continua lá.
-    Nenhum bug de invisibilidade ou travamento.
+    🎲 Dice Duplicator vFinal – Reset suave de inventário
+    Jogue o dado no chão e clique no botão.
+    O script faz o servidor acreditar que você saiu e voltou,
+    mantendo você exatamente onde estava, sem morte aparente.
+    O dado no chão permanece bugado e você recebe um novo dado.
 --]]
 
 local Players = game:GetService("Players")
@@ -11,8 +11,9 @@ local Player = Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
 
--- Aguarda o personagem inicial
 repeat task.wait() until Player.Character
 
 -- ==================== NOTIFICAÇÕES ====================
@@ -150,52 +151,90 @@ ResetBtn.MouseButton1Click:Connect(function()
     ResetBtn.Interactable = false
     Notify("Salvando posição e recarregando personagem...")
 
-    -- Guarda a posição e a direção do personagem atual
-    local root = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-    local savedCFrame = root and root.CFrame
-    local savedCameraCFrame = workspace.CurrentCamera and workspace.CurrentCamera.CFrame
+    local oldCharacter = Player.Character
+    if not oldCharacter then
+        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
+        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ResetBtn.Interactable = true
+        return
+    end
 
-    -- Recarrega o personagem (novo corpo, novo inventário)
+    local oldRoot = oldCharacter:FindFirstChild("HumanoidRootPart")
+    local oldHumanoid = oldCharacter:FindFirstChild("Humanoid")
+    if not oldRoot or not oldHumanoid then
+        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
+        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ResetBtn.Interactable = true
+        return
+    end
+
+    -- Salva posição exata e direção
+    local savedCFrame = oldRoot.CFrame
+    local savedCameraCFrame = Camera.CFrame
+    local savedHealth = oldHumanoid.Health
+    local savedMaxHealth = oldHumanoid.MaxHealth
+
+    -- Congela o personagem antigo para evitar movimentos bruscos
+    oldRoot.Anchored = true
+
+    -- Recarrega o personagem (o antigo será destruído)
     local success = pcall(function()
         Player:LoadCharacter()
     end)
 
     if not success then
-        -- Fallback extremo: se LoadCharacter falhar (raro), tentamos kill + respawn automático
-        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-            Player.Character.Humanoid.Health = 0
-        end
+        oldRoot.Anchored = false
+        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
+        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ResetBtn.Interactable = true
+        Notify("Falha ao recarregar. Tente novamente.")
+        return
     end
 
-    -- Aguarda o novo personagem aparecer (timeout de 15 segundos)
+    -- Aguarda o novo personagem com timeout
     local newCharacter = nil
     local startTime = tick()
     repeat
         newCharacter = Player.Character
         task.wait(0.1)
-    until newCharacter or (tick() - startTime > 15)
+    until (newCharacter and newCharacter ~= oldCharacter) or (tick() - startTime > 15)
 
-    if newCharacter and savedCFrame then
-        -- Aguarda o HumanoidRootPart existir
-        if not newCharacter:FindFirstChild("HumanoidRootPart") then
-            newCharacter:WaitForChild("HumanoidRootPart", 5)
-        end
-        local newRoot = newCharacter:FindFirstChild("HumanoidRootPart")
-        if newRoot then
-            -- Teleporta o novo personagem para a posição salva
-            newRoot.CFrame = savedCFrame
-            -- Ajusta a câmera para não ficar presa
-            if workspace.CurrentCamera then
-                workspace.CurrentCamera.CameraSubject = newCharacter:FindFirstChild("Humanoid")
-                workspace.CurrentCamera.CFrame = savedCameraCFrame or savedCFrame * CFrame.new(0, 5, 10)
-            end
-            Notify("Personagem recarregado com sucesso! Inventário renovado.")
-        end
-    else
-        Notify("Falha ao recarregar. Tente novamente.")
+    if not newCharacter or newCharacter == oldCharacter then
+        Notify("Falha ao obter novo personagem.")
+        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
+        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ResetBtn.Interactable = true
+        return
     end
 
-    -- Restaura o botão
+    -- Espera o HumanoidRootPart e Humanoid do novo personagem
+    local newRoot = newCharacter:WaitForChild("HumanoidRootPart", 10)
+    local newHumanoid = newCharacter:WaitForChild("Humanoid", 10)
+
+    if not newRoot or not newHumanoid then
+        Notify("Novo personagem incompleto.")
+        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
+        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ResetBtn.Interactable = true
+        return
+    end
+
+    -- Restaura a posição e a câmera instantaneamente
+    newRoot.CFrame = savedCFrame
+    Camera.CameraSubject = newHumanoid
+    Camera.CFrame = savedCameraCFrame
+
+    -- Ajusta a saúde para evitar morte aparente
+    newHumanoid.MaxHealth = savedMaxHealth
+    newHumanoid.Health = savedHealth
+    newHumanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false) -- evita que morra facilmente
+
+    Notify("Inventário resetado! O dado no chão continua lá.")
     ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
     ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
     ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -226,4 +265,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Dice Duplicator carregado! Arrasta a janela.")
+Notify("🎲 Dice Duplicator carregado! Arraste a janela.")
