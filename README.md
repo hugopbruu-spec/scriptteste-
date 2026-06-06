@@ -1,8 +1,8 @@
 --[[
-    🔥 ServerScript Hub – Executor de scripts no servidor
+    🔥 ServerSide Executor Pro – Bypass extremo e backdoors múltiplas
     Interface completa, arrastável, com botão de fechar.
-    Tenta executar seus scripts no servidor através de backdoors.
-]]
+    Tenta executar scripts no servidor através de todas as brechas encontradas.
+--]]
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
@@ -11,10 +11,10 @@ local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 
--- Aguarda o personagem
 repeat task.wait() until Player.Character
 
 -- ==================== NOTIFICAÇÕES ====================
@@ -31,7 +31,6 @@ local function Notify(title, text, duration)
     frame.Size = UDim2.new(0, 250, 0, 70)
     frame.AnchorPoint = Vector2.new(1, 1)
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
-    
     local titleLabel = Instance.new("TextLabel")
     titleLabel.Parent = frame
     titleLabel.BackgroundTransparency = 1
@@ -42,7 +41,6 @@ local function Notify(title, text, duration)
     titleLabel.TextColor3 = Color3.fromRGB(108, 92, 231)
     titleLabel.TextSize = 14
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
     local textLabel = Instance.new("TextLabel")
     textLabel.Parent = frame
     textLabel.BackgroundTransparency = 1
@@ -54,8 +52,7 @@ local function Notify(title, text, duration)
     textLabel.TextSize = 11
     textLabel.TextXAlignment = Enum.TextXAlignment.Left
     textLabel.TextWrapped = true
-    
-    local tween = Tween:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), 
+    local tween = Tween:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
         {Position = UDim2.new(1, -20, 1, -80)})
     tween:Play()
     task.wait(duration)
@@ -67,7 +64,7 @@ end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui")
-gui.Name = "ServerScriptHub"
+gui.Name = "ServerExecutorPro"
 gui.Parent = CoreGui
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
@@ -76,11 +73,11 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 500, 0, 420)
-Main.Position = UDim2.new(0.5, -250, 0.5, -210)
+Main.Size = UDim2.new(0, 520, 0, 440)
+Main.Position = UDim2.new(0.5, -260, 0.5, -220)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
-Instance.new("UIStroke", Main).Color = Color3.fromRGB(255, 71, 87)
+Instance.new("UIStroke", Main).Color = Color3.fromRGB(255, 0, 0)
 
 -- Título
 local TitleBar = Instance.new("Frame")
@@ -90,8 +87,8 @@ TitleBar.BorderSizePixel = 0
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 local titleGradient = Instance.new("UIGradient", TitleBar)
 titleGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 71, 87)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 50, 50)),
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 0, 0)),
 })
 titleGradient.Rotation = 90
 local titleCorner = Instance.new("UICorner", TitleBar)
@@ -109,7 +106,7 @@ TitleText.BackgroundTransparency = 1
 TitleText.Position = UDim2.new(0, 15, 0, 0)
 TitleText.Size = UDim2.new(1, -50, 1, 0)
 TitleText.Font = Enum.Font.GothamBlack
-TitleText.Text = "🔥 ServerScript Hub"
+TitleText.Text = "🔥 ServerSide Executor Pro"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 16
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
@@ -125,226 +122,322 @@ CloseBtn.Font = Enum.Font.GothamBlack
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.TextSize = 12
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
-CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Hub", "Fechado") end)
+CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Executor", "Fechado") end)
 
--- Área de script
-local ScriptEditor = Instance.new("TextBox")
-ScriptEditor.Parent = Main
-ScriptEditor.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
-ScriptEditor.BorderSizePixel = 0
-ScriptEditor.Position = UDim2.new(0, 10, 0, 50)
-ScriptEditor.Size = UDim2.new(1, -20, 0, 180)
-ScriptEditor.Font = Enum.Font.Code
-ScriptEditor.Text = "-- Cole seu script aqui\nprint('Hello, Server!')"
-ScriptEditor.TextColor3 = Color3.fromRGB(200, 200, 220)
-ScriptEditor.TextSize = 12
-ScriptEditor.ClearTextOnFocus = false
-ScriptEditor.TextEditable = true
-ScriptEditor.TextWrapped = true
-ScriptEditor.TextXAlignment = Enum.TextXAlignment.Left
-ScriptEditor.TextYAlignment = Enum.TextYAlignment.Top
-Instance.new("UICorner", ScriptEditor).CornerRadius = UDim.new(0, 8)
+-- Editor de script
+local Editor = Instance.new("TextBox")
+Editor.Parent = Main
+Editor.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
+Editor.BorderSizePixel = 0
+Editor.Position = UDim2.new(0, 10, 0, 50)
+Editor.Size = UDim2.new(1, -20, 0, 150)
+Editor.Font = Enum.Font.Code
+Editor.Text = "-- Cole seu script server-side aqui\nprint('Hello, Server!')"
+Editor.TextColor3 = Color3.fromRGB(200, 200, 220)
+Editor.TextSize = 12
+Editor.ClearTextOnFocus = false
+Editor.TextEditable = true
+Editor.TextWrapped = true
+Editor.TextXAlignment = Enum.TextXAlignment.Left
+Editor.TextYAlignment = Enum.TextYAlignment.Top
+Instance.new("UICorner", Editor).CornerRadius = UDim.new(0, 8)
+
+-- Painel lateral com backdoors encontradas
+local BackdoorPanel = Instance.new("Frame")
+BackdoorPanel.Parent = Main
+BackdoorPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+BackdoorPanel.BorderSizePixel = 0
+BackdoorPanel.Position = UDim2.new(0, 10, 0, 210)
+BackdoorPanel.Size = UDim2.new(1, -20, 0, 100)
+Instance.new("UICorner", BackdoorPanel).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", BackdoorPanel).Color = Color3.fromRGB(255, 0, 0)
+
+local BackdoorTitle = Instance.new("TextLabel")
+BackdoorTitle.Parent = BackdoorPanel
+BackdoorTitle.BackgroundTransparency = 1
+BackdoorTitle.Position = UDim2.new(0, 8, 0, 4)
+BackdoorTitle.Size = UDim2.new(1, -16, 0, 18)
+BackdoorTitle.Font = Enum.Font.GothamBold
+BackdoorTitle.Text = "🔓 Backdoors encontradas: 0"
+BackdoorTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+BackdoorTitle.TextSize = 11
+BackdoorTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local BackdoorList = Instance.new("ScrollingFrame")
+BackdoorList.Parent = BackdoorPanel
+BackdoorList.BackgroundTransparency = 1
+BackdoorList.BorderSizePixel = 0
+BackdoorList.Position = UDim2.new(0, 4, 0, 24)
+BackdoorList.Size = UDim2.new(1, -8, 1, -28)
+BackdoorList.ScrollBarThickness = 2
+BackdoorList.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
+BackdoorList.CanvasSize = UDim2.new(0, 0, 0, 0)
+
+local UIListLayout2 = Instance.new("UIListLayout")
+UIListLayout2.Parent = BackdoorList
+UIListLayout2.Padding = UDim.new(0, 2)
 
 -- Botões de ação
-local ExecuteBtn = Instance.new("TextButton")
-ExecuteBtn.Parent = Main
-ExecuteBtn.BackgroundColor3 = Color3.fromRGB(255, 71, 87)
-ExecuteBtn.BorderSizePixel = 0
-ExecuteBtn.Position = UDim2.new(0, 10, 0, 238)
-ExecuteBtn.Size = UDim2.new(0, 230, 0, 34)
-ExecuteBtn.Text = "🚀 EXECUTAR NO SERVIDOR"
-ExecuteBtn.Font = Enum.Font.GothamBlack
-ExecuteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ExecuteBtn.TextSize = 12
-Instance.new("UICorner", ExecuteBtn).CornerRadius = UDim.new(0, 8)
+local ScanBtn = Instance.new("TextButton")
+ScanBtn.Parent = Main
+ScanBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 120)
+ScanBtn.BorderSizePixel = 0
+ScanBtn.Position = UDim2.new(0, 10, 0, 316)
+ScanBtn.Size = UDim2.new(0, 240, 0, 30)
+ScanBtn.Text = "🔍 RE-ESCANEAR BACKDOORS"
+ScanBtn.Font = Enum.Font.GothamBlack
+ScanBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ScanBtn.TextSize = 11
+Instance.new("UICorner", ScanBtn).CornerRadius = UDim.new(0, 8)
 
-local ClearBtn = Instance.new("TextButton")
-ClearBtn.Parent = Main
-ClearBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
-ClearBtn.BorderSizePixel = 0
-ClearBtn.Position = UDim2.new(1, -250, 0, 238)
-ClearBtn.Size = UDim2.new(0, 240, 0, 34)
-ClearBtn.Text = "🧹 LIMPAR"
-ClearBtn.Font = Enum.Font.GothamBlack
-ClearBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
-ClearBtn.TextSize = 12
-Instance.new("UICorner", ClearBtn).CornerRadius = UDim.new(0, 8)
+local ExecBtn = Instance.new("TextButton")
+ExecBtn.Parent = Main
+ExecBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+ExecBtn.BorderSizePixel = 0
+ExecBtn.Position = UDim2.new(1, -250, 0, 316)
+ExecBtn.Size = UDim2.new(0, 240, 0, 30)
+ExecBtn.Text = "🚀 EXECUTAR NO SERVIDOR"
+ExecBtn.Font = Enum.Font.GothamBlack
+ExecBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ExecBtn.TextSize = 11
+Instance.new("UICorner", ExecBtn).CornerRadius = UDim.new(0, 8)
 
--- Console
+-- Console de saída
 local Console = Instance.new("TextBox")
 Console.Parent = Main
 Console.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
 Console.BorderSizePixel = 0
-Console.Position = UDim2.new(0, 10, 0, 280)
-Console.Size = UDim2.new(1, -20, 0, 130)
+Console.Position = UDim2.new(0, 10, 0, 352)
+Console.Size = UDim2.new(1, -20, 0, 78)
 Console.Font = Enum.Font.Code
-Console.Text = "Console: Aguardando comandos...\n"
+Console.Text = "Console: Aguardando...\n"
 Console.TextColor3 = Color3.fromRGB(180, 180, 200)
-Console.TextSize = 11
+Console.TextSize = 10
 Console.ClearTextOnFocus = false
 Console.TextEditable = false
 Console.TextWrapped = true
 Console.TextXAlignment = Enum.TextXAlignment.Left
 Console.TextYAlignment = Enum.TextYAlignment.Top
-Instance.new("UICorner", Console).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", Console).CornerRadius = UDim.new(0, 6)
 
 local function Log(msg)
     Console.Text = Console.Text .. msg .. "\n"
 end
 
--- ==================== MÓDULO DE EXPLORAÇÃO DE BACKDOORS ====================
+-- ==================== DETECÇÃO AGRESSIVA DE BACKDOORS ====================
 local backdoorsFound = {}
 
 local function scanForBackdoors()
-    Log("🔍 Escaneando o jogo por backdoors...")
     backdoorsFound = {}
+    -- Limpa lista visual
+    for _, child in ipairs(BackdoorList:GetChildren()) do
+        if child:IsA("TextLabel") then child:Destroy() end
+    end
+    Console.Text = ""
+    Log("🔍 Iniciando escaneamento agressivo...")
 
-    -- 1. Verificar _G e shared
-    if _G.loadstring then
-        table.insert(backdoorsFound, {name = "_G.loadstring", func = _G.loadstring})
-        Log("✅ Encontrado: _G.loadstring")
-    end
-    if _G.execute then
-        table.insert(backdoorsFound, {name = "_G.execute", func = _G.execute})
-        Log("✅ Encontrado: _G.execute")
-    end
-    if shared and shared.loadstring then
-        table.insert(backdoorsFound, {name = "shared.loadstring", func = shared.loadstring})
-        Log("✅ Encontrado: shared.loadstring")
+    -- 1. _G, shared, plugin
+    local globalFuncs = {"loadstring", "execute", "run", "eval", "exec", "RunScript", "ServerScript", "require", "getfenv", "setfenv", "newcclosure"}
+    for _, funcName in ipairs(globalFuncs) do
+        if _G[funcName] and type(_G[funcName]) == "function" then
+            table.insert(backdoorsFound, {name = "_G." .. funcName, func = _G[funcName], type = "function"})
+            Log("✅ _G." .. funcName)
+            local lbl = Instance.new("TextLabel")
+            lbl.Parent = BackdoorList
+            lbl.BackgroundTransparency = 1
+            lbl.Size = UDim2.new(1, 0, 0, 16)
+            lbl.Font = Enum.Font.Code
+            lbl.Text = "_G." .. funcName
+            lbl.TextColor3 = Color3.fromRGB(0, 255, 100)
+            lbl.TextSize = 10
+            lbl.TextXAlignment = Enum.TextXAlignment.Left
+        end
+        if shared and shared[funcName] and type(shared[funcName]) == "function" then
+            table.insert(backdoorsFound, {name = "shared." .. funcName, func = shared[funcName], type = "function"})
+            Log("✅ shared." .. funcName)
+            local lbl = Instance.new("TextLabel")
+            lbl.Parent = BackdoorList
+            lbl.BackgroundTransparency = 1
+            lbl.Size = UDim2.new(1, 0, 0, 16)
+            lbl.Font = Enum.Font.Code
+            lbl.Text = "shared." .. funcName
+            lbl.TextColor3 = Color3.fromRGB(0, 255, 100)
+            lbl.TextSize = 10
+            lbl.TextXAlignment = Enum.TextXAlignment.Left
+        end
     end
 
-    -- 2. Procurar RemoteEvents com nomes suspeitos
-    local suspiciousNames = {"Execute", "Run", "Load", "Eval", "Script", "Server", "Command", "Admin", "Backdoor"}
-    local function searchContainer(container)
+    -- 2. RemoteEvents e RemoteFunctions suspeitos
+    local suspiciousNames = {"Execute", "Run", "Load", "Eval", "Script", "Server", "Command", "Admin", "Backdoor", "Grab", "Fire", "Invoke", "DoScript", "RunCode", "Exec"}
+    local function searchContainer(container, depth)
+        if depth > 100 then return end
         for _, obj in ipairs(container:GetChildren()) do
             local lowerName = obj.Name:lower()
             for _, name in ipairs(suspiciousNames) do
                 if lowerName:find(name:lower()) then
                     if obj:IsA("RemoteEvent") then
-                        table.insert(backdoorsFound, {
-                            name = "RemoteEvent: " .. obj:GetFullName(),
-                            remote = obj,
-                            type = "RemoteEvent"
-                        })
-                        Log("✅ Encontrado RemoteEvent: " .. obj:GetFullName())
+                        table.insert(backdoorsFound, {name = "RE: " .. obj:GetFullName(), remote = obj, type = "RemoteEvent"})
+                        Log("✅ RemoteEvent: " .. obj:GetFullName())
+                        local lbl = Instance.new("TextLabel")
+                        lbl.Parent = BackdoorList
+                        lbl.BackgroundTransparency = 1
+                        lbl.Size = UDim2.new(1, 0, 0, 16)
+                        lbl.Font = Enum.Font.Code
+                        lbl.Text = "RE: " .. obj.Name
+                        lbl.TextColor3 = Color3.fromRGB(255, 200, 0)
+                        lbl.TextSize = 10
+                        lbl.TextXAlignment = Enum.TextXAlignment.Left
                     elseif obj:IsA("RemoteFunction") then
-                        table.insert(backdoorsFound, {
-                            name = "RemoteFunction: " .. obj:GetFullName(),
-                            remote = obj,
-                            type = "RemoteFunction"
-                        })
-                        Log("✅ Encontrado RemoteFunction: " .. obj:GetFullName())
+                        table.insert(backdoorsFound, {name = "RF: " .. obj:GetFullName(), remote = obj, type = "RemoteFunction"})
+                        Log("✅ RemoteFunction: " .. obj:GetFullName())
+                        local lbl = Instance.new("TextLabel")
+                        lbl.Parent = BackdoorList
+                        lbl.BackgroundTransparency = 1
+                        lbl.Size = UDim2.new(1, 0, 0, 16)
+                        lbl.Font = Enum.Font.Code
+                        lbl.Text = "RF: " .. obj.Name
+                        lbl.TextColor3 = Color3.fromRGB(255, 200, 0)
+                        lbl.TextSize = 10
+                        lbl.TextXAlignment = Enum.TextXAlignment.Left
                     end
                 end
             end
-            -- Recursivo
-            searchContainer(obj)
+            pcall(function() searchContainer(obj, depth + 1) end)
         end
     end
+    searchContainer(Workspace, 0)
+    searchContainer(ReplicatedStorage, 0)
+    searchContainer(ServerStorage, 0)
+    searchContainer(Lighting, 0)
+    if Player.Character then
+        searchContainer(Player.Character, 0)
+    end
 
-    searchContainer(Workspace)
-    searchContainer(ReplicatedStorage)
-    searchContainer(Lighting)
-
-    -- 3. Procurar por require em ModuleScripts expostos
-    local function findRequireBackdoors()
-        for _, obj in ipairs(Workspace:GetDescendants()) do
+    -- 3. ModuleScripts com conteúdo suspeito
+    local function searchModules(container, depth)
+        if depth > 100 then return end
+        for _, obj in ipairs(container:GetChildren()) do
             if obj:IsA("ModuleScript") then
                 local source = pcall(function() return obj.Source end)
-                if source and type(source) == "string" then
-                    if source:find("loadstring") or source:find("execute") then
-                        table.insert(backdoorsFound, {
-                            name = "ModuleScript: " .. obj:GetFullName(),
-                            module = obj,
-                            type = "ModuleScript"
-                        })
-                        Log("✅ Encontrado ModuleScript suspeito: " .. obj:GetFullName())
+                if source then
+                    for _, funcName in ipairs(globalFuncs) do
+                        if source:find(funcName) then
+                            table.insert(backdoorsFound, {name = "Module: " .. obj:GetFullName(), module = obj, type = "ModuleScript"})
+                            Log("✅ ModuleScript: " .. obj:GetFullName())
+                            local lbl = Instance.new("TextLabel")
+                            lbl.Parent = BackdoorList
+                            lbl.BackgroundTransparency = 1
+                            lbl.Size = UDim2.new(1, 0, 0, 16)
+                            lbl.Font = Enum.Font.Code
+                            lbl.Text = "Module: " .. obj.Name
+                            lbl.TextColor3 = Color3.fromRGB(0, 200, 255)
+                            lbl.TextSize = 10
+                            lbl.TextXAlignment = Enum.TextXAlignment.Left
+                            break
+                        end
                     end
                 end
             end
+            pcall(function() searchModules(obj, depth + 1) end)
         end
     end
-    findRequireBackdoors()
+    searchModules(Workspace, 0)
+    searchModules(ReplicatedStorage, 0)
+    searchModules(ServerStorage, 0)
 
-    Log("📊 Total de backdoors encontradas: " .. #backdoorsFound)
+    BackdoorTitle.Text = "🔓 Backdoors encontradas: " .. #backdoorsFound
+    BackdoorList.CanvasSize = UDim2.new(0, 0, 0, #backdoorsFound * 18)
+    Log("📊 Total de backdoors: " .. #backdoorsFound)
+    if #backdoorsFound == 0 then
+        Log("⚠️ Nenhuma backdoor encontrada. O executor não funcionará.")
+    end
 end
 
--- ==================== EXECUÇÃO DE SCRIPTS ====================
-local function executeScript(scriptCode)
+-- ==================== EXECUÇÃO DE SCRIPT ====================
+local function executeOnServer(code)
     if #backdoorsFound == 0 then
-        Log("❌ Nenhuma backdoor encontrada. Tente escanear novamente.")
-        return false
+        return false, "Nenhuma backdoor encontrada"
     end
 
-    Log("🚀 Tentando executar via " .. #backdoorsFound .. " backdoors...")
-    local success = false
-
+    local lastError = ""
     for _, backdoor in ipairs(backdoorsFound) do
+        local success, err
         if backdoor.type == "RemoteEvent" then
-            -- Tenta FireServer com o script como argumento
-            pcall(function()
-                backdoor.remote:FireServer(scriptCode)
-                Log("✅ Enviado via RemoteEvent: " .. backdoor.name)
-                success = true
+            success, err = pcall(function()
+                backdoor.remote:FireServer(code)
             end)
+            if success then
+                Log("✅ Executado via " .. backdoor.name)
+                return true
+            else
+                lastError = err
+            end
         elseif backdoor.type == "RemoteFunction" then
-            -- Tenta InvokeServer
-            local result = pcall(function()
-                return backdoor.remote:InvokeServer(scriptCode)
+            local result
+            success, result = pcall(function()
+                return backdoor.remote:InvokeServer(code)
             end)
-            if result then
-                Log("✅ Executado via RemoteFunction: " .. backdoor.name)
-                Log("📤 Retorno: " .. tostring(result))
-                success = true
+            if success and result ~= nil then
+                Log("✅ Executado via " .. backdoor.name .. " (retorno: " .. tostring(result) .. ")")
+                return true
+            else
+                lastError = tostring(result)
             end
         elseif backdoor.type == "ModuleScript" then
-            -- Tenta require + executar
-            pcall(function()
-                local module = require(backdoor.module)
-                if type(module) == "function" then
-                    module(scriptCode)
-                    Log("✅ Executado via ModuleScript: " .. backdoor.name)
-                    success = true
+            local module
+            success, module = pcall(function() return require(backdoor.module) end)
+            if success and type(module) == "function" then
+                success, err = pcall(function() module(code) end)
+                if success then
+                    Log("✅ Executado via " .. backdoor.name)
+                    return true
+                else
+                    lastError = err
                 end
+            end
+        elseif backdoor.type == "function" then
+            success, err = pcall(function()
+                backdoor.func(code)
             end)
-        elseif backdoor.func then
-            -- Função direta
-            pcall(function()
-                backdoor.func(scriptCode)
-                Log("✅ Executado via função: " .. backdoor.name)
-                success = true
-            end)
+            if success then
+                Log("✅ Executado via " .. backdoor.name)
+                return true
+            else
+                lastError = err
+            end
         end
     end
-
-    if not success then
-        Log("❌ Nenhuma backdoor conseguiu executar o script.")
-    end
-    return success
+    return false, lastError
 end
 
--- ==================== INICIALIZAÇÃO ====================
-scanForBackdoors()
-
 -- ==================== EVENTOS DOS BOTÕES ====================
-ExecuteBtn.MouseButton1Click:Connect(function()
-    local code = ScriptEditor.Text
+ScanBtn.MouseButton1Click:Connect(scanForBackdoors)
+
+ExecBtn.MouseButton1Click:Connect(function()
+    local code = Editor.Text
     if code:gsub("%s", "") == "" then
         Notify("Aviso", "Digite um script primeiro!")
         return
     end
-    Log("📝 Executando script...")
-    local ok = executeScript(code)
-    if ok then
-        Notify("Sucesso", "Script enviado ao servidor!", 2)
+    Log("📝 Enviando script ao servidor...")
+    local success, err = executeOnServer(code)
+    if success then
+        Notify("Sucesso", "Script executado no servidor!", 2)
     else
-        Notify("Falha", "Nenhuma backdoor funcionou.")
+        Log("❌ Falha: " .. tostring(err))
+        Notify("Falha", "Nenhuma backdoor funcionou. Tente escanear novamente.")
     end
 end)
 
-ClearBtn.MouseButton1Click:Connect(function()
-    ScriptEditor.Text = "-- Cole seu script aqui"
-    Log("🧹 Console limpo.")
+-- ==================== INICIALIZAÇÃO ====================
+scanForBackdoors()
+
+-- Atualização periódica
+task.spawn(function()
+    while gui and gui.Parent do
+        task.wait(10)
+        scanForBackdoors()
+    end
 end)
 
 -- ==================== ARRASTE ====================
@@ -371,4 +464,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🔥 ServerScript Hub", "Hub carregado! Escaneie backdoors e execute scripts.", 5)
+Notify("🔥 ServerSide Executor Pro", "Escaneie backdoors e execute scripts no servidor!", 5)
