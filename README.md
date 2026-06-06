@@ -1,8 +1,8 @@
 --[[
-    🎲 Dice Knockback – Dado com super empurrão
-    Ative o modo e jogue o dado. Se ele acertar um jogador,
-    esse jogador será arremessado para longe!
-    Interface com botão de ativar/desativar e fechar.
+    🎲 Dice Sniper – Lançamento reto e super knockback
+    Ative o modo e jogue o dado. Ele voará como uma bala
+    na direção da câmera. Se atingir alguém, essa pessoa
+    será arremessada para longe.
 --]]
 
 local Players = game:GetService("Players")
@@ -12,6 +12,7 @@ local Workspace = game:GetService("Workspace")
 local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
+local Camera = Workspace.CurrentCamera
 
 -- Aguarda o personagem
 repeat task.wait() until Player.Character
@@ -49,7 +50,7 @@ end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui")
-gui.Name = "DiceKnockback"
+gui.Name = "DiceSniper"
 gui.Parent = CoreGui
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
@@ -58,8 +59,8 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 240, 0, 95)
-Main.Position = UDim2.new(0.5, -120, 0.5, -48)
+Main.Size = UDim2.new(0, 250, 0, 95)
+Main.Position = UDim2.new(0.5, -125, 0.5, -48)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
@@ -84,9 +85,9 @@ TitleText.Parent = TitleBar
 TitleText.BackgroundTransparency = 1
 TitleText.Size = UDim2.new(1, 0, 1, 0)
 TitleText.Font = Enum.Font.GothamBold
-TitleText.Text = "🎲 Dice Knockback"
+TitleText.Text = "🎯 Dice Sniper"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleText.TextSize = 11
+TitleText.TextSize = 12
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Parent = TitleBar
@@ -108,52 +109,57 @@ ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 ToggleBtn.BorderSizePixel = 0
 ToggleBtn.Position = UDim2.new(0, 8, 0, 34)
 ToggleBtn.Size = UDim2.new(1, -16, 0, 28)
-ToggleBtn.Text = "🟢 ATIVAR SUPER EMPURRÃO"
+ToggleBtn.Text = "🟢 ATIVAR MODO SNIPER"
 ToggleBtn.Font = Enum.Font.GothamBlack
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.TextSize = 10
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
 
--- ==================== LÓGICA DE KNOCKBACK ====================
+-- ==================== LÓGICA PRINCIPAL ====================
 local active = false
-local monitoredParts = {}   -- tabela para rastrear quais DiceRoll já têm conexão
-local touchConnections = {} -- guarda as conexões Touched para desconectar depois
+local monitoredParts = {}
+local touchConnections = {}
 local scanTimer = nil
 
--- Força de knockback (quanto maior, mais longe)
-local KNOCKBACK_FORCE = 150
+-- Configurações
+local LAUNCH_SPEED = 300   -- velocidade do dado (bala)
+local KNOCKBACK_FORCE = 200 -- força do empurrão nos jogadores
 
--- Função que aplica o empurrão em um personagem
+-- Aplica knockback em um personagem
 local function applyKnockback(character, dicePosition)
     local root = character:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    -- Direção do dado para o personagem (empurra para longe do dado)
     local direction = (root.Position - dicePosition).Unit
-    direction = direction * Vector3.new(1, 0, 1) -- remove componente vertical excessiva
-    direction = direction + Vector3.new(0, 0.3, 0) -- um pouco para cima para efeito dramático
-
-    -- Aplica velocidade diretamente (mais simples e eficaz)
+    direction = direction * Vector3.new(1, 0, 1) + Vector3.new(0, 0.5, 0) -- levemente para cima
     root.Velocity = direction * KNOCKBACK_FORCE
 
-    -- Opcional: usar BodyVelocity por um curto período para garantir o knockback
-    local bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bodyVelocity.Velocity = direction * KNOCKBACK_FORCE
-    bodyVelocity.Parent = root
-    task.delay(0.2, function()
-        bodyVelocity:Destroy()
-    end)
+    -- Reforço com BodyVelocity por curta duração
+    local bodyVel = Instance.new("BodyVelocity")
+    bodyVel.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bodyVel.Velocity = direction * KNOCKBACK_FORCE
+    bodyVel.Parent = root
+    task.delay(0.2, function() bodyVel:Destroy() end)
 end
 
--- Conecta o evento Touched em um DiceRoll
-local function connectDiceRoll(part)
+-- Conecta eventos a um DiceRoll recém-criado
+local function setupDiceRoll(part)
     if monitoredParts[part] then return end
     monitoredParts[part] = true
 
+    -- Aplica a velocidade inicial (bala) na direção da câmera
+    local camDir = Camera.CFrame.LookVector
+    part.Velocity = camDir * LAUNCH_SPEED
+    -- Opcional: remover a gravidade para manter a linha reta
+    -- part:SetAttribute("NoGravity", true) -- não funciona diretamente, mas podemos usar BodyForce
+    local bodyForce = Instance.new("BodyForce")
+    bodyForce.Force = Vector3.new(0, part:GetMass() * Workspace.Gravity, 0) -- anula a gravidade
+    bodyForce.Parent = part
+    task.delay(1, function() bodyForce:Destroy() end) -- remove após 1 segundo
+
+    -- Conecta o evento Touched para knockback
     local connection = part.Touched:Connect(function(hit)
         if not active then return end
-        -- Obtém o personagem a partir da parte atingida
         local character = hit:FindFirstAncestorOfClass("Model")
         if not character then return end
         local humanoid = character:FindFirstChild("Humanoid")
@@ -161,51 +167,47 @@ local function connectDiceRoll(part)
         local targetPlayer = Players:GetPlayerFromCharacter(character)
         if not targetPlayer or targetPlayer == Player then return end
 
-        -- Aplica o knockback
         applyKnockback(character, part.Position)
     end)
 
     table.insert(touchConnections, {part = part, connection = connection})
 end
 
--- Escaneia Workspace.Temp por novos DiceRoll e conecta o evento
+-- Monitora Workspace.Temp por novos DiceRoll
 local function scanForDice()
     local tempFolder = Workspace:FindFirstChild("Temp")
     if not tempFolder then return end
 
     for _, obj in ipairs(tempFolder:GetChildren()) do
         if obj:IsA("MeshPart") and obj.Name == "DiceRoll" then
-            connectDiceRoll(obj)
+            setupDiceRoll(obj)
         end
     end
 end
 
--- Ativa/Desativa o modo
+-- Ativa/Desativa
 local function toggleActive()
     active = not active
     if active then
         ToggleBtn.Text = "🔴 DESATIVAR"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        -- Inicia o escaneamento periódico
-        scanForDice() -- verifica imediatamente
-        scanTimer = RunService.Heartbeat:Connect(function()
-            scanForDice()
-        end)
-        Notify("🟢 Modo super empurrão ativado! Jogue o dado.")
+        scanForDice()
+        scanTimer = RunService.Heartbeat:Connect(scanForDice)
+        Notify("🎯 Modo sniper ativado! Dados viram balas.")
     else
-        ToggleBtn.Text = "🟢 ATIVAR SUPER EMPURRÃO"
+        ToggleBtn.Text = "🟢 ATIVAR MODO SNIPER"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        -- Desconecta o timer e todos os eventos Touched
         if scanTimer then
             scanTimer:Disconnect()
             scanTimer = nil
         end
+        -- Limpa conexões
         for _, item in ipairs(touchConnections) do
             item.connection:Disconnect()
         end
         touchConnections = {}
         monitoredParts = {}
-        Notify("🔴 Modo super empurrão desativado.")
+        Notify("🔴 Modo sniper desativado.")
     end
 end
 
@@ -235,4 +237,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Ative o super empurrão e jogue o dado nos outros!")
+Notify("🎯 Ative o modo sniper e jogue o dado como uma bala!")
