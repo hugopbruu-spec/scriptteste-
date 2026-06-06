@@ -1,9 +1,9 @@
 --[[
-    🎲 Dice Duplicator Pro – Transferência de rede + novo dado
-    1. Jogue o dado no chão.
+    🎲 Dice Duplicator Pro – Transferência completa + nova ferramenta
+    1. Jogue o dado no chão (ele cairá e sumirá da sua mão).
     2. Clique em "DUPLICAR DADO".
-    3. O dado no chão é desvinculado de você (vai para o servidor) e permanece para sempre.
-    4. Um novo dado aparece na sua mão automaticamente.
+    3. O dado no chão é desvinculado de você e permanece para sempre.
+    4. Uma nova ferramenta "Dice" aparece na sua mochila, pronta para usar.
 --]]
 
 local Players = game:GetService("Players")
@@ -12,9 +12,10 @@ local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
+local Backpack = Player:WaitForChild("Backpack")
 
--- Aguarda personagem e mochila
-repeat task.wait() until Player.Character and Player.Backpack
+-- Aguarda personagem
+repeat task.wait() until Player.Character
 
 -- ==================== NOTIFICAÇÕES ====================
 local function Notify(text, duration)
@@ -146,14 +147,13 @@ DupBtn.MouseButton1Click:Connect(function()
     DupBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
     DupBtn.Interactable = false
 
-    -- 1. Encontrar dados no chão que pertencem ao jogador local
+    -- 1. Transferir propriedade de todos os dados no chão que pertencem a este jogador
     local transferred = 0
     for _, obj in ipairs(Workspace:GetDescendants()) do
         if obj:IsA("BasePart") and (obj.Name == "Dice" or obj.Name == "Dice roll") then
             local owner = nil
             pcall(function() owner = obj:GetNetworkOwner() end)
             if owner == Player then
-                -- Transfere a propriedade para o servidor (nil) ou outro jogador
                 pcall(function() obj:SetNetworkOwner(nil) end)
                 transferred = transferred + 1
             end
@@ -161,48 +161,45 @@ DupBtn.MouseButton1Click:Connect(function()
     end
 
     if transferred == 0 then
-        Notify("Nenhum dado encontrado no chão. Jogue o dado primeiro!")
+        Notify("Nenhum dado no chão com sua propriedade. Jogue o dado primeiro!")
         DupBtn.Text = "🔄 DUPLICAR DADO"
         DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
         DupBtn.Interactable = true
         return
     end
 
-    -- 2. Clonar o dado do chão de volta para a mochila
-    local diceModel = nil
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("Tool") and (obj.Name == "Dice" or obj.Name == "Dice roll") then
-            diceModel = obj
-            break
-        end
-        if obj:IsA("BasePart") and (obj.Name == "Dice" or obj.Name == "Dice roll") then
-            diceModel = obj.Parent -- talvez o dado seja um modelo
-            break
-        end
-    end
-
-    if diceModel then
-        local clone = diceModel:Clone()
-        if clone:IsA("Tool") then
-            clone.Parent = Player.Backpack
-        else
-            -- Se for um modelo, tenta colocar como Tool na mochila (pode falhar)
-            local newTool = Instance.new("Tool")
-            newTool.Name = diceModel.Name
-            newTool.Parent = Player.Backpack
-            for _, child in ipairs(clone:GetChildren()) do
-                child.Parent = newTool
+    -- 2. Remover qualquer ferramenta "Dice" ou "Dice roll" da mão e da mochila
+    local toRemove = {}
+    local function addToRemove(parent)
+        for _, child in ipairs(parent:GetChildren()) do
+            if child:IsA("Tool") and (child.Name == "Dice" or child.Name == "Dice roll") then
+                table.insert(toRemove, child)
             end
         end
-        Notify("🎲 Dado duplicado! Você tem um novo na mochila.")
-    else
-        -- Fallback: cria um dado genérico
-        local newTool = Instance.new("Tool")
-        newTool.Name = "Dice"
-        newTool.Parent = Player.Backpack
-        Notify("🎲 Novo dado criado (genérico).")
+    end
+    addToRemove(Player.Character)
+    addToRemove(Backpack)
+    for _, tool in ipairs(toRemove) do
+        tool:Destroy()
     end
 
+    -- 3. Criar uma nova ferramenta "Dice" (cópia genérica)
+    local newTool = Instance.new("Tool")
+    newTool.Name = "Dice"
+    newTool.Parent = Backpack
+    -- Copiar propriedades padrão se existir um dado modelo no chão
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Tool") and (obj.Name == "Dice" or obj.Name == "Dice roll") then
+            -- Clona o modelo inteiro e coloca na mochila
+            local clone = obj:Clone()
+            clone.Parent = Backpack
+            newTool:Destroy() -- remove o genérico
+            newTool = clone
+            break
+        end
+    end
+
+    Notify("🎲 Dado duplicado! Novo na mochila, o do chão permanece.")
     DupBtn.Text = "🔄 DUPLICAR DADO"
     DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
     DupBtn.Interactable = true
