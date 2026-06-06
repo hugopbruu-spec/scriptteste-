@@ -1,8 +1,7 @@
 --[[
-    🎲 Dice Duplicator vFinal Corrigido – Reset sem LoadCharacter
-    Usa Character:Destroy() para forçar renascimento (sem chamada proibida).
-    Tela preta esconde a transição. O dado no chão permanece.
-    Console de erros incluso.
+    🎲 Dice Duplicator vFinal – Reset garantido via BreakJoints
+    Mata o personagem antigo (sem mostrar) e força o renascimento.
+    Tela preta esconde tudo. Console de erros incluso.
 --]]
 
 local Players = game:GetService("Players")
@@ -238,6 +237,16 @@ ResetBtn.MouseButton1Click:Connect(function()
         return
     end
 
+    local oldHumanoid = oldCharacter:FindFirstChild("Humanoid")
+    if not oldHumanoid then
+        LogError("ERRO: Humanoid não encontrado.")
+        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
+        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ResetBtn.Interactable = true
+        return
+    end
+
     local savedCFrame = oldRoot.CFrame
     local savedCamCFrame = Camera.CFrame
     LogError("OK: Posição salva: " .. tostring(savedCFrame))
@@ -245,32 +254,21 @@ ResetBtn.MouseButton1Click:Connect(function()
     ShowBlack()
     LogError("OK: Tela preta ativada.")
 
-    -- Destrói o personagem antigo (força renascimento sem erro)
-    local success, err = pcall(function()
-        oldCharacter:Destroy()
-    end)
+    -- Força a morte do personagem (sem som, sem animação visível)
+    oldHumanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+    oldHumanoid.Health = 0
+    LogError("OK: Morte forçada.")
 
-    if not success then
-        LogError("ERRO ao destruir personagem: " .. tostring(err))
-        HideBlack()
-        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
-        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        ResetBtn.Interactable = true
-        return
-    end
-    LogError("OK: Personagem antigo destruído.")
-
-    -- Aguarda o novo personagem aparecer (timeout 15s)
+    -- Aguarda o novo personagem aparecer (respawn automático)
     local newCharacter = nil
     local start = tick()
     repeat
         newCharacter = Player.Character
         task.wait(0.05)
-    until (newCharacter and newCharacter ~= oldCharacter) or (tick() - start > 15)
+    until (newCharacter and newCharacter ~= oldCharacter) or (tick() - start > 20)
 
     if not newCharacter or newCharacter == oldCharacter then
-        LogError("ERRO: Novo personagem não apareceu.")
+        LogError("ERRO: Novo personagem não apareceu após 20s.")
         HideBlack()
         ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
@@ -291,6 +289,7 @@ ResetBtn.MouseButton1Click:Connect(function()
         return
     end
 
+    -- Teleporta o novo personagem para a posição salva
     newRoot.CFrame = savedCFrame
     local newHumanoid = newCharacter:FindFirstChild("Humanoid")
     if newHumanoid then Camera.CameraSubject = newHumanoid end
