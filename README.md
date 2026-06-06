@@ -1,8 +1,8 @@
 --[[
-    🔍 Click Inspector – Clique em qualquer objeto para ver seus dados
-    Interface com console e botão copiar.
-    Ative o inspector, clique em um dado no chão, e todos os detalhes aparecerão.
-    Copie e cole aqui para eu analisar.
+    🔍 Item Inspector – Mostra todos os dados do item na mão
+    Segure um item e clique em "INSPECIONAR".
+    Todos os detalhes aparecerão no console.
+    Botão para copiar os dados.
 --]]
 
 local Players = game:GetService("Players")
@@ -10,7 +10,7 @@ local Player = Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
-local Workspace = game:GetService("Workspace")
+local Backpack = Player:WaitForChild("Backpack")
 
 repeat task.wait() until Player.Character
 
@@ -47,7 +47,7 @@ end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui")
-gui.Name = "ClickInspector"
+gui.Name = "ItemInspector"
 gui.Parent = CoreGui
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
@@ -56,8 +56,8 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 380, 0, 420)
-Main.Position = UDim2.new(0.5, -190, 0.5, -210)
+Main.Size = UDim2.new(0, 360, 0, 380)
+Main.Position = UDim2.new(0.5, -180, 0.5, -190)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
@@ -91,7 +91,7 @@ TitleText.BackgroundTransparency = 1
 TitleText.Position = UDim2.new(0, 36, 0, 0)
 TitleText.Size = UDim2.new(1, -70, 1, 0)
 TitleText.Font = Enum.Font.GothamBold
-TitleText.Text = "Click Inspector"
+TitleText.Text = "Item Inspector"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 13
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
@@ -116,16 +116,16 @@ Content.BackgroundTransparency = 1
 Content.Position = UDim2.new(0, 10, 0, 42)
 Content.Size = UDim2.new(1, -20, 1, -50)
 
-local ActivateBtn = Instance.new("TextButton")
-ActivateBtn.Parent = Content
-ActivateBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-ActivateBtn.BorderSizePixel = 0
-ActivateBtn.Size = UDim2.new(1, 0, 0, 34)
-ActivateBtn.Text = "🟢 ATIVAR INSPETOR (clique em objetos)"
-ActivateBtn.Font = Enum.Font.GothamBlack
-ActivateBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ActivateBtn.TextSize = 10
-Instance.new("UICorner", ActivateBtn).CornerRadius = UDim.new(0, 8)
+local InspectBtn = Instance.new("TextButton")
+InspectBtn.Parent = Content
+InspectBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+InspectBtn.BorderSizePixel = 0
+InspectBtn.Size = UDim2.new(1, 0, 0, 34)
+InspectBtn.Text = "🔍 INSPECIONAR ITEM NA MÃO"
+InspectBtn.Font = Enum.Font.GothamBlack
+InspectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+InspectBtn.TextSize = 11
+Instance.new("UICorner", InspectBtn).CornerRadius = UDim.new(0, 8)
 
 -- Console
 local ConsoleBox = Instance.new("TextBox")
@@ -133,9 +133,9 @@ ConsoleBox.Parent = Content
 ConsoleBox.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
 ConsoleBox.BorderSizePixel = 0
 ConsoleBox.Position = UDim2.new(0, 0, 0, 40)
-ConsoleBox.Size = UDim2.new(1, 0, 0, 290)
+ConsoleBox.Size = UDim2.new(1, 0, 0, 250)
 ConsoleBox.Font = Enum.Font.Code
-ConsoleBox.Text = "Console vazio. Ative o inspetor e clique em um objeto no mundo."
+ConsoleBox.Text = "Clique em 'INSPECIONAR' para ver os dados do item na mão."
 ConsoleBox.TextColor3 = Color3.fromRGB(200, 200, 220)
 ConsoleBox.TextSize = 10
 ConsoleBox.ClearTextOnFocus = false
@@ -150,7 +150,7 @@ local CopyBtn = Instance.new("TextButton")
 CopyBtn.Parent = Content
 CopyBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 CopyBtn.BorderSizePixel = 0
-CopyBtn.Position = UDim2.new(1, -60, 0, 335)
+CopyBtn.Position = UDim2.new(1, -60, 0, 295)
 CopyBtn.Size = UDim2.new(0, 56, 0, 22)
 CopyBtn.Text = "📋 Copiar"
 CopyBtn.Font = Enum.Font.GothamBold
@@ -165,62 +165,64 @@ end
 CopyBtn.MouseButton1Click:Connect(function()
     pcall(function()
         if setclipboard then setclipboard(ConsoleBox.Text)
-        elseif writefile then writefile("inspector_data.txt", ConsoleBox.Text) end
+        elseif writefile then writefile("item_info.txt", ConsoleBox.Text) end
     end)
     Notify("Copiado!")
 end)
 
--- ==================== LÓGICA DO INSPETOR ====================
-local active = false
-local clickConn = nil
+-- ==================== LÓGICA DE INSPEÇÃO ====================
+local function FindTool()
+    for _, tool in ipairs(Player.Character:GetChildren()) do
+        if tool:IsA("Tool") then return tool end
+    end
+    for _, tool in ipairs(Backpack:GetChildren()) do
+        if tool:IsA("Tool") then return tool end
+    end
+    return nil
+end
 
-local function DescribeObject(obj)
+local function DescribeTool(tool)
     local lines = {}
-    table.insert(lines, "=== DETALHES DO OBJETO ===")
-    table.insert(lines, "Nome: " .. obj.Name)
-    table.insert(lines, "Classe: " .. obj.ClassName)
-    table.insert(lines, "Parent: " .. (obj.Parent and obj.Parent:GetFullName() or "nil"))
-    
-    if obj:IsA("BasePart") then
-        table.insert(lines, "Tipo: BasePart")
-        table.insert(lines, "Position: " .. tostring(obj.Position))
-        table.insert(lines, "Size: " .. tostring(obj.Size))
-        table.insert(lines, "Material: " .. obj.Material.Name)
-        table.insert(lines, "Color: " .. tostring(obj.Color))
-        table.insert(lines, "CanCollide: " .. tostring(obj.CanCollide))
-        table.insert(lines, "Anchored: " .. tostring(obj.Anchored))
-        table.insert(lines, "Transparency: " .. tostring(obj.Transparency))
-        if obj:IsA("MeshPart") then
-            local meshId = pcall(function() return obj.MeshId end)
-            table.insert(lines, "MeshId: " .. tostring(meshId))
+    table.insert(lines, "=== DETALHES DO ITEM ===")
+    table.insert(lines, "Nome: " .. tool.Name)
+    table.insert(lines, "Classe: " .. tool.ClassName)
+    table.insert(lines, "Parent: " .. (tool.Parent and tool.Parent:GetFullName() or "nil"))
+
+    -- Propriedades comuns
+    local props = {
+        "RequiresHandle", "CanBeDropped", "ManualActivationOnly",
+        "ToolTip", "TextureId", "Grip", "GripForward", "GripRight", "GripUp", "GripPos"
+    }
+    for _, prop in ipairs(props) do
+        local ok, val = pcall(function() return tool[prop] end)
+        if ok and val ~= nil then
+            table.insert(lines, prop .. ": " .. tostring(val))
         end
-        if obj:IsA("Part") and obj.Shape then
-            table.insert(lines, "Shape: " .. tostring(obj.Shape))
-        end
-        local owner = nil
-        pcall(function() owner = obj:GetNetworkOwner() end)
-        table.insert(lines, "NetworkOwner: " .. tostring(owner))
-    elseif obj:IsA("Model") then
-        table.insert(lines, "Tipo: Model")
-        local primary = obj.PrimaryPart
-        if primary then
-            table.insert(lines, "PrimaryPart: " .. primary.Name .. " (Position: " .. tostring(primary.Position) .. ")")
-        end
-        table.insert(lines, "Partes do modelo:")
-        for _, child in ipairs(obj:GetDescendants()) do
-            if child:IsA("BasePart") then
-                table.insert(lines, "  [" .. child.ClassName .. "] " .. child.Name .. " Pos: " .. tostring(child.Position) .. " MeshId: " .. (child:IsA("MeshPart") and tostring(child.MeshId) or "N/A"))
+    end
+
+    -- Filhos e seus detalhes
+    table.insert(lines, "Filhos do item:")
+    for _, child in ipairs(tool:GetChildren()) do
+        table.insert(lines, "  [" .. child.ClassName .. "] " .. child.Name)
+        -- Para cada filho, tenta extrair IDs de assets
+        for _, assetProp in ipairs({"MeshId", "TextureId", "SoundId"}) do
+            local ok, val = pcall(function() return child[assetProp] end)
+            if ok and val and type(val) == "string" and val:match("rbxassetid://") then
+                table.insert(lines, "    " .. assetProp .. ": " .. val)
             end
         end
-        local owner = nil
-        if primary then pcall(function() owner = primary:GetNetworkOwner() end) end
-        table.insert(lines, "NetworkOwner (via PrimaryPart): " .. tostring(owner))
+        -- Se for BasePart, detalhes físicos
+        if child:IsA("BasePart") then
+            table.insert(lines, "    Position: " .. tostring(child.Position))
+            table.insert(lines, "    Size: " .. tostring(child.Size))
+            table.insert(lines, "    Material: " .. child.Material.Name)
+            table.insert(lines, "    Color: " .. tostring(child.Color))
+        end
     end
-    
+
     -- Atributos
-    local attrs = nil
-    pcall(function() attrs = obj:GetAttributes() end)
-    if attrs and type(attrs) == "table" and next(attrs) then
+    local attrs = tool:GetAttributes()
+    if next(attrs) then
         table.insert(lines, "Atributos:")
         for k, v in pairs(attrs) do
             table.insert(lines, "  " .. k .. ": " .. tostring(v))
@@ -228,50 +230,19 @@ local function DescribeObject(obj)
     else
         table.insert(lines, "Atributos: nenhum")
     end
-    
+
     return table.concat(lines, "\n")
 end
 
-ActivateBtn.MouseButton1Click:Connect(function()
-    active = not active
-    if active then
-        ActivateBtn.Text = "🔴 DESATIVAR INSPETOR"
-        ActivateBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        ConsoleBox.Text = "Inspetor ativo. Clique em qualquer objeto no mundo para ver seus dados."
-        -- Conecta o clique do mouse
-        if clickConn then clickConn:Disconnect() end
-        clickConn = UIS.InputBegan:Connect(function(input, gameProcessed)
-            if gameProcessed then return end -- não interfere em cliques na GUI
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                -- Obtém o alvo do mouse
-                local mousePos = UIS:GetMouseLocation()
-                local ray = Workspace.CurrentCamera:ViewportPointToRay(mousePos.X, mousePos.Y)
-                local raycastParams = RaycastParams.new()
-                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                raycastParams.FilterDescendantsInstances = {Player.Character} -- ignora o próprio personagem
-                local raycastResult = Workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
-                if raycastResult then
-                    local target = raycastResult.Instance
-                    -- Sobe na hierarquia até o modelo pai (se houver) que não seja Workspace
-                    local inspected = target
-                    while inspected.Parent and inspected.Parent ~= Workspace and inspected.Parent:IsA("Model") do
-                        inspected = inspected.Parent
-                    end
-                    ConsoleBox.Text = "Objeto clicado:\n" .. DescribeObject(inspected)
-                else
-                    -- Se não atingir nada, tenta pegar o objeto sob o mouse via Mouse.Target (se existir)
-                    -- Mas UIS não tem Mouse.Target, então permanece assim.
-                end
-            end
-        end)
-        Notify("Inspetor ativado! Clique em objetos no mundo.")
-    else
-        ActivateBtn.Text = "🟢 ATIVAR INSPETOR (clique em objetos)"
-        ActivateBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        ConsoleBox.Text = "Inspetor desativado."
-        if clickConn then clickConn:Disconnect() clickConn = nil end
-        Notify("Inspetor desativado.")
+InspectBtn.MouseButton1Click:Connect(function()
+    local tool = FindTool()
+    if not tool then
+        ConsoleBox.Text = "Nenhum item encontrado na mão ou mochila."
+        Notify("Nenhum item encontrado!")
+        return
     end
+    ConsoleBox.Text = "Item encontrado:\n" .. DescribeTool(tool)
+    Notify("Item inspecionado! Copie os dados.")
 end)
 
 -- Arraste
@@ -298,4 +269,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🔍 Click Inspector carregado! Ative e clique em objetos.")
+Notify("🔍 Segure um item e clique em INSPECIONAR!")
