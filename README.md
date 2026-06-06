@@ -1,9 +1,7 @@
 --[[
-    🎲 Dice Duplicator Pro – Transferência completa + nova ferramenta
-    1. Jogue o dado no chão (ele cairá e sumirá da sua mão).
-    2. Clique em "DUPLICAR DADO".
-    3. O dado no chão é desvinculado de você e permanece para sempre.
-    4. Uma nova ferramenta "Dice" aparece na sua mochila, pronta para usar.
+    🎲 Dice Duplicator Pro – Detecção automática de objetos no chão
+    Monitora quando um dado é jogado, abandona o objeto criado
+    e fornece uma nova ferramenta imediatamente.
 --]]
 
 local Players = game:GetService("Players")
@@ -14,7 +12,6 @@ local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local Backpack = Player:WaitForChild("Backpack")
 
--- Aguarda personagem
 repeat task.wait() until Player.Character
 
 -- ==================== NOTIFICAÇÕES ====================
@@ -142,68 +139,109 @@ DupBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 DupBtn.TextSize = 11
 Instance.new("UICorner", DupBtn).CornerRadius = UDim.new(0, 8)
 
-DupBtn.MouseButton1Click:Connect(function()
-    DupBtn.Text = "⏳ Processando..."
-    DupBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-    DupBtn.Interactable = false
+-- ==================== LÓGICA PRINCIPAL ====================
+local activeTool = nil  -- ferramenta original (salva antes de jogar)
+local toolRemovedConn = nil
 
-    -- 1. Transferir propriedade de todos os dados no chão que pertencem a este jogador
-    local transferred = 0
+local function captureTool()
+    -- Procura uma ferramenta "Dice" ou "Dice roll" no personagem ou mochila
+    for _, tool in ipairs(Player.Character:GetChildren()) do
+        if tool:IsA("Tool") and (tool.Name == "Dice" or tool.Name == "Dice roll") then
+            return tool
+        end
+    end
+    for _, tool in ipairs(Backpack:GetChildren()) do
+        if tool:IsA("Tool") and (tool.Name == "Dice" or tool.Name == "Dice roll") then
+            return tool
+        end
+    end
+    return nil
+end
+
+local function abandonAndReplace()
+    -- 1. Encontrar objetos recém-criados no Workspace (potenciais dados no chão)
+    -- Vamos usar uma tabela de referência antes e depois.
+    -- Como o clique do botão ocorre após o jogador jogar, podemos varrer o Workspace agora.
+    local newObjects = {}
     for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and (obj.Name == "Dice" or obj.Name == "Dice roll") then
-            local owner = nil
-            pcall(function() owner = obj:GetNetworkOwner() end)
-            if owner == Player then
-                pcall(function() obj:SetNetworkOwner(nil) end)
-                transferred = transferred + 1
+        if obj:IsA("BasePart") and obj:GetNetworkOwner() == Player then
+            table.insert(newObjects, obj)
+        elseif obj:IsA("Model") then
+            for _, part in ipairs(obj:GetDescendants()) do
+                if part:IsA("BasePart") and part:GetNetworkOwner() == Player then
+                    table.insert(newObjects, part)
+                end
             end
         end
     end
 
-    if transferred == 0 then
-        Notify("Nenhum dado no chão com sua propriedade. Jogue o dado primeiro!")
-        DupBtn.Text = "🔄 DUPLICAR DADO"
-        DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        DupBtn.Interactable = true
-        return
+    -- Transfere todos esses objetos para nil (abandona)
+    local count = 0
+    for _, part in ipairs(newObjects) do
+        pcall(function() part:SetNetworkOwner(nil) end)
+        count = count + 1
     end
 
-    -- 2. Remover qualquer ferramenta "Dice" ou "Dice roll" da mão e da mochila
+    if count == 0 then
+        Notify("Nenhum dado no chão com sua propriedade. Jogue o dado primeiro!")
+        return false
+    end
+
+    -- Remove qualquer ferramenta residual (na mão ou mochila)
     local toRemove = {}
-    local function addToRemove(parent)
+    local function collectTools(parent)
         for _, child in ipairs(parent:GetChildren()) do
             if child:IsA("Tool") and (child.Name == "Dice" or child.Name == "Dice roll") then
                 table.insert(toRemove, child)
             end
         end
     end
-    addToRemove(Player.Character)
-    addToRemove(Backpack)
+    collectTools(Player.Character)
+    collectTools(Backpack)
     for _, tool in ipairs(toRemove) do
         tool:Destroy()
     end
 
-    -- 3. Criar uma nova ferramenta "Dice" (cópia genérica)
-    local newTool = Instance.new("Tool")
-    newTool.Name = "Dice"
-    newTool.Parent = Backpack
-    -- Copiar propriedades padrão se existir um dado modelo no chão
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("Tool") and (obj.Name == "Dice" or obj.Name == "Dice roll") then
-            -- Clona o modelo inteiro e coloca na mochila
-            local clone = obj:Clone()
-            clone.Parent = Backpack
-            newTool:Destroy() -- remove o genérico
-            newTool = clone
-            break
-        end
+    -- Cria uma nova ferramenta baseada na original guardada (ou genérica)
+    if activeTool then
+        local newTool = activeTool:Clone()
+        newTool.Parent = Backpack
+    else
+        local newTool = Instance.new("Tool")
+        newTool.Name = "Dice"
+        newTool.Parent = Backpack
     end
 
     Notify("🎲 Dado duplicado! Novo na mochila, o do chão permanece.")
-    DupBtn.Text = "🔄 DUPLICAR DADO"
-    DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-    DupBtn.Interactable = true
-end)
+    return true
+end
+
+-- Ativa o modo de duplicação
+local function activateDuplication()
+    activeTool = captureTool()
+    if not activeTool then
+        Notify("Você precisa estar com um dado (Dice/Dice roll) na mão ou mochila!")
+        return
+    end
+
+    -- Monitora quando essa ferramenta for removida (jogada)
+    if toolRemovedConn then toolRemovedConn:Disconnect() end
+    toolRemovedConn = activeTool.AncestryChanged:Connect(function()
+        if not activeTool:IsDescendantOf(Player) and not activeTool:IsDescendantOf(Backpack) then
+            -- A ferramenta foi removida (jogada)
+            task.wait(0.3) -- pequena pausa para o objeto físico ser criado
+            abandonAndReplace()
+            -- Desconecta para evitar múltiplas execuções
+            toolRemovedConn:Disconnect()
+            toolRemovedConn = nil
+            activeTool = nil
+        end
+    end)
+
+    Notify("🟢 Duplicação ativada! Jogue o dado e um novo aparecerá.")
+end
+
+DupBtn.MouseButton1Click:Connect(activateDuplication)
 
 -- Arraste
 local dragging, startPos, startGuiPos
@@ -229,4 +267,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Jogue o dado e clique em DUPLICAR para ter outro!")
+Notify("🎲 Equipe o dado, clique em DUPLICAR e jogue-o!")
