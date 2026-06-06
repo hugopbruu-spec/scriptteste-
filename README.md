@@ -1,8 +1,9 @@
 --[[
-    🔍 Item Inspector – Mostra todos os dados do item na mão
-    Segure um item e clique em "INSPECIONAR".
-    Todos os detalhes aparecerão no console.
-    Botão para copiar os dados.
+    🎲 Dice Duplicator Funcional
+    1. Jogue o dado no chão (ele aparecerá em Workspace.Temp).
+    2. Clique em "DUPLICAR DADO".
+    3. O dado no chão permanecerá, a ferramenta invisível sumirá,
+       e uma nova ferramenta Dice aparecerá na sua mochila.
 --]]
 
 local Players = game:GetService("Players")
@@ -10,6 +11,7 @@ local Player = Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
 local Backpack = Player:WaitForChild("Backpack")
 
 repeat task.wait() until Player.Character
@@ -47,7 +49,7 @@ end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui")
-gui.Name = "ItemInspector"
+gui.Name = "DiceDuplicator"
 gui.Parent = CoreGui
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
@@ -56,8 +58,8 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 360, 0, 380)
-Main.Position = UDim2.new(0.5, -180, 0.5, -190)
+Main.Size = UDim2.new(0, 250, 0, 100)
+Main.Position = UDim2.new(0.5, -125, 0.5, -50)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
@@ -67,7 +69,7 @@ local TitleBar = Instance.new("Frame")
 TitleBar.Parent = Main
 TitleBar.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 TitleBar.BorderSizePixel = 0
-TitleBar.Size = UDim2.new(1, 0, 0, 36)
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
 local tc = Instance.new("UICorner", TitleBar)
 tc.CornerRadius = UDim.new(0, 12)
 local tf = Instance.new("Frame")
@@ -77,172 +79,119 @@ tf.BorderSizePixel = 0
 tf.Size = UDim2.new(1, 0, 0, 12)
 tf.Position = UDim2.new(0, 0, 1, -12)
 
-local TitleIcon = Instance.new("TextLabel")
-TitleIcon.Parent = TitleBar
-TitleIcon.BackgroundTransparency = 1
-TitleIcon.Position = UDim2.new(0, 8, 0, 5)
-TitleIcon.Size = UDim2.new(0, 26, 0, 26)
-TitleIcon.Text = "🔍"
-TitleIcon.TextSize = 18
-
 local TitleText = Instance.new("TextLabel")
 TitleText.Parent = TitleBar
 TitleText.BackgroundTransparency = 1
-TitleText.Position = UDim2.new(0, 36, 0, 0)
-TitleText.Size = UDim2.new(1, -70, 1, 0)
+TitleText.Size = UDim2.new(1, 0, 1, 0)
 TitleText.Font = Enum.Font.GothamBold
-TitleText.Text = "Item Inspector"
+TitleText.Text = "🎲 Dice Duplicator"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleText.TextSize = 13
-TitleText.TextXAlignment = Enum.TextXAlignment.Left
+TitleText.TextSize = 12
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Parent = TitleBar
 CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 71, 87)
 CloseBtn.BorderSizePixel = 0
-CloseBtn.Position = UDim2.new(1, -34, 0, 6)
-CloseBtn.Size = UDim2.new(0, 24, 0, 24)
+CloseBtn.Position = UDim2.new(1, -28, 0, 4)
+CloseBtn.Size = UDim2.new(0, 20, 0, 20)
 CloseBtn.Text = "✕"
 CloseBtn.Font = Enum.Font.GothamBlack
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.TextSize = 12
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
+CloseBtn.TextSize = 10
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
 CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Fechado") end)
 
 -- Conteúdo
 local Content = Instance.new("Frame")
 Content.Parent = Main
 Content.BackgroundTransparency = 1
-Content.Position = UDim2.new(0, 10, 0, 42)
-Content.Size = UDim2.new(1, -20, 1, -50)
+Content.Position = UDim2.new(0, 8, 0, 34)
+Content.Size = UDim2.new(1, -16, 1, -40)
 
-local InspectBtn = Instance.new("TextButton")
-InspectBtn.Parent = Content
-InspectBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-InspectBtn.BorderSizePixel = 0
-InspectBtn.Size = UDim2.new(1, 0, 0, 34)
-InspectBtn.Text = "🔍 INSPECIONAR ITEM NA MÃO"
-InspectBtn.Font = Enum.Font.GothamBlack
-InspectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-InspectBtn.TextSize = 11
-Instance.new("UICorner", InspectBtn).CornerRadius = UDim.new(0, 8)
+local DupBtn = Instance.new("TextButton")
+DupBtn.Parent = Content
+DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+DupBtn.BorderSizePixel = 0
+DupBtn.Size = UDim2.new(1, 0, 0, 28)
+DupBtn.Text = "🔄 DUPLICAR DADO"
+DupBtn.Font = Enum.Font.GothamBlack
+DupBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DupBtn.TextSize = 11
+Instance.new("UICorner", DupBtn).CornerRadius = UDim.new(0, 6)
 
--- Console
-local ConsoleBox = Instance.new("TextBox")
-ConsoleBox.Parent = Content
-ConsoleBox.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
-ConsoleBox.BorderSizePixel = 0
-ConsoleBox.Position = UDim2.new(0, 0, 0, 40)
-ConsoleBox.Size = UDim2.new(1, 0, 0, 250)
-ConsoleBox.Font = Enum.Font.Code
-ConsoleBox.Text = "Clique em 'INSPECIONAR' para ver os dados do item na mão."
-ConsoleBox.TextColor3 = Color3.fromRGB(200, 200, 220)
-ConsoleBox.TextSize = 10
-ConsoleBox.ClearTextOnFocus = false
-ConsoleBox.TextEditable = false
-ConsoleBox.TextWrapped = true
-ConsoleBox.TextXAlignment = Enum.TextXAlignment.Left
-ConsoleBox.TextYAlignment = Enum.TextYAlignment.Top
-Instance.new("UICorner", ConsoleBox).CornerRadius = UDim.new(0, 6)
-Instance.new("UIStroke", ConsoleBox).Color = Color3.fromRGB(108, 92, 231)
+-- ==================== LÓGICA PRINCIPAL ====================
+local originalToolTemplate = nil  -- guarda o clone da ferramenta original
 
-local CopyBtn = Instance.new("TextButton")
-CopyBtn.Parent = Content
-CopyBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-CopyBtn.BorderSizePixel = 0
-CopyBtn.Position = UDim2.new(1, -60, 0, 295)
-CopyBtn.Size = UDim2.new(0, 56, 0, 22)
-CopyBtn.Text = "📋 Copiar"
-CopyBtn.Font = Enum.Font.GothamBold
-CopyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CopyBtn.TextSize = 10
-Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 6)
-
-local function Log(msg)
-    ConsoleBox.Text = ConsoleBox.Text .. "\n" .. msg
-end
-
-CopyBtn.MouseButton1Click:Connect(function()
-    pcall(function()
-        if setclipboard then setclipboard(ConsoleBox.Text)
-        elseif writefile then writefile("item_info.txt", ConsoleBox.Text) end
-    end)
-    Notify("Copiado!")
-end)
-
--- ==================== LÓGICA DE INSPEÇÃO ====================
-local function FindTool()
+-- Salva o modelo da ferramenta assim que o script carrega (ou quando o jogador pega um dado)
+local function SaveToolTemplate()
+    -- Procura ferramenta "Dice" na mão ou mochila
     for _, tool in ipairs(Player.Character:GetChildren()) do
-        if tool:IsA("Tool") then return tool end
+        if tool:IsA("Tool") and tool.Name == "Dice" then
+            originalToolTemplate = tool:Clone()
+            return
+        end
     end
     for _, tool in ipairs(Backpack:GetChildren()) do
-        if tool:IsA("Tool") then return tool end
-    end
-    return nil
-end
-
-local function DescribeTool(tool)
-    local lines = {}
-    table.insert(lines, "=== DETALHES DO ITEM ===")
-    table.insert(lines, "Nome: " .. tool.Name)
-    table.insert(lines, "Classe: " .. tool.ClassName)
-    table.insert(lines, "Parent: " .. (tool.Parent and tool.Parent:GetFullName() or "nil"))
-
-    -- Propriedades comuns
-    local props = {
-        "RequiresHandle", "CanBeDropped", "ManualActivationOnly",
-        "ToolTip", "TextureId", "Grip", "GripForward", "GripRight", "GripUp", "GripPos"
-    }
-    for _, prop in ipairs(props) do
-        local ok, val = pcall(function() return tool[prop] end)
-        if ok and val ~= nil then
-            table.insert(lines, prop .. ": " .. tostring(val))
+        if tool:IsA("Tool") and tool.Name == "Dice" then
+            originalToolTemplate = tool:Clone()
+            return
         end
     end
+end
+SaveToolTemplate()
 
-    -- Filhos e seus detalhes
-    table.insert(lines, "Filhos do item:")
-    for _, child in ipairs(tool:GetChildren()) do
-        table.insert(lines, "  [" .. child.ClassName .. "] " .. child.Name)
-        -- Para cada filho, tenta extrair IDs de assets
-        for _, assetProp in ipairs({"MeshId", "TextureId", "SoundId"}) do
-            local ok, val = pcall(function() return child[assetProp] end)
-            if ok and val and type(val) == "string" and val:match("rbxassetid://") then
-                table.insert(lines, "    " .. assetProp .. ": " .. val)
+-- Monitora quando um novo dado é adicionado ao jogador (para atualizar o template)
+Player.ChildAdded:Connect(function(child)
+    if child:IsA("Tool") and child.Name == "Dice" then
+        SaveToolTemplate()
+    end
+end)
+Backpack.ChildAdded:Connect(function(child)
+    if child:IsA("Tool") and child.Name == "Dice" then
+        SaveToolTemplate()
+    end
+end)
+
+DupBtn.MouseButton1Click:Connect(function()
+    -- 1. Garante que os dados no chão (Workspace.Temp) não serão removidos
+    --    Eles já estão com NetworkOwner nil, mas podemos iterar e garantir
+    local tempFolder = Workspace:FindFirstChild("Temp")
+    if tempFolder then
+        for _, obj in ipairs(tempFolder:GetChildren()) do
+            if obj:IsA("MeshPart") and obj.Name == "DiceRoll" then
+                pcall(function() obj:SetNetworkOwner(nil) end)
             end
         end
-        -- Se for BasePart, detalhes físicos
-        if child:IsA("BasePart") then
-            table.insert(lines, "    Position: " .. tostring(child.Position))
-            table.insert(lines, "    Size: " .. tostring(child.Size))
-            table.insert(lines, "    Material: " .. child.Material.Name)
-            table.insert(lines, "    Color: " .. tostring(child.Color))
-        end
     end
 
-    -- Atributos
-    local attrs = tool:GetAttributes()
-    if next(attrs) then
-        table.insert(lines, "Atributos:")
-        for k, v in pairs(attrs) do
-            table.insert(lines, "  " .. k .. ": " .. tostring(v))
+    -- 2. Remove todas as ferramentas "Dice" da mão e da mochila (incluindo a invisível)
+    local toRemove = {}
+    for _, tool in ipairs(Player.Character:GetChildren()) do
+        if tool:IsA("Tool") and tool.Name == "Dice" then
+            table.insert(toRemove, tool)
         end
+    end
+    for _, tool in ipairs(Backpack:GetChildren()) do
+        if tool:IsA("Tool") and tool.Name == "Dice" then
+            table.insert(toRemove, tool)
+        end
+    end
+    for _, tool in ipairs(toRemove) do
+        tool:Destroy()
+    end
+
+    -- 3. Cria uma nova ferramenta a partir do template salvo
+    if originalToolTemplate then
+        local newTool = originalToolTemplate:Clone()
+        newTool.Parent = Backpack
+        Notify("🎲 Novo dado criado! O do chão permanece.")
     else
-        table.insert(lines, "Atributos: nenhum")
+        -- Fallback genérico
+        local newTool = Instance.new("Tool")
+        newTool.Name = "Dice"
+        newTool.Parent = Backpack
+        Notify("🎲 Dado genérico criado (template não encontrado).")
     end
-
-    return table.concat(lines, "\n")
-end
-
-InspectBtn.MouseButton1Click:Connect(function()
-    local tool = FindTool()
-    if not tool then
-        ConsoleBox.Text = "Nenhum item encontrado na mão ou mochila."
-        Notify("Nenhum item encontrado!")
-        return
-    end
-    ConsoleBox.Text = "Item encontrado:\n" .. DescribeTool(tool)
-    Notify("Item inspecionado! Copie os dados.")
 end)
 
 -- Arraste
@@ -269,4 +218,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🔍 Segure um item e clique em INSPECIONAR!")
+Notify("🎲 Jogue o dado e clique em DUPLICAR!")
