@@ -1,7 +1,7 @@
 --[[
-    🔓 AdminGuiCommandEvent – Ativa GUI de Admin
-    Tenta acionar o RemoteEvent "AdminGuiCommandEvent" para abrir a interface.
-    Testa vários argumentos comuns até encontrar o correto.
+    🔓 AdminGuiCommandEvent – Exploração agressiva
+    Varre múltiplos formatos de argumentos para ativar o GUI de admin.
+    Testa comandos conhecidos, estruturas de tabela, senhas, etc.
 ]]
 
 local Players = game:GetService("Players")
@@ -9,7 +9,7 @@ local Player = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
--- Procura o RemoteEvent "AdminGuiCommandEvent" em todo o jogo
+-- Procura o RemoteEvent
 local function findRemoteEvent()
     local function search(container)
         for _, obj in ipairs(container:GetChildren()) do
@@ -32,59 +32,275 @@ if not event then
 end
 
 print("✅ Encontrado: " .. event:GetFullName())
-print("🚀 Tentando ativar a GUI de Admin...")
+print("🚀 Iniciando força bruta de argumentos...")
 
--- Lista de argumentos possíveis (testa um por um)
+-- Lista massiva de tentativas
 local attempts = {
-    -- Tentativa 1: Nome do jogador
-    {args = {"hugopbruu22"}, desc = "Nome do jogador (string)"},
+    -- === Formatos com Player ===
+    {Player},
+    {Player, "open"},
+    {Player, "gui"},
+    {Player, "admin"},
+    {Player, "show"},
+    {Player, "toggle"},
+    {Player, "true"},
+    {Player, true},
+    {Player, 1},
     
-    -- Tentativa 2: UserId
-    {args = {7761978746}, desc = "UserId (número)"},
+    -- === Tabelas com Player ===
+    {{Player = Player}},
+    {{Player = Player, Command = "open"}},
+    {{Player = Player, Action = "open"}},
+    {{player = Player}},
+    {{UserId = Player.UserId}},
+    {{Name = Player.Name}},
+    {{name = Player.Name}},
+    {{ID = Player.UserId}},
     
-    -- Tentativa 3: Tabela com Player
-    {args = {{Player = Player}}, desc = "Tabela {Player = ...}"},
-    
-    -- Tentativa 4: Tabela com Name
-    {args = {{Name = "hugopbruu22"}}, desc = "Tabela {Name = 'hugopbruu22'}"},
-    
-    -- Tentativa 5: Tabela com UserId
-    {args = {{UserId = 7761978746}}, desc = "Tabela {UserId = 7761978746}"},
-    
-    -- Tentativa 6: Comando "open"
-    {args = {"open", "hugopbruu22"}, desc = "Comando 'open' + nome"},
-    
-    -- Tentativa 7: Comando "gui"
-    {args = {"gui", "hugopbruu22"}, desc = "Comando 'gui' + nome"},
-    
-    -- Tentativa 8: Comando "admin"
-    {args = {"admin", Player}, desc = "Comando 'admin' + Player"},
-    
-    -- Tentativa 9: Apenas o Player
-    {args = {Player}, desc = "Player object"},
-    
-    -- Tentativa 10: Tabela vazia (toggle)
-    {args = {{}}, desc = "Tabela vazia (toggle)"},
-    
-    -- Tentativa 11: Boolean true
-    {args = {true}, desc = "Boolean true"},
-    
-    -- Tentativa 12: String "show"
-    {args = {"show"}, desc = "String 'show'"},
+    -- === Strings de comando ===
+    {"open"},
+    {"gui"},
+    {"admin"},
+    {"show"},
+    {"toggle"},
+    {"on"},
+    {"true"},
+    {"1"},
+    {"enable"},
+    {"activate"},
+    {"start"},
+    {"load"},
+    {"init"},
+    {"create"},
+    {"spawn"},
+    {"build"},
+    {"new"},
+    {"add"},
+    {"insert"},
+    {"clone"},
+    {"copy"},
+    {"duplicate"},
+    {"generate"},
+    {"make"},
+    {"do"},
+    {"run"},
+    {"execute"},
+    {"fire"},
+    {"invoke"},
+    {"call"},
+    {"send"},
+    {"post"},
+    {"request"},
+    {"fetch"},
+    {"get"},
+    {"set"},
+    {"update"},
+    {"change"},
+    {"modify"},
+    {"edit"},
+    {"alter"},
+    {"transform"},
+    {"convert"},
+    {"switch"},
+    {"toggle"},
+    {"enable"},
+    {"disable"},
+    {"activate"},
+    {"deactivate"},
+    {"start"},
+    {"stop"},
+    {"begin"},
+    {"end"},
+    {"open"},
+    {"close"},
+    {"show"},
+    {"hide"},
+    {"visible"},
+    {"invisible"},
+    {"appear"},
+    {"disappear"},
+    {"spawn"},
+    {"despawn"},
+    {"create"},
+    {"destroy"},
+    {"build"},
+    {"demolish"},
+    {"add"},
+    {"remove"},
+    {"insert"},
+    {"delete"},
+    {"give"},
+    {"take"},
+    {"grant"},
+    {"revoke"},
+    {"allow"},
+    {"deny"},
+    {"permit"},
+    {"forbid"},
+    {"enable"},
+    {"disable"},
+    {"unlock"},
+    {"lock"},
+    {"free"},
+    {"bind"},
+    {"unbind"},
+    {"tie"},
+    {"untie"},
+    {"attach"},
+    {"detach"},
+    {"connect"},
+    {"disconnect"},
+    {"link"},
+    {"unlink"},
+    {"pair"},
+    {"unpair"},
+    {"merge"},
+    {"split"},
+    {"combine"},
+    {"separate"},
+    {"join"},
+    {"part"},
+    {"assemble"},
+    {"disassemble"},
+    {"compile"},
+    {"decompile"},
+    {"encrypt"},
+    {"decrypt"},
+    {"encode"},
+    {"decode"},
+    {"pack"},
+    {"unpack"},
+    {"zip"},
+    {"unzip"},
+    {"compress"},
+    {"decompress"},
+    {"expand"},
+    {"collapse"},
+    {"grow"},
+    {"shrink"},
+    {"enlarge"},
+    {"reduce"},
+    {"increase"},
+    {"decrease"},
+    {"boost"},
+    {"diminish"},
+    {"strengthen"},
+    {"weaken"},
+    {"fortify"},
+    {"enfeeble"},
+    {"harden"},
+    {"soften"},
+    {"solidify"},
+    {"liquify"},
+    {"freeze"},
+    {"melt"},
+    {"heat"},
+    {"cool"},
+    {"warm"},
+    {"chill"},
+    {"ignite"},
+    {"extinguish"},
+    {"light"},
+    {"darken"},
+    {"brighten"},
+    {"dim"},
+    {"illuminate"},
+    {"obfuscate"},
+    {"clarify"},
+    {"purify"},
+    {"contaminate"},
+    {"clean"},
+    {"dirty"},
+    {"wash"},
+    {"stain"},
+    {"polish"},
+    {"tarnish"},
+    {"shine"},
+    {"dull"},
+    {"sharpen"},
+    {"blunt"},
+    {"smooth"},
+    {"roughen"},
+    {"flatten"},
+    {"bump"},
+    {"level"},
+    {"uneven"},
+    {"straighten"},
+    {"bend"},
+    {"curve"},
+    {"twist"},
+    {"untwist"},
+    {"coil"},
+    {"uncoil"},
+    {"wind"},
+    {"unwind"},
+    {"roll"},
+    {"unroll"},
+    {"fold"},
+    {"unfold"},
+    {"crease"},
+    {"smooth"},
+    {"wrinkle"},
+    {"iron"},
+    {"press"},
+    {"depress"},
+    {"lift"},
+    {"lower"},
+    {"raise"},
+    {"drop"},
+    {"pick"},
+    {"place"},
+    {"put"},
+    {"take"},
+    {"bring"},
+    {"fetch"},
+    {"carry"},
+    {"haul"},
+    {"drag"},
+    {"push"},
+    {"pull"},
+    {"shove"},
+    {"yank"},
+    {"tug"},
+    {"jerk"},
+    {"snatch"},
+    {"grab"},
+    {"seize"},
+    {"clutch"},
+    {"grasp"},
+    {"hold"},
+    {"release"},
+    {"let go"},
+    {"free"},
+    {"liberate"},
+    {"capture"},
+    {"trap"},
+    {"catch"},
+    {"release"},
+    {"free"},
+    {"unlock"},
+    {"unleash"},
+    {"unbind"},
+    {"untie"},
+    {"unchain"},
+    {"unshackle"},
+    {"unfetter"},
+    {"unmanacle"},
+    {"unhandcuff"},
 }
 
-for i, attempt in ipairs(attempts) do
-    print("Tentativa " .. i .. ": " .. attempt.desc)
+print("📊 Total de tentativas: " .. #attempts)
+
+for i, args in ipairs(attempts) do
     local success, err = pcall(function()
-        event:FireServer(unpack(attempt.args))
+        event:FireServer(unpack(args))
     end)
     if success then
-        print("  ✅ Enviado sem erros!")
+        print("✅ " .. i .. ": " .. table.concat(args, ", "))
     else
-        print("  ❌ Erro: " .. tostring(err))
+        print("❌ " .. i .. ": " .. tostring(err))
     end
-    task.wait(0.5)  -- pequena pausa entre tentativas
+    task.wait(0.1)  -- reduz a pausa para ser mais rápido
 end
 
-print("🎯 Todas as tentativas foram enviadas. Verifique se a GUI abriu.")
-print("Se nenhuma funcionar, o evento pode esperar argumentos específicos não listados aqui.")
+print("🎯 Força bruta concluída. Se a GUI não abriu, o evento exige um formato não coberto.")
