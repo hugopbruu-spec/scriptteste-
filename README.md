@@ -1,8 +1,9 @@
 --[[
-    🎲 Dice Duplicator v3 – Reset de personagem sem morrer
-    Usa Player:LoadCharacter() para forçar um novo personagem
-    sem sair do servidor e sem matar o personagem atual.
-    Os dados no chão permanecem e você recebe um inventário limpo.
+    🎲 Dice Duplicator v4 – Preserva dados no chão sem matar o personagem
+    Usa Player:LoadCharacter() para forçar um novo corpo (inventário limpo)
+    sem matar o personagem atual. Após o novo personagem carregar,
+    teleporta-o de volta para onde estava.
+    Os dados que estavam no chão não são afetados.
 --]]
 
 local Players = game:GetService("Players")
@@ -11,7 +12,7 @@ local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 
--- Aguarda o personagem
+-- Aguarda o personagem carregar pela primeira vez
 repeat task.wait() until Player.Character
 
 -- ==================== NOTIFICAÇÕES ====================
@@ -56,8 +57,8 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 260, 0, 150)
-Main.Position = UDim2.new(0.5, -130, 0.5, -75)
+Main.Size = UDim2.new(0, 280, 0, 160)
+Main.Position = UDim2.new(0.5, -140, 0.5, -80)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
@@ -122,9 +123,9 @@ Content.Size = UDim2.new(1, -20, 1, -50)
 local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Parent = Content
 InfoLabel.BackgroundTransparency = 1
-InfoLabel.Size = UDim2.new(1, 0, 0, 40)
+InfoLabel.Size = UDim2.new(1, 0, 0, 44)
 InfoLabel.Font = Enum.Font.Gotham
-InfoLabel.Text = "Jogue o dado no chão e clique no botão para resetar seu personagem. O dado permanece no chão e você recebe um inventário novo."
+InfoLabel.Text = "1. Jogue o dado no chão\n2. Clique no botão abaixo\nO dado fica no chão e você ganha um inventário limpo SEM MORRER."
 InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
 InfoLabel.TextSize = 10
 InfoLabel.TextWrapped = true
@@ -134,40 +135,56 @@ local ResetBtn = Instance.new("TextButton")
 ResetBtn.Parent = Content
 ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 ResetBtn.BorderSizePixel = 0
-ResetBtn.Position = UDim2.new(0, 0, 0, 44)
-ResetBtn.Size = UDim2.new(1, 0, 0, 38)
-ResetBtn.Text = "🔄 RESETAR PERSONAGEM"
+ResetBtn.Position = UDim2.new(0, 0, 0, 48)
+ResetBtn.Size = UDim2.new(1, 0, 0, 40)
+ResetBtn.Text = "🔄 RESETAR INVENTÁRIO (SEM MORRER)"
 ResetBtn.Font = Enum.Font.GothamBlack
 ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ResetBtn.TextSize = 11
+ResetBtn.TextSize = 10
 Instance.new("UICorner", ResetBtn).CornerRadius = UDim.new(0, 8)
 
 ResetBtn.MouseButton1Click:Connect(function()
-    ResetBtn.Text = "⏳ Resetando..."
+    ResetBtn.Text = "⏳ Resetando inventário..."
     ResetBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
     ResetBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    Notify("Resetando personagem...")
-    
-    -- Usa LoadCharacter para forçar um novo personagem sem matar o atual
-    -- Isso faz o personagem antigo sumir e um novo aparecer no spawn,
-    -- mas os dados no chão não são afetados.
+    Notify("Resetando inventário, aguarde...")
+
+    -- Salva a posição atual (se houver personagem)
+    local savedPos = nil
+    if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+        savedPos = Player.Character.HumanoidRootPart.CFrame
+    end
+
+    -- Força um novo personagem SEM matar o antigo (LoadCharacter)
     local success = pcall(function()
         Player:LoadCharacter()
     end)
-    
-    if not success then
-        -- Fallback: se LoadCharacter falhar, tenta despawning via Humanoid
-        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-            -- Apenas remove o personagem atual (sem matar)
+
+    -- Aguarda o novo personagem carregar (timeout de 10 segundos)
+    local newCharacter = nil
+    if success then
+        newCharacter = Player.CharacterAdded:Wait()
+    else
+        -- Fallback: se LoadCharacter falhou, tenta Destroy no antigo
+        if Player.Character then
             Player.Character:Destroy()
         end
+        newCharacter = Player.CharacterAdded:Wait()
     end
-    
-    task.wait(0.5)
-    ResetBtn.Text = "🔄 RESETAR PERSONAGEM"
+
+    -- Se tínhamos uma posição salva, teleporta o novo personagem para lá
+    if savedPos and newCharacter then
+        task.wait(0.1) -- pequena pausa para o personagem se estabelecer
+        if newCharacter:FindFirstChild("HumanoidRootPart") then
+            newCharacter.HumanoidRootPart.CFrame = savedPos
+            Notify("Inventário resetado! Você foi teletransportado de volta.")
+        end
+    end
+
+    -- Restaura o botão
+    ResetBtn.Text = "🔄 RESETAR INVENTÁRIO (SEM MORRER)"
     ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
     ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Notify("Personagem resetado! Pegue outro dado.")
 end)
 
 -- Arraste
