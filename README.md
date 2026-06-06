@@ -1,8 +1,9 @@
 --[[
-    🎲 Dice Duplicator Universal
-    Salva o modelo do dado na mão. Ao clicar em DUPLICAR,
-    remove a ferramenta atual (inclusive a invisível) e cria
-    uma nova cópia na mochila. O dado no chão permanece intocado.
+    🎲 Dice Duplicator Universal – Robusto e Funcional
+    Jogue o dado no chão e clique em DUPLICAR.
+    O dado no chão permanece, a ferramenta invisível some,
+    e um novo dado equipável aparece na sua mão.
+    Funciona com qualquer inventário.
 --]]
 
 local Players = game:GetService("Players")
@@ -113,51 +114,51 @@ DupBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 DupBtn.TextSize = 11
 Instance.new("UICorner", DupBtn).CornerRadius = UDim.new(0, 6)
 
--- ==================== LÓGICA ====================
-local diceTemplate = nil  -- clone do dado original
+-- ==================== LÓGICA PRINCIPAL ====================
+local diceTemplate = nil  -- template atualizado sempre que um dado é detectado
 
-local function findAndSaveTool()
+-- Atualiza o template com um clone da ferramenta (incluindo scripts, mas preservando a funcionalidade)
+local function UpdateTemplate()
+    -- Procura por qualquer ferramenta "Dice" no personagem (mão) ou mochila
     for _, tool in ipairs(Player.Character:GetChildren()) do
         if tool:IsA("Tool") and tool.Name == "Dice" then
             diceTemplate = tool:Clone()
-            return true
+            return
         end
     end
     for _, tool in ipairs(Backpack:GetChildren()) do
         if tool:IsA("Tool") and tool.Name == "Dice" then
             diceTemplate = tool:Clone()
-            return true
+            return
         end
     end
-    return false
 end
 
--- Tenta salvar ao iniciar
-findAndSaveTool()
+-- Ao iniciar, tenta salvar o template
+UpdateTemplate()
 
--- Atualiza template quando um novo dado é pego
+-- Atualiza o template sempre que um novo dado aparece (pegou da mochila ou spawnou)
 local function onNewTool(child)
     if child:IsA("Tool") and child.Name == "Dice" then
-        task.wait(0.1) -- pequena pausa para propriedades carregarem
-        diceTemplate = child:Clone()
+        task.wait(0.2) -- espera propriedades carregarem completamente
+        UpdateTemplate()
     end
 end
 Player.ChildAdded:Connect(onNewTool)
 Backpack.ChildAdded:Connect(onNewTool)
 
 DupBtn.MouseButton1Click:Connect(function()
-    -- 1. Garantir que dados no chão (Workspace.Temp) não sejam removidos
-    --    (não faremos nada, apenas garantir NetworkOwner nil, mas já está)
-    local temp = Workspace:FindFirstChild("Temp")
-    if temp then
-        for _, obj in ipairs(temp:GetChildren()) do
-            if obj.Name == "DiceRoll" then
+    -- 1. Preservar dados no chão: garantir NetworkOwner nil para todos os DiceRoll em Workspace.Temp
+    local tempFolder = Workspace:FindFirstChild("Temp")
+    if tempFolder then
+        for _, obj in ipairs(tempFolder:GetChildren()) do
+            if obj:IsA("MeshPart") and obj.Name == "DiceRoll" then
                 pcall(function() obj:SetNetworkOwner(nil) end)
             end
         end
     end
 
-    -- 2. Remover todas as ferramentas "Dice" da mão e mochila
+    -- 2. Remover todas as ferramentas "Dice" da mão e da mochila (inclusive a invisível)
     local toRemove = {}
     for _, tool in ipairs(Player.Character:GetChildren()) do
         if tool:IsA("Tool") and tool.Name == "Dice" then
@@ -173,14 +174,18 @@ DupBtn.MouseButton1Click:Connect(function()
         tool:Destroy()
     end
 
-    -- 3. Criar nova ferramenta a partir do template
+    -- Aguarda um frame para garantir que a destruição seja processada
+    task.wait(0.1)
+
+    -- 3. Criar nova ferramenta baseada no template salvo, ou genérica se não houver
+    local newTool
     if diceTemplate then
-        local newTool = diceTemplate:Clone()
-        newTool.Parent = Backpack
-        Notify("🎲 Novo dado na mochila!")
+        newTool = diceTemplate:Clone()
+        -- Remove scripts problemáticos? Não, o script é necessário para jogar o dado.
+        -- Apenas garantimos que a ferramenta seja equipável
     else
-        -- Fallback: cria um dado genérico com as propriedades conhecidas
-        local newTool = Instance.new("Tool")
+        -- Fallback genérico com as propriedades conhecidas
+        newTool = Instance.new("Tool")
         newTool.Name = "Dice"
         newTool.RequiresHandle = true
         newTool.CanBeDropped = false
@@ -190,7 +195,6 @@ DupBtn.MouseButton1Click:Connect(function()
         newTool.GripRight = Vector3.new(1,0,0)
         newTool.GripUp = Vector3.new(0,1,0)
         newTool.GripPos = Vector3.new(0,0,0)
-        -- Adiciona um Handle básico
         local handle = Instance.new("MeshPart")
         handle.Name = "Handle"
         handle.Size = Vector3.new(0.662, 0.662, 0.662)
@@ -198,9 +202,11 @@ DupBtn.MouseButton1Click:Connect(function()
         handle.Material = Enum.Material.Plastic
         handle.Color = Color3.fromRGB(163, 162, 165)
         handle.Parent = newTool
-        newTool.Parent = Backpack
-        Notify("🎲 Dado genérico criado (template ausente).")
     end
+
+    -- Coloca a nova ferramenta diretamente na mão do jogador (equipa automaticamente)
+    newTool.Parent = Player.Character
+    Notify("🎲 Novo dado equipado! Jogue novamente.")
 end)
 
 -- Arraste
@@ -227,4 +233,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Pronto! Jogue o dado e clique em DUPLICAR.")
+Notify("🎲 Dado pronto. Clique em DUPLICAR após jogar.")
