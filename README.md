@@ -1,9 +1,9 @@
 --[[
-    🎲 Dice Duplicator vFinal – Reset suave de inventário
+    🎲 Dice Duplicator vFinal – Tela preta rápida + LoadCharacter
     Jogue o dado no chão e clique no botão.
-    O script faz o servidor acreditar que você saiu e voltou,
-    mantendo você exatamente onde estava, sem morte aparente.
-    O dado no chão permanece bugado e você recebe um novo dado.
+    Uma tela preta esconde a transição enquanto o teu personagem
+    é recarregado no mesmo local. O dado bugado permanece no chão.
+    Inventário renovado. Sem morte visível. Sem sair do servidor.
 --]]
 
 local Players = game:GetService("Players")
@@ -14,7 +14,33 @@ local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local Camera = Workspace.CurrentCamera
 
+-- Aguarda o personagem inicial
 repeat task.wait() until Player.Character
+
+-- ==================== TELA PRETA (para esconder a transição) ====================
+local BlackScreen = Instance.new("ScreenGui")
+BlackScreen.Name = "DiceDuplicatorBlackScreen"
+BlackScreen.Parent = CoreGui
+BlackScreen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+BlackScreen.IgnoreGuiInset = true
+
+local BlackFrame = Instance.new("Frame")
+BlackFrame.Parent = BlackScreen
+BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BlackFrame.BackgroundTransparency = 1           -- começa invisível
+BlackFrame.BorderSizePixel = 0
+BlackFrame.Size = UDim2.new(1, 0, 1, 0)
+
+local function ShowBlackScreen()
+    BlackFrame.BackgroundTransparency = 0
+    BlackFrame.Visible = true
+end
+
+local function HideBlackScreen()
+    BlackFrame.BackgroundTransparency = 1
+    task.wait(0.1)
+    BlackFrame.Visible = false
+end
 
 -- ==================== NOTIFICAÇÕES ====================
 local function Notify(text, duration)
@@ -149,10 +175,9 @@ ResetBtn.MouseButton1Click:Connect(function()
     ResetBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
     ResetBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
     ResetBtn.Interactable = false
-    Notify("Salvando posição e recarregando personagem...")
 
     local oldCharacter = Player.Character
-    if not oldCharacter then
+    if not oldCharacter or not oldCharacter:FindFirstChild("HumanoidRootPart") then
         ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
         ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -160,32 +185,21 @@ ResetBtn.MouseButton1Click:Connect(function()
         return
     end
 
-    local oldRoot = oldCharacter:FindFirstChild("HumanoidRootPart")
-    local oldHumanoid = oldCharacter:FindFirstChild("Humanoid")
-    if not oldRoot or not oldHumanoid then
-        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
-        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        ResetBtn.Interactable = true
-        return
-    end
-
-    -- Salva posição exata e direção
+    -- Salva posição e câmera
+    local oldRoot = oldCharacter.HumanoidRootPart
     local savedCFrame = oldRoot.CFrame
     local savedCameraCFrame = Camera.CFrame
-    local savedHealth = oldHumanoid.Health
-    local savedMaxHealth = oldHumanoid.MaxHealth
 
-    -- Congela o personagem antigo para evitar movimentos bruscos
-    oldRoot.Anchored = true
+    -- Mostra tela preta (transição instantânea)
+    ShowBlackScreen()
 
-    -- Recarrega o personagem (o antigo será destruído)
+    -- Recarrega o personagem (o antigo é destruído automaticamente)
     local success = pcall(function()
         Player:LoadCharacter()
     end)
 
     if not success then
-        oldRoot.Anchored = false
+        HideBlackScreen()
         ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
         ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -194,45 +208,43 @@ ResetBtn.MouseButton1Click:Connect(function()
         return
     end
 
-    -- Aguarda o novo personagem com timeout
+    -- Aguarda o novo personagem aparecer
     local newCharacter = nil
     local startTime = tick()
     repeat
         newCharacter = Player.Character
-        task.wait(0.1)
-    until (newCharacter and newCharacter ~= oldCharacter) or (tick() - startTime > 15)
+        task.wait(0.05)
+    until (newCharacter and newCharacter ~= oldCharacter) or (tick() - startTime > 10)
 
     if not newCharacter or newCharacter == oldCharacter then
+        HideBlackScreen()
+        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
+        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ResetBtn.Interactable = true
         Notify("Falha ao obter novo personagem.")
+        return
+    end
+
+    -- Aguarda HumanoidRootPart existir
+    local newRoot = newCharacter:WaitForChild("HumanoidRootPart", 5)
+    if not newRoot then
+        HideBlackScreen()
         ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
         ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         ResetBtn.Interactable = true
-        return
-    end
-
-    -- Espera o HumanoidRootPart e Humanoid do novo personagem
-    local newRoot = newCharacter:WaitForChild("HumanoidRootPart", 10)
-    local newHumanoid = newCharacter:WaitForChild("Humanoid", 10)
-
-    if not newRoot or not newHumanoid then
         Notify("Novo personagem incompleto.")
-        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
-        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        ResetBtn.Interactable = true
         return
     end
 
-    -- Restaura a posição e a câmera instantaneamente
+    -- Teletransporta o novo personagem para a posição salva e restaura a câmera
     newRoot.CFrame = savedCFrame
-    Camera.CameraSubject = newHumanoid
+    Camera.CameraSubject = newCharacter:FindFirstChild("Humanoid")
     Camera.CFrame = savedCameraCFrame
 
-    -- Ajusta a saúde para evitar morte aparente
-    newHumanoid.MaxHealth = savedMaxHealth
-    newHumanoid.Health = savedHealth
-    newHumanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false) -- evita que morra facilmente
+    -- Esconde a tela preta
+    HideBlackScreen()
 
     Notify("Inventário resetado! O dado no chão continua lá.")
     ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
