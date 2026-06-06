@@ -1,7 +1,7 @@
 --[[
-    🎲 Dice Duplicator Pro – Detecção automática de objetos no chão
-    Monitora quando um dado é jogado, abandona o objeto criado
-    e fornece uma nova ferramenta imediatamente.
+    🔍 Dice Tracker – Rastreia o dado e recolhe informações
+    Ative o rastreador, jogue o dado no chão, e todos os detalhes
+    aparecerão no mini console. Depois copie e cole aqui.
 --]]
 
 local Players = game:GetService("Players")
@@ -47,7 +47,7 @@ end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui")
-gui.Name = "DiceDuplicator"
+gui.Name = "DiceTracker"
 gui.Parent = CoreGui
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
@@ -56,8 +56,8 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 280, 0, 130)
-Main.Position = UDim2.new(0.5, -140, 0.5, -65)
+Main.Size = UDim2.new(0, 360, 0, 390)
+Main.Position = UDim2.new(0.5, -180, 0.5, -195)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
@@ -82,7 +82,7 @@ TitleIcon.Parent = TitleBar
 TitleIcon.BackgroundTransparency = 1
 TitleIcon.Position = UDim2.new(0, 8, 0, 5)
 TitleIcon.Size = UDim2.new(0, 26, 0, 26)
-TitleIcon.Text = "🎲"
+TitleIcon.Text = "🔍"
 TitleIcon.TextSize = 18
 
 local TitleText = Instance.new("TextLabel")
@@ -91,7 +91,7 @@ TitleText.BackgroundTransparency = 1
 TitleText.Position = UDim2.new(0, 36, 0, 0)
 TitleText.Size = UDim2.new(1, -70, 1, 0)
 TitleText.Font = Enum.Font.GothamBold
-TitleText.Text = "Dice Duplicator"
+TitleText.Text = "Dice Tracker"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 13
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
@@ -116,132 +116,193 @@ Content.BackgroundTransparency = 1
 Content.Position = UDim2.new(0, 10, 0, 42)
 Content.Size = UDim2.new(1, -20, 1, -50)
 
-local InfoLabel = Instance.new("TextLabel")
-InfoLabel.Parent = Content
-InfoLabel.BackgroundTransparency = 1
-InfoLabel.Size = UDim2.new(1, 0, 0, 30)
-InfoLabel.Font = Enum.Font.Gotham
-InfoLabel.Text = "1. Jogue o dado no chão\n2. Clique em DUPLICAR"
-InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 220)
-InfoLabel.TextSize = 10
-InfoLabel.TextWrapped = true
-InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+local ActivateBtn = Instance.new("TextButton")
+ActivateBtn.Parent = Content
+ActivateBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+ActivateBtn.BorderSizePixel = 0
+ActivateBtn.Size = UDim2.new(1, 0, 0, 34)
+ActivateBtn.Text = "🟢 ATIVAR RASTREADOR (com dado na mão)"
+ActivateBtn.Font = Enum.Font.GothamBlack
+ActivateBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ActivateBtn.TextSize = 10
+Instance.new("UICorner", ActivateBtn).CornerRadius = UDim.new(0, 8)
 
-local DupBtn = Instance.new("TextButton")
-DupBtn.Parent = Content
-DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-DupBtn.BorderSizePixel = 0
-DupBtn.Position = UDim2.new(0, 0, 0, 34)
-DupBtn.Size = UDim2.new(1, 0, 0, 38)
-DupBtn.Text = "🔄 DUPLICAR DADO"
-DupBtn.Font = Enum.Font.GothamBlack
-DupBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-DupBtn.TextSize = 11
-Instance.new("UICorner", DupBtn).CornerRadius = UDim.new(0, 8)
+-- Mini console
+local ConsoleBox = Instance.new("TextBox")
+ConsoleBox.Parent = Content
+ConsoleBox.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
+ConsoleBox.BorderSizePixel = 0
+ConsoleBox.Position = UDim2.new(0, 0, 0, 40)
+ConsoleBox.Size = UDim2.new(1, 0, 0, 260)
+ConsoleBox.Font = Enum.Font.Code
+ConsoleBox.Text = "Console vazio. Ative o rastreador e jogue o dado."
+ConsoleBox.TextColor3 = Color3.fromRGB(200, 200, 220)
+ConsoleBox.TextSize = 10
+ConsoleBox.ClearTextOnFocus = false
+ConsoleBox.TextEditable = false
+ConsoleBox.TextWrapped = true
+ConsoleBox.TextXAlignment = Enum.TextXAlignment.Left
+ConsoleBox.TextYAlignment = Enum.TextYAlignment.Top
+Instance.new("UICorner", ConsoleBox).CornerRadius = UDim.new(0, 6)
+Instance.new("UIStroke", ConsoleBox).Color = Color3.fromRGB(108, 92, 231)
 
--- ==================== LÓGICA PRINCIPAL ====================
-local activeTool = nil  -- ferramenta original (salva antes de jogar)
-local toolRemovedConn = nil
+local CopyBtn = Instance.new("TextButton")
+CopyBtn.Parent = Content
+CopyBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+CopyBtn.BorderSizePixel = 0
+CopyBtn.Position = UDim2.new(1, -60, 0, 305)
+CopyBtn.Size = UDim2.new(0, 56, 0, 22)
+CopyBtn.Text = "📋 Copiar"
+CopyBtn.Font = Enum.Font.GothamBold
+CopyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CopyBtn.TextSize = 10
+Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 6)
 
-local function captureTool()
-    -- Procura uma ferramenta "Dice" ou "Dice roll" no personagem ou mochila
-    for _, tool in ipairs(Player.Character:GetChildren()) do
-        if tool:IsA("Tool") and (tool.Name == "Dice" or tool.Name == "Dice roll") then
-            return tool
-        end
-    end
-    for _, tool in ipairs(Backpack:GetChildren()) do
-        if tool:IsA("Tool") and (tool.Name == "Dice" or tool.Name == "Dice roll") then
-            return tool
-        end
-    end
-    return nil
+local function Log(msg)
+    ConsoleBox.Text = ConsoleBox.Text .. "\n" .. msg
 end
 
-local function abandonAndReplace()
-    -- 1. Encontrar objetos recém-criados no Workspace (potenciais dados no chão)
-    -- Vamos usar uma tabela de referência antes e depois.
-    -- Como o clique do botão ocorre após o jogador jogar, podemos varrer o Workspace agora.
-    local newObjects = {}
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and obj:GetNetworkOwner() == Player then
-            table.insert(newObjects, obj)
-        elseif obj:IsA("Model") then
-            for _, part in ipairs(obj:GetDescendants()) do
-                if part:IsA("BasePart") and part:GetNetworkOwner() == Player then
-                    table.insert(newObjects, part)
-                end
+CopyBtn.MouseButton1Click:Connect(function()
+    pcall(function()
+        if setclipboard then setclipboard(ConsoleBox.Text)
+        elseif writefile then writefile("dice_tracker.txt", ConsoleBox.Text) end
+    end)
+    Notify("Copiado para a área de transferência!")
+end)
+
+-- ==================== LÓGICA DO RASTREADOR ====================
+local activeTool = nil
+local toolConn = nil
+local function DeactivateTracker()
+    if toolConn then
+        toolConn:Disconnect()
+        toolConn = nil
+    end
+    activeTool = nil
+    ActivateBtn.Text = "🟢 ATIVAR RASTREADOR (com dado na mão)"
+    ActivateBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+end
+
+local function CaptureToolInfo(tool)
+    local info = {}
+    table.insert(info, "=== INFORMAÇÕES DA FERRAMENTA (NA MÃO/MOCHILA) ===")
+    table.insert(info, "Nome: " .. tostring(tool.Name))
+    table.insert(info, "Classe: " .. tool.ClassName)
+    table.insert(info, "Parent: " .. tostring(tool.Parent))
+    -- Propriedades comuns
+    local props = { "RequiresHandle", "CanBeDropped", "ManualActivationOnly", "ToolTip", "TextureId", "Grip", "GripForward", "GripRight", "GripUp", "GripPos" }
+    for _, prop in ipairs(props) do
+        local ok, val = pcall(function() return tool[prop] end)
+        if ok and val ~= nil then
+            table.insert(info, prop .. ": " .. tostring(val))
+        end
+    end
+    -- Filhos importantes
+    table.insert(info, "Filhos da ferramenta:")
+    for _, child in ipairs(tool:GetChildren()) do
+        table.insert(info, "  [" .. child.ClassName .. "] " .. child.Name)
+        -- IDs de assets
+        for _, assetProp in ipairs({"TextureId", "MeshId", "SoundId"}) do
+            local ok, val = pcall(function() return child[assetProp] end)
+            if ok and val and type(val) == "string" and val:match("rbxassetid://") then
+                table.insert(info, "    " .. assetProp .. ": " .. val)
             end
         end
     end
-
-    -- Transfere todos esses objetos para nil (abandona)
-    local count = 0
-    for _, part in ipairs(newObjects) do
-        pcall(function() part:SetNetworkOwner(nil) end)
-        count = count + 1
-    end
-
-    if count == 0 then
-        Notify("Nenhum dado no chão com sua propriedade. Jogue o dado primeiro!")
-        return false
-    end
-
-    -- Remove qualquer ferramenta residual (na mão ou mochila)
-    local toRemove = {}
-    local function collectTools(parent)
-        for _, child in ipairs(parent:GetChildren()) do
-            if child:IsA("Tool") and (child.Name == "Dice" or child.Name == "Dice roll") then
-                table.insert(toRemove, child)
-            end
+    -- Atributos
+    local attrs = tool:GetAttributes()
+    if next(attrs) then
+        table.insert(info, "Atributos:")
+        for k, v in pairs(attrs) do
+            table.insert(info, "  " .. k .. ": " .. tostring(v))
         end
-    end
-    collectTools(Player.Character)
-    collectTools(Backpack)
-    for _, tool in ipairs(toRemove) do
-        tool:Destroy()
-    end
-
-    -- Cria uma nova ferramenta baseada na original guardada (ou genérica)
-    if activeTool then
-        local newTool = activeTool:Clone()
-        newTool.Parent = Backpack
     else
-        local newTool = Instance.new("Tool")
-        newTool.Name = "Dice"
-        newTool.Parent = Backpack
+        table.insert(info, "Atributos: nenhum")
     end
-
-    Notify("🎲 Dado duplicado! Novo na mochila, o do chão permanece.")
-    return true
+    return table.concat(info, "\n")
 end
 
--- Ativa o modo de duplicação
-local function activateDuplication()
-    activeTool = captureTool()
-    if not activeTool then
-        Notify("Você precisa estar com um dado (Dice/Dice roll) na mão ou mochila!")
+local function CaptureWorldObjects()
+    local objects = {}
+    -- Procura objetos que surgiram recentemente (não podemos saber o instante exato, então listamos tudo)
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local owner = nil
+            pcall(function() owner = obj:GetNetworkOwner() end)
+            -- Inclui todos, mas destaca os que pertencem ao jogador
+            table.insert(objects, {
+                Name = obj.Name,
+                Class = obj.ClassName,
+                NetworkOwner = owner,
+                Position = obj.Position,
+                Parent = obj.Parent and obj.Parent:GetFullName() or "nil"
+            })
+        elseif obj:IsA("Model") and obj:FindFirstChildOfClass("BasePart") then
+            -- Modelos que podem ser o dado
+            local owner = nil
+            local part = obj:FindFirstChildOfClass("BasePart")
+            if part then pcall(function() owner = part:GetNetworkOwner() end) end
+            table.insert(objects, {
+                Name = obj.Name,
+                Class = obj.ClassName,
+                NetworkOwner = owner,
+                Position = part and part.Position or Vector3.zero,
+                Parent = obj.Parent and obj.Parent:GetFullName() or "nil"
+            })
+        end
+    end
+    return objects
+end
+
+ActivateBtn.MouseButton1Click:Connect(function()
+    if activeTool then
+        DeactivateTracker()
+        Log("Rastreador desativado.")
         return
     end
 
-    -- Monitora quando essa ferramenta for removida (jogada)
-    if toolRemovedConn then toolRemovedConn:Disconnect() end
-    toolRemovedConn = activeTool.AncestryChanged:Connect(function()
+    -- Procura ferramenta na mão/mochila
+    local function findTool()
+        for _, tool in ipairs(Player.Character:GetChildren()) do
+            if tool:IsA("Tool") and (tool.Name == "Dice" or tool.Name == "Dice roll") then return tool end
+        end
+        for _, tool in ipairs(Backpack:GetChildren()) do
+            if tool:IsA("Tool") and (tool.Name == "Dice" or tool.Name == "Dice roll") then return tool end
+        end
+        return nil
+    end
+
+    activeTool = findTool()
+    if not activeTool then
+        Notify("Você não está com um dado (Dice/Dice roll) na mão ou mochila!")
+        return
+    end
+
+    ActivateBtn.Text = "🔴 DESATIVAR RASTREADOR"
+    ActivateBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+
+    ConsoleBox.Text = "Rastreador ativado! Ferramenta encontrada:\n\n"
+    Log(CaptureToolInfo(activeTool))
+    Log("\nAguardando você jogar o dado...\n")
+
+    -- Monitora a remoção da ferramenta
+    if toolConn then toolConn:Disconnect() end
+    toolConn = activeTool.AncestryChanged:Connect(function()
         if not activeTool:IsDescendantOf(Player) and not activeTool:IsDescendantOf(Backpack) then
-            -- A ferramenta foi removida (jogada)
-            task.wait(0.3) -- pequena pausa para o objeto físico ser criado
-            abandonAndReplace()
-            -- Desconecta para evitar múltiplas execuções
-            toolRemovedConn:Disconnect()
-            toolRemovedConn = nil
-            activeTool = nil
+            Log(">>> DADO JOGADO! A ferramenta foi removida do jogador.\n")
+            task.wait(0.5) -- aguarda o objeto físico aparecer
+            Log("=== OBJETOS ENCONTRADOS NO MUNDO APÓS JOGAR ===")
+            local worldObjects = CaptureWorldObjects()
+            for _, obj in ipairs(worldObjects) do
+                Log(string.format("[%s] %s | Dono: %s | Pos: %s | Parent: %s",
+                    obj.Class, obj.Name, tostring(obj.NetworkOwner), tostring(obj.Position), obj.Parent))
+            end
+            Log("\nRastreador concluído. Copie os dados e cole aqui.")
+            DeactivateTracker()
         end
     end)
-
-    Notify("🟢 Duplicação ativada! Jogue o dado e um novo aparecerá.")
-end
-
-DupBtn.MouseButton1Click:Connect(activateDuplication)
+    Notify("Rastreador ativo! Jogue o dado para capturar os dados.")
+end)
 
 -- Arraste
 local dragging, startPos, startGuiPos
@@ -267,4 +328,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Equipe o dado, clique em DUPLICAR e jogue-o!")
+Notify("🔍 Ative o rastreador, jogue o dado e cole as informações aqui!")
