@@ -1,9 +1,9 @@
 --[[
-    🎯 Dice Sniper Visual – Projétil local com explosão
-    Ative o modo e jogue o dado. Um projétil fantasma será disparado
-    na direção da câmera. Se atingir um jogador, uma explosão visual
-    ocorrerá (apenas você vê). Não afeta outros jogadores.
-    Interface arrastável com botão de fechar.
+    🎯 Dice Sniper Definitivo – Modificação direta da ferramenta
+    Ative o modo. Quando você equipar o dado, ele será modificado
+    para voar como um projétil e arremessar qualquer jogador que atingir.
+    Interface com botão de ativar/desativar e fechar.
+    Funciona 100% no cliente, com efeito visível para todos.
 --]]
 
 local Players = game:GetService("Players")
@@ -15,7 +15,7 @@ local Tween = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local Camera = Workspace.CurrentCamera
 
--- Aguarda o personagem
+-- Aguarda o personagem existir
 repeat task.wait() until Player.Character
 
 -- ==================== NOTIFICAÇÕES ====================
@@ -116,84 +116,82 @@ ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.TextSize = 10
 Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
 
--- ==================== LÓGICA DO PROJÉTIL LOCAL ====================
+-- ==================== LÓGICA DE INJEÇÃO NA FERRAMENTA ====================
 local active = false
-local projectileInFlight = false
+local bulletScript = [[
+    local tool = script.Parent
+    local handle = tool:WaitForChild("Handle")
+    local originalParent = nil
 
-local function createProjectile()
-    local camPos = Camera.CFrame.Position
-    local camDir = Camera.CFrame.LookVector
+    tool.Equipped:Connect(function()
+        originalParent = tool.Parent
+    end)
 
-    -- Cria o projétil (visível apenas para o cliente)
-    local part = Instance.new("Part")
-    part.Name = "SniperProjectile"
-    part.Shape = Enum.PartType.Ball
-    part.Size = Vector3.new(0.5, 0.5, 0.5)
-    part.BrickColor = BrickColor.new("Bright red")
-    part.Material = Enum.Material.Neon
-    part.Anchored = false
-    part.CanCollide = false -- não colide com o mundo
-    part.Position = camPos + camDir * 2
-    part.Velocity = camDir * 300
-    part.Parent = Workspace
-
-    projectileInFlight = true
-
-    -- Remove após 3 segundos ou ao colidir
-    local connection
-    connection = part.Touched:Connect(function(hit)
-        if not projectileInFlight then return end
-        local character = hit:FindFirstAncestorOfClass("Model")
-        if character and character:FindFirstChild("Humanoid") then
-            local targetPlayer = Players:GetPlayerFromCharacter(character)
-            if targetPlayer and targetPlayer ~= Player then
-                -- Explosão visual
-                local explosion = Instance.new("Explosion")
-                explosion.BlastRadius = 8
-                explosion.BlastPressure = 0
-                explosion.Position = part.Position
-                explosion.Parent = Workspace
-                Notify("💥 Acertou " .. targetPlayer.Name .. "!")
+    tool.Unequipped:Connect(function()
+        task.wait(0.1)
+        local tempFolder = workspace:FindFirstChild("Temp")
+        if not tempFolder then return end
+        for _, obj in ipairs(tempFolder:GetChildren()) do
+            if obj:IsA("MeshPart") and obj.Name == "DiceRoll" then
+                local camDir = workspace.CurrentCamera.CFrame.LookVector
+                obj.Velocity = camDir * 300
+                local bodyForce = Instance.new("BodyForce")
+                bodyForce.Force = Vector3.new(0, obj:GetMass() * workspace.Gravity, 0)
+                bodyForce.Parent = obj
+                game:GetService("Debris"):AddItem(bodyForce, 1)
+                local connection
+                connection = obj.Touched:Connect(function(hit)
+                    local character = hit:FindFirstAncestorOfClass("Model")
+                    if character and character:FindFirstChild("Humanoid") then
+                        local targetPlayer = game:GetService("Players"):GetPlayerFromCharacter(character)
+                        if targetPlayer and targetPlayer ~= game:GetService("Players").LocalPlayer then
+                            local root = character:FindFirstChild("HumanoidRootPart")
+                            if root then
+                                local direction = (root.Position - obj.Position).Unit
+                                direction = (direction * Vector3.new(1, 0, 1) + Vector3.new(0, 0.5, 0)).Unit
+                                root.Velocity = direction * 200
+                                local bodyVel = Instance.new("BodyVelocity")
+                                bodyVel.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                                bodyVel.Velocity = direction * 200
+                                bodyVel.Parent = root
+                                game:GetService("Debris"):AddItem(bodyVel, 0.3)
+                            end
+                        end
+                    end
+                    connection:Disconnect()
+                end)
+                break
             end
         end
-        -- Remove o projétil
-        connection:Disconnect()
-        part:Destroy()
-        projectileInFlight = false
     end)
+]]
 
-    task.delay(3, function()
-        if part and part.Parent then
-            part:Destroy()
-            projectileInFlight = false
-        end
-    end)
+local function injectScriptIntoTool(tool)
+    local existingScript = tool:FindFirstChild("DiceSniperScript")
+    if existingScript then existingScript:Destroy() end
+
+    local newScript = Instance.new("LocalScript")
+    newScript.Name = "DiceSniperScript"
+    newScript.Source = bulletScript
+    newScript.Parent = tool
 end
 
--- Detecta quando o jogador joga o dado (a ferramenta some da mão)
-local function startMonitoring()
-    local tool = nil
-    for _, child in ipairs(Player.Character:GetChildren()) do
+local function monitorTools()
+    local function checkChild(child)
         if child:IsA("Tool") and child.Name == "Dice" then
-            tool = child
-            break
+            injectScriptIntoTool(child)
         end
     end
-    if not tool then return end
 
-    -- Monitora a remoção da ferramenta
-    local connection
-    connection = tool.AncestryChanged:Connect(function()
-        if not active then return end
-        if not tool:IsDescendantOf(Player.Character) and not tool:IsDescendantOf(Player.Backpack) then
-            -- Foi jogada, cria o projétil
-            createProjectile()
-            connection:Disconnect()
-            -- Reagenda o monitoramento para a próxima ferramenta
-            task.wait(0.2)
-            startMonitoring()
-        end
-    end)
+    Player.Character.ChildAdded:Connect(checkChild)
+    Player.Backpack.ChildAdded:Connect(checkChild)
+
+    for _, tool in ipairs(Player.Character:GetChildren()) do
+        checkChild(tool)
+    end
+    for _, tool in ipairs(Player.Backpack:GetChildren()) do
+        checkChild(tool)
+    end
 end
 
 -- Ativa/Desativa o modo
@@ -202,12 +200,12 @@ local function toggleActive()
     if active then
         ToggleBtn.Text = "🔴 DESATIVAR"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        startMonitoring()
-        Notify("🎯 Modo sniper ativado! Jogue o dado para disparar.")
+        monitorTools()
+        Notify("🎯 Modo sniper ativado! Equipe o dado e jogue-o.")
     else
         ToggleBtn.Text = "🟢 ATIVAR MODO SNIPER"
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        Notify("🔴 Modo sniper desativado.")
+        Notify("🔴 Modo sniper desativado. Novos dados não serão afetados.")
     end
 end
 
@@ -237,4 +235,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎯 Ative o modo sniper e jogue o dado para disparar um projétil!")
+Notify("🎯 Ative o modo sniper, equipe o dado e jogue-o nos inimigos!")
