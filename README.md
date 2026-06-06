@@ -1,8 +1,8 @@
 --[[
-    🎲 Dice Duplicator – Rejoin instantâneo
-    Clique no botão para sair e voltar ao mesmo servidor
-    tão rápido que mal parece que saíste.
-    O dado no chão permanece bugado e ganhas um novo.
+    🎲 Dice Duplicator – Rejoin Flash (Imperceptível)
+    Sai e volta ao mesmo servidor tão rápido que parece um "lag".
+    Restaura posição e câmera automaticamente.
+    O dado no chão permanece e você ganha um novo.
 --]]
 
 local Players = game:GetService("Players")
@@ -11,8 +11,68 @@ local TeleportService = game:GetService("TeleportService")
 local CoreGui = game:GetService("CoreGui")
 local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
 
--- Aguarda o personagem
+-- ==================== TELA PRETA PERSISTENTE ====================
+-- Usamos PlayerGui porque sobrevive ao teleporte se ResetOnSpawn = false
+local function ShowBlack()
+    local black = Instance.new("ScreenGui")
+    black.Name = "RejoinBlack"
+    black.Parent = Player.PlayerGui  -- não CoreGui, para persistir
+    black.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    black.ResetOnSpawn = false       -- ESSENCIAL para não ser destruído
+    black.IgnoreGuiInset = true
+    local frame = Instance.new("Frame")
+    frame.Parent = black
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)
+    frame.BorderSizePixel = 0
+    frame.Size = UDim2.new(1, 0, 1, 0)
+end
+
+local function RemoveBlack()
+    for _, gui in ipairs(Player.PlayerGui:GetChildren()) do
+        if gui.Name == "RejoinBlack" then
+            gui:Destroy()
+        end
+    end
+end
+
+-- ==================== RESTAURAÇÃO PÓS-REJOIN ====================
+local function TryRestorePosition()
+    local savedCFrame = Player:GetAttribute("DiceSavedCFrame")
+    local savedCamCFrame = Player:GetAttribute("DiceSavedCamCFrame")
+    if not savedCFrame then return false end
+    
+    -- Aguarda o novo personagem carregar
+    local char = Player.Character
+    if not char then return false end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then
+        root = char:WaitForChild("HumanoidRootPart", 5)
+    end
+    if not root then return false end
+    
+    root.CFrame = savedCFrame
+    if savedCamCFrame then
+        Camera.CFrame = savedCamCFrame
+    end
+    Camera.CameraSubject = char:FindFirstChild("Humanoid")
+    
+    -- Limpa os atributos
+    Player:SetAttribute("DiceSavedCFrame", nil)
+    Player:SetAttribute("DiceSavedCamCFrame", nil)
+    RemoveBlack()
+    return true
+end
+
+-- Tenta restaurar se for um rejoin (atributos existem)
+if TryRestorePosition() then
+    -- Se restaurou, não precisa mostrar interface de novo? 
+    -- Mostra interface normalmente, mas a tela preta já foi removida.
+end
+
+-- Aguarda personagem para prosseguir
 repeat task.wait() until Player.Character
 
 -- ==================== NOTIFICAÇÕES ====================
@@ -21,29 +81,29 @@ local function Notify(text, duration)
     local gui = Instance.new("ScreenGui")
     gui.Parent = CoreGui
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    local frame = Instance.new("Frame")
-    frame.Parent = gui
-    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-    frame.BorderSizePixel = 0
-    frame.Position = UDim2.new(0.5, -140, 0, 10)
-    frame.Size = UDim2.new(0, 280, 0, 34)
-    frame.AnchorPoint = Vector2.new(0.5, 0)
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
-    Instance.new("UIStroke", frame).Color = Color3.fromRGB(108, 92, 231)
-    local lbl = Instance.new("TextLabel")
-    lbl.Parent = frame
-    lbl.BackgroundTransparency = 1
-    lbl.Size = UDim2.new(1, 0, 1, 0)
-    lbl.Font = Enum.Font.GothamBold
-    lbl.Text = text
-    lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-    lbl.TextSize = 12
-    local tw = Tween:Create(frame, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, 16)})
-    tw:Play()
+    local f = Instance.new("Frame")
+    f.Parent = gui
+    f.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    f.BorderSizePixel = 0
+    f.Position = UDim2.new(0.5, -140, 0, 10)
+    f.Size = UDim2.new(0, 280, 0, 34)
+    f.AnchorPoint = Vector2.new(0.5, 0)
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
+    Instance.new("UIStroke", f).Color = Color3.fromRGB(108, 92, 231)
+    local l = Instance.new("TextLabel")
+    l.Parent = f
+    l.BackgroundTransparency = 1
+    l.Size = UDim2.new(1, 0, 1, 0)
+    l.Font = Enum.Font.GothamBold
+    l.Text = text
+    l.TextColor3 = Color3.fromRGB(255, 255, 255)
+    l.TextSize = 12
+    local t = Tween:Create(f, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, 16)})
+    t:Play()
     task.wait(duration)
-    local tw2 = Tween:Create(frame, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, -34)})
-    tw2:Play()
-    tw2.Completed:Connect(function() gui:Destroy() end)
+    local t2 = Tween:Create(f, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, -34)})
+    t2:Play()
+    t2.Completed:Connect(function() gui:Destroy() end)
 end
 
 -- ==================== INTERFACE ====================
@@ -63,7 +123,7 @@ Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
 
--- Barra de título
+-- Título
 local TitleBar = Instance.new("Frame")
 TitleBar.Parent = Main
 TitleBar.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
@@ -134,32 +194,35 @@ DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
 DupBtn.BorderSizePixel = 0
 DupBtn.Position = UDim2.new(0, 0, 0, 34)
 DupBtn.Size = UDim2.new(1, 0, 0, 38)
-DupBtn.Text = "🔄 DUPLICAR (REJOIN RÁPIDO)"
+DupBtn.Text = "🔄 DUPLICAR (REJOIN INVISÍVEL)"
 DupBtn.Font = Enum.Font.GothamBlack
 DupBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 DupBtn.TextSize = 11
 Instance.new("UICorner", DupBtn).CornerRadius = UDim.new(0, 8)
 
 DupBtn.MouseButton1Click:Connect(function()
-    DupBtn.Text = "⏳ A sair e voltar..."
+    DupBtn.Text = "⏳ Duplicando..."
     DupBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
     DupBtn.Interactable = false
-    Notify("Rejoin instantâneo! Aguarda um segundo...")
     
-    -- Rejoin para o mesmo servidor (TeleportService)
-    local success, err = pcall(function()
-        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Player)
-    end)
-    
-    if not success then
-        -- Se falhar (ex: servidor cheio), tenta teleport para o mesmo lugar de qualquer forma
-        pcall(function()
-            TeleportService:Teleport(game.PlaceId, Player)
-        end)
+    -- Salva posição atual nos atributos do jogador (persiste após rejoin)
+    local char = Player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        Player:SetAttribute("DiceSavedCFrame", char.HumanoidRootPart.CFrame)
+        Player:SetAttribute("DiceSavedCamCFrame", Camera.CFrame)
     end
     
-    -- O script termina aqui porque o jogador sai do servidor
-    -- Quando voltar, o script terá sido reiniciado e o botão estará normal
+    -- Mostra tela preta PERSISTENTE (PlayerGui)
+    ShowBlack()
+    
+    -- Rejoin para o mesmo servidor
+    pcall(function()
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Player)
+    end)
+    -- Se falhar, teleporta para o mesmo jogo (sem preservar servidor)
+    pcall(function()
+        TeleportService:Teleport(game.PlaceId, Player)
+    end)
 end)
 
 -- Arraste
@@ -186,4 +249,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Clica em DUPLICAR para sair e voltar instantaneamente!")
+Notify("🎲 Tela preta cobre o rejoin. É quase instantâneo!")
