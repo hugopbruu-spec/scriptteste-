@@ -1,7 +1,8 @@
 --[[
-    🎲 Dice Duplicator vFinal – Reset garantido via BreakJoints
-    Mata o personagem antigo (sem mostrar) e força o renascimento.
-    Tela preta esconde tudo. Console de erros incluso.
+    🎲 Dice Duplicator vFinal – Preserva dados no chão
+    Desvincula os dados do teu personagem antes de renasceres,
+    impedindo que eles desapareçam. O servidor "esquece" o dado.
+    Inclui console de erros e botão copiar.
 --]]
 
 local Players = game:GetService("Players")
@@ -72,8 +73,8 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 320, 0, 320)
-Main.Position = UDim2.new(0.5, -160, 0.5, -160)
+Main.Size = UDim2.new(0, 340, 0, 340)
+Main.Position = UDim2.new(0.5, -170, 0.5, -170)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
@@ -217,49 +218,57 @@ ResetBtn.MouseButton1Click:Connect(function()
     ResetBtn.Interactable = false
     ConsoleBox.Text = ""
 
+    -- 1. Encontrar dados no chão e desvinculá‑los do jogador
+    local diceParts = {}
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and (obj.Name == "Dice" or obj.Name == "Dice roll") then
+            table.insert(diceParts, obj)
+        end
+    end
+    LogError("Encontradas " .. #diceParts .. " peças de dado no mundo.")
+
+    local unbindCount = 0
+    for _, part in ipairs(diceParts) do
+        local success, owner = pcall(function() return part:GetNetworkOwner() end)
+        if success and owner == Player then
+            pcall(function() part:SetNetworkOwner(nil) end)
+            unbindCount = unbindCount + 1
+            LogError("  Desvinculado: " .. part:GetFullName())
+        end
+    end
+    LogError(unbindCount .. " dados desvinculados do teu personagem.")
+
+    -- 2. Salvar posição atual
     local oldCharacter = Player.Character
-    if not oldCharacter then
-        LogError("ERRO: Personagem não existe.")
+    if not oldCharacter or not oldCharacter:FindFirstChild("HumanoidRootPart") then
+        LogError("ERRO: Personagem inválido.")
         ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
         ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
         ResetBtn.Interactable = true
         return
     end
-
-    local oldRoot = oldCharacter:FindFirstChild("HumanoidRootPart")
-    if not oldRoot then
-        LogError("ERRO: HumanoidRootPart não encontrado.")
-        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
-        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        ResetBtn.Interactable = true
-        return
-    end
-
-    local oldHumanoid = oldCharacter:FindFirstChild("Humanoid")
-    if not oldHumanoid then
-        LogError("ERRO: Humanoid não encontrado.")
-        ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
-        ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        ResetBtn.Interactable = true
-        return
-    end
-
+    local oldRoot = oldCharacter.HumanoidRootPart
     local savedCFrame = oldRoot.CFrame
     local savedCamCFrame = Camera.CFrame
-    LogError("OK: Posição salva: " .. tostring(savedCFrame))
+    LogError("OK: Posição salva.")
 
+    -- 3. Tela preta e renascimento
     ShowBlack()
     LogError("OK: Tela preta ativada.")
 
-    -- Força a morte do personagem (sem som, sem animação visível)
-    oldHumanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
-    oldHumanoid.Health = 0
-    LogError("OK: Morte forçada.")
+    local oldHumanoid = oldCharacter:FindFirstChild("Humanoid")
+    if oldHumanoid then
+        oldHumanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+        oldHumanoid.Health = 0
+        LogError("OK: Morte forçada.")
+    else
+        -- fallback: destruir personagem
+        pcall(function() oldCharacter:Destroy() end)
+        LogError("OK: Personagem destruído (sem Humanoid).")
+    end
 
-    -- Aguarda o novo personagem aparecer (respawn automático)
+    -- Aguarda novo personagem
     local newCharacter = nil
     local start = tick()
     repeat
@@ -268,7 +277,7 @@ ResetBtn.MouseButton1Click:Connect(function()
     until (newCharacter and newCharacter ~= oldCharacter) or (tick() - start > 20)
 
     if not newCharacter or newCharacter == oldCharacter then
-        LogError("ERRO: Novo personagem não apareceu após 20s.")
+        LogError("ERRO: Novo personagem não apareceu.")
         HideBlack()
         ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
@@ -280,7 +289,7 @@ ResetBtn.MouseButton1Click:Connect(function()
 
     local newRoot = newCharacter:WaitForChild("HumanoidRootPart", 5)
     if not newRoot then
-        LogError("ERRO: HumanoidRootPart não carregou no novo personagem.")
+        LogError("ERRO: HumanoidRootPart não carregou.")
         HideBlack()
         ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
@@ -289,7 +298,6 @@ ResetBtn.MouseButton1Click:Connect(function()
         return
     end
 
-    -- Teleporta o novo personagem para a posição salva
     newRoot.CFrame = savedCFrame
     local newHumanoid = newCharacter:FindFirstChild("Humanoid")
     if newHumanoid then Camera.CameraSubject = newHumanoid end
@@ -299,9 +307,9 @@ ResetBtn.MouseButton1Click:Connect(function()
     task.wait(0.15)
     HideBlack()
     LogError("OK: Tela preta removida.")
-    LogError("SUCESSO: Inventário resetado! Dado no chão mantido.")
+    LogError("SUCESSO: Inventário resetado, dados permanecem no chão!")
 
-    Notify("Inventário resetado! Dado no chão mantido.")
+    Notify("Inventário resetado! Dados no chão mantidos.")
     ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
     ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
     ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
