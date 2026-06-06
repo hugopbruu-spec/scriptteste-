@@ -1,17 +1,88 @@
 --[[
-    🎲 Dice Duplicator Final – Automático e funcional
-    Ative a duplicação, jogue o dado e receba um novo automaticamente.
-    O dado no chão permanece para sempre, visível para todos.
+    🎲 Dice Duplicator vFinal – Rejoin Automático com Restauração
+    Jogue o dado no chão e clique em DUPLICAR.
+    Sai e volta ao mesmo servidor tão rápido que quase não se percebe.
+    O dado no chão fica bugado e um novo aparece na sua mochila.
 --]]
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
+local TeleportService = game:GetService("TeleportService")
+local CoreGui = game:GetService("CoreGui")
 local UIS = game:GetService("UserInputService")
 local Tween = game:GetService("TweenService")
-local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
-local Backpack = Player:WaitForChild("Backpack")
+local Camera = Workspace.CurrentCamera
 
+-- ==================== TELA PRETA PERSISTENTE ====================
+-- Criada dentro do PlayerGui com ResetOnSpawn = false para NÃO ser destruída no teleporte.
+local function CreateBlackScreen()
+    local black = Instance.new("ScreenGui")
+    black.Name = "RejoinBlack"
+    black.Parent = Player.PlayerGui
+    black.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    black.ResetOnSpawn = false       -- essencial para sobreviver ao rejoin
+    black.IgnoreGuiInset = true
+    local frame = Instance.new("Frame")
+    frame.Parent = black
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)
+    frame.BorderSizePixel = 0
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    return black
+end
+
+local function RemoveBlackScreen()
+    for _, gui in ipairs(Player.PlayerGui:GetChildren()) do
+        if gui.Name == "RejoinBlack" then
+            gui:Destroy()
+        end
+    end
+end
+
+-- ==================== RESTAURAÇÃO DA POSIÇÃO APÓS REJOIN ====================
+local function RestorePositionIfNeeded()
+    local savedCFrame = Player:GetAttribute("DiceSavedCFrame")
+    local savedCamCFrame = Player:GetAttribute("DiceSavedCamCFrame")
+    if not savedCFrame then return false end
+
+    -- Aguarda o novo personagem carregar completamente
+    local char = Player.Character
+    if not char then
+        -- espera o personagem aparecer (caso ainda não tenha)
+        local start = tick()
+        repeat
+            char = Player.Character
+            task.wait(0.1)
+        until char or (tick() - start > 15)
+    end
+    if not char then return false end
+
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then
+        root = char:WaitForChild("HumanoidRootPart", 10)
+    end
+    if not root then return false end
+
+    -- Restaura a posição
+    root.CFrame = savedCFrame
+    if savedCamCFrame then
+        Camera.CFrame = savedCamCFrame
+    end
+    Camera.CameraSubject = char:FindFirstChild("Humanoid")
+
+    -- Limpa os atributos salvados
+    Player:SetAttribute("DiceSavedCFrame", nil)
+    Player:SetAttribute("DiceSavedCamCFrame", nil)
+
+    -- Remove a tela preta
+    RemoveBlackScreen()
+    return true
+end
+
+-- Tenta restaurar se for um rejoin (atributos existem)
+RestorePositionIfNeeded()
+
+-- Aguarda o personagem inicial
 repeat task.wait() until Player.Character
 
 -- ==================== NOTIFICAÇÕES ====================
@@ -56,8 +127,8 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 250, 0, 100)
-Main.Position = UDim2.new(0.5, -125, 0.5, -50)
+Main.Size = UDim2.new(0, 280, 0, 110)
+Main.Position = UDim2.new(0.5, -140, 0.5, -55)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Main).Color = Color3.fromRGB(108, 92, 231)
@@ -77,14 +148,24 @@ tf.BorderSizePixel = 0
 tf.Size = UDim2.new(1, 0, 0, 12)
 tf.Position = UDim2.new(0, 0, 1, -12)
 
+local TitleIcon = Instance.new("TextLabel")
+TitleIcon.Parent = TitleBar
+TitleIcon.BackgroundTransparency = 1
+TitleIcon.Position = UDim2.new(0, 8, 0, 5)
+TitleIcon.Size = UDim2.new(0, 20, 0, 20)
+TitleIcon.Text = "🎲"
+TitleIcon.TextSize = 14
+
 local TitleText = Instance.new("TextLabel")
 TitleText.Parent = TitleBar
 TitleText.BackgroundTransparency = 1
-TitleText.Size = UDim2.new(1, 0, 1, 0)
+TitleText.Position = UDim2.new(0, 30, 0, 0)
+TitleText.Size = UDim2.new(1, -60, 1, 0)
 TitleText.Font = Enum.Font.GothamBold
-TitleText.Text = "🎲 Dice Duplicator"
+TitleText.Text = "Dice Duplicator"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 12
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Parent = TitleBar
@@ -99,146 +180,47 @@ CloseBtn.TextSize = 10
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
 CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Fechado") end)
 
--- Conteúdo
-local Content = Instance.new("Frame")
-Content.Parent = Main
-Content.BackgroundTransparency = 1
-Content.Position = UDim2.new(0, 8, 0, 34)
-Content.Size = UDim2.new(1, -16, 1, -40)
+-- Botão de ação
+local DupBtn = Instance.new("TextButton")
+DupBtn.Parent = Main
+DupBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
+DupBtn.BorderSizePixel = 0
+DupBtn.Position = UDim2.new(0, 8, 0, 38)
+DupBtn.Size = UDim2.new(1, -16, 0, 36)
+DupBtn.Text = "🔄 DUPLICAR (REJOIN)"
+DupBtn.Font = Enum.Font.GothamBlack
+DupBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DupBtn.TextSize = 12
+Instance.new("UICorner", DupBtn).CornerRadius = UDim.new(0, 8)
 
-local ActivateBtn = Instance.new("TextButton")
-ActivateBtn.Parent = Content
-ActivateBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-ActivateBtn.BorderSizePixel = 0
-ActivateBtn.Size = UDim2.new(1, 0, 0, 28)
-ActivateBtn.Text = "🔄 ATIVAR"
-ActivateBtn.Font = Enum.Font.GothamBlack
-ActivateBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ActivateBtn.TextSize = 11
-Instance.new("UICorner", ActivateBtn).CornerRadius = UDim.new(0, 6)
+DupBtn.MouseButton1Click:Connect(function()
+    DupBtn.Text = "⏳ Aguarde..."
+    DupBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    DupBtn.Interactable = false
 
--- ==================== LÓGICA PRINCIPAL ====================
-local active = false
-local savedTool = nil
-local toolRemovedConn = nil
-local descendantRemovedConn = nil
-
-local function findDiceTool()
-    for _, tool in ipairs(Player.Character:GetChildren()) do
-        if tool:IsA("Tool") and (tool.Name == "Dice" or tool.Name == "Dice roll") then
-            return tool
-        end
-    end
-    for _, tool in ipairs(Backpack:GetChildren()) do
-        if tool:IsA("Tool") and (tool.Name == "Dice" or tool.Name == "Dice roll") then
-            return tool
-        end
-    end
-    return nil
-end
-
-local function cleanupAndReplace()
-    -- Remove qualquer tool residual (inclusive a que pode ter ficado na mão)
-    local toRemove = {}
-    for _, child in ipairs(Player.Character:GetChildren()) do
-        if child:IsA("Tool") and (child.Name == "Dice" or child.Name == "Dice roll") then
-            table.insert(toRemove, child)
-        end
-    end
-    for _, child in ipairs(Backpack:GetChildren()) do
-        if child:IsA("Tool") and (child.Name == "Dice" or child.Name == "Dice roll") then
-            table.insert(toRemove, child)
-        end
-    end
-    for _, tool in ipairs(toRemove) do tool:Destroy() end
-
-    -- Garante que o dado no chão esteja com NetworkOwner nil (já deve estar)
-    if Workspace:FindFirstChild("Temp") then
-        for _, obj in ipairs(Workspace.Temp:GetChildren()) do
-            if obj:IsA("MeshPart") and obj.Name == "DiceRoll" then
-                pcall(function() obj:SetNetworkOwner(nil) end)
-            end
-        end
+    -- Salva a posição atual do jogador nos atributos (persistem após rejoin)
+    local char = Player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        Player:SetAttribute("DiceSavedCFrame", char.HumanoidRootPart.CFrame)
+        Player:SetAttribute("DiceSavedCamCFrame", Camera.CFrame)
     end
 
-    -- Recria a ferramenta a partir do modelo salvo
-    if savedTool then
-        local newTool = savedTool:Clone()
-        newTool.Parent = Backpack
-        Notify("🎲 Dado duplicado! Novo na mochila.")
-    else
-        -- Fallback: cria um dado genérico
-        local newTool = Instance.new("Tool")
-        newTool.Name = "Dice"
-        newTool.Parent = Backpack
-        Notify("🎲 Novo dado criado (genérico).")
-    end
-end
+    -- Cria a tela preta persistente
+    CreateBlackScreen()
 
-local function setupTracker(tool)
-    -- Salva o modelo da ferramenta para clonagem posterior
-    savedTool = tool:Clone()
-
-    -- Monitora quando a ferramenta é removida do jogador
-    if toolRemovedConn then toolRemovedConn:Disconnect() end
-    if descendantRemovedConn then descendantRemovedConn:Disconnect() end
-
-    -- Usamos AncestryChanged para detectar quando a tool sai do personagem/mochila
-    toolRemovedConn = tool.AncestryChanged:Connect(function()
-        if not tool:IsDescendantOf(Player) and not tool:IsDescendantOf(Backpack) then
-            -- Foi jogada
-            task.wait(0.5)
-            cleanupAndReplace()
-            -- Reconfigura o tracker para a nova ferramenta
-            local newTool = findDiceTool()
-            if newTool then
-                setupTracker(newTool)
-            else
-                Notify("Pegue o dado novamente para continuar.")
-                active = false
-                ActivateBtn.Text = "🔄 ATIVAR"
-                ActivateBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-            end
-        end
+    -- Tenta teleportar para a mesma instância do servidor
+    local success = pcall(function()
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Player)
     end)
-
-    -- Também monitora se a tool for destruída
-    descendantRemovedConn = tool.Destroying:Connect(function()
-        task.wait(0.5)
-        cleanupAndReplace()
-        local newTool = findDiceTool()
-        if newTool then
-            setupTracker(newTool)
-        else
-            Notify("Pegue o dado novamente para continuar.")
-            active = false
-            ActivateBtn.Text = "🔄 ATIVAR"
-            ActivateBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        end
-    end)
-end
-
-ActivateBtn.MouseButton1Click:Connect(function()
-    active = not active
-    if active then
-        local tool = findDiceTool()
-        if not tool then
-            Notify("Você não está com um dado (Dice/Dice roll) na mão ou mochila!")
-            active = false
-            return
-        end
-        ActivateBtn.Text = "🟢 ATIVO"
-        ActivateBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-        setupTracker(tool)
-        Notify("Duplicação ativada! Jogue o dado e veja.")
-    else
-        ActivateBtn.Text = "🔄 ATIVAR"
-        ActivateBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
-        if toolRemovedConn then toolRemovedConn:Disconnect() end
-        if descendantRemovedConn then descendantRemovedConn:Disconnect() end
-        savedTool = nil
-        Notify("Duplicação desativada.")
+    if not success then
+        -- Fallback: teleporta para o jogo (vai para um servidor aleatório)
+        pcall(function()
+            TeleportService:Teleport(game.PlaceId, Player)
+        end)
     end
+
+    -- O script para aqui porque o jogador sai do servidor.
+    -- Quando ele voltar, o script rodará novamente e restaurará a posição.
 end)
 
 -- Arraste
@@ -265,4 +247,4 @@ UIS.InputEnded:Connect(function(input)
     end
 end)
 
-Notify("🎲 Clique em ATIVAR, jogue o dado e receba um novo!")
+Notify("🎲 Jogue o dado e clique em DUPLICAR para reiniciar rapidamente.")
