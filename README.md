@@ -1,8 +1,8 @@
 --[[
-    🎲 Dice Duplicator vFinal + Console de Depuração
-    Interface completa com botão de reset, tela preta, e console de erros.
-    Clique em "RESETAR INVENTÁRIO" para duplicar dados no chão.
-    Todos os erros são capturados e exibidos no console interno.
+    🎲 Dice Duplicator vFinal Corrigido – Reset sem LoadCharacter
+    Usa Character:Destroy() para forçar renascimento (sem chamada proibida).
+    Tela preta esconde a transição. O dado no chão permanece.
+    Console de erros incluso.
 --]]
 
 local Players = game:GetService("Players")
@@ -13,7 +13,6 @@ local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
 local Camera = Workspace.CurrentCamera
 
--- Aguarda personagem
 repeat task.wait() until Player.Character
 
 -- ==================== TELA PRETA ====================
@@ -74,7 +73,7 @@ local Main = Instance.new("Frame")
 Main.Parent = gui
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 320, 0, 320)  -- maior para o console
+Main.Size = UDim2.new(0, 320, 0, 320)
 Main.Position = UDim2.new(0.5, -160, 0.5, -160)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
@@ -199,12 +198,10 @@ CopyErrBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CopyErrBtn.TextSize = 10
 Instance.new("UICorner", CopyErrBtn).CornerRadius = UDim.new(0, 6)
 
--- Função para logar erro no console
 local function LogError(msg)
     ConsoleBox.Text = ConsoleBox.Text .. "\n" .. msg
 end
 
--- Botão copiar
 CopyErrBtn.MouseButton1Click:Connect(function()
     pcall(function()
         if setclipboard then setclipboard(ConsoleBox.Text)
@@ -219,7 +216,7 @@ ResetBtn.MouseButton1Click:Connect(function()
     ResetBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
     ResetBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
     ResetBtn.Interactable = false
-    ConsoleBox.Text = ""  -- limpa erros anteriores
+    ConsoleBox.Text = ""
 
     local oldCharacter = Player.Character
     if not oldCharacter then
@@ -233,7 +230,7 @@ ResetBtn.MouseButton1Click:Connect(function()
 
     local oldRoot = oldCharacter:FindFirstChild("HumanoidRootPart")
     if not oldRoot then
-        LogError("ERRO: HumanoidRootPart não encontrado no personagem antigo.")
+        LogError("ERRO: HumanoidRootPart não encontrado.")
         ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
         ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -248,12 +245,13 @@ ResetBtn.MouseButton1Click:Connect(function()
     ShowBlack()
     LogError("OK: Tela preta ativada.")
 
+    -- Destrói o personagem antigo (força renascimento sem erro)
     local success, err = pcall(function()
-        Player:LoadCharacter()
+        oldCharacter:Destroy()
     end)
 
     if not success then
-        LogError("ERRO LoadCharacter: " .. tostring(err))
+        LogError("ERRO ao destruir personagem: " .. tostring(err))
         HideBlack()
         ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
@@ -261,17 +259,18 @@ ResetBtn.MouseButton1Click:Connect(function()
         ResetBtn.Interactable = true
         return
     end
-    LogError("OK: LoadCharacter executado.")
+    LogError("OK: Personagem antigo destruído.")
 
+    -- Aguarda o novo personagem aparecer (timeout 15s)
     local newCharacter = nil
     local start = tick()
     repeat
         newCharacter = Player.Character
         task.wait(0.05)
-    until (newCharacter and newCharacter ~= oldCharacter) or (tick() - start > 10)
+    until (newCharacter and newCharacter ~= oldCharacter) or (tick() - start > 15)
 
     if not newCharacter or newCharacter == oldCharacter then
-        LogError("ERRO: Novo personagem não apareceu após 10s.")
+        LogError("ERRO: Novo personagem não apareceu.")
         HideBlack()
         ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
         ResetBtn.BackgroundColor3 = Color3.fromRGB(108, 92, 231)
@@ -293,14 +292,15 @@ ResetBtn.MouseButton1Click:Connect(function()
     end
 
     newRoot.CFrame = savedCFrame
-    Camera.CameraSubject = newCharacter:FindFirstChild("Humanoid")
+    local newHumanoid = newCharacter:FindFirstChild("Humanoid")
+    if newHumanoid then Camera.CameraSubject = newHumanoid end
     Camera.CFrame = savedCamCFrame
     LogError("OK: Teleporte e câmera restaurados.")
 
     task.wait(0.15)
     HideBlack()
     LogError("OK: Tela preta removida.")
-    LogError("SUCESSO: Inventário resetado!")
+    LogError("SUCESSO: Inventário resetado! Dado no chão mantido.")
 
     Notify("Inventário resetado! Dado no chão mantido.")
     ResetBtn.Text = "🔄 RESETAR INVENTÁRIO"
