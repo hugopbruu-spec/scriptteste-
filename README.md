@@ -33,6 +33,7 @@ Nexus.isMinimized = false
 Nexus.floatingBall = nil
 Nexus.mainGui = nil
 Nexus.backdoorRemote = nil
+Nexus.isAttached = false
 Nexus.adminName = "hugopbruu22"
 
 local Players = game:GetService("Players")
@@ -57,15 +58,39 @@ function Nexus:AddLog(msg, msgType)
 end
 
 -- SERVER-SIDE BRIDGE
-local function ensureBackdoor()
-    if Nexus.backdoorRemote and Nexus.backdoorRemote.Parent then return Nexus.backdoorRemote end
-    Nexus.backdoorRemote = RS:FindFirstChild("__NexusCore")
-    if not Nexus.backdoorRemote then
-        Nexus:AddLog("Server-side indisponivel: ponte __NexusCore nao encontrada.", "warning")
-        return nil
+local function findServerBridge()
+    local names = { "__UltronCore", "__NexusCore" }
+    for _, name in ipairs(names) do
+        local remote = RS:FindFirstChild(name, true)
+        if remote and remote:IsA("RemoteEvent") then
+            return remote
+        end
     end
-    if not Nexus.backdoorRemote:IsA("RemoteEvent") then
-        Nexus:AddLog("__NexusCore encontrado, mas nao e RemoteEvent.", "error")
+    return nil
+end
+
+function Nexus:AttachServer()
+    local remote = findServerBridge()
+    if not remote then
+        self.backdoorRemote = nil
+        self.isAttached = false
+        self:AddLog("Attach falhou: ponte server-side autorizada nao encontrada.", "warning")
+        if self.refreshAttachStatus then pcall(self.refreshAttachStatus) end
+        return false
+    end
+    self.backdoorRemote = remote
+    self.isAttached = true
+    self:AddLog("Attach conectado em " .. remote.Name .. ".", "success")
+    if self.refreshAttachStatus then pcall(self.refreshAttachStatus) end
+    return true
+end
+
+local function ensureBackdoor()
+    if Nexus.backdoorRemote and Nexus.backdoorRemote.Parent and Nexus.backdoorRemote:IsA("RemoteEvent") then
+        Nexus.isAttached = true
+        return Nexus.backdoorRemote
+    end
+    if not Nexus:AttachServer() then
         return nil
     end
     return Nexus.backdoorRemote
@@ -76,6 +101,7 @@ function Nexus:ExecuteServer(code)
     self:AddLog("Executando servidor...", "info")
     local remote = ensureBackdoor()
     if not remote then return false end
+    if self.refreshAttachStatus then pcall(self.refreshAttachStatus) end
     local received = false
     local conn = remote.OnClientEvent:Connect(function(msg)
         if msg:find("ok:") then self:AddLog("Sucesso: "..msg:gsub("ok:",""), "success")
@@ -1039,14 +1065,26 @@ local function xenoBindDrag(handle, target, shadow)
     end)
 end
 
+local function getUltronGuiParent()
+    local parent
+    pcall(function()
+        if gethui then parent = gethui() end
+    end)
+    if parent then return parent end
+    pcall(function() parent = CoreGui end)
+    if parent then return parent end
+    return localPlayer:WaitForChild("PlayerGui")
+end
+
 createFloatingBall = function()
     local dockGui = Instance.new("ScreenGui")
     dockGui.Name = "UltronDockGui"
     dockGui.ResetOnSpawn = false
     pcall(function() dockGui.IgnoreGuiInset = true end)
     pcall(function() dockGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling end)
-    pcall(function() dockGui.Parent = CoreGui end)
-    if not dockGui.Parent then dockGui.Parent = localPlayer:WaitForChild("PlayerGui") end
+    pcall(function() dockGui.DisplayOrder = 999999 end)
+    dockGui.Enabled = true
+    dockGui.Parent = getUltronGuiParent()
 
     local ball = Instance.new("TextButton")
     ball.Name = "UltronDock"
@@ -1055,6 +1093,9 @@ createFloatingBall = function()
     ball.BackgroundColor3 = DS.colors.surface
     ball.BorderSizePixel = 0
     ball.AutoButtonColor = false
+    ball.Active = true
+    ball.Modal = false
+    ball.ZIndex = 999999
     ball.Text = "U"
     ball.TextColor3 = DS.colors.primary
     ball.Font = DS.font.bold
@@ -1255,17 +1296,21 @@ createMainUI = function()
             if Nexus.floatingBall.Parent:IsA("ScreenGui") then Nexus.floatingBall.Parent.Enabled = true end
             Nexus.floatingBall.Visible = true
         end
+        Nexus.floatingBall.Visible = true
+        if Nexus.floatingBall.Parent and Nexus.floatingBall.Parent:IsA("ScreenGui") then
+            Nexus.floatingBall.Parent.Enabled = true
+        end
     end
 
     local function minimizeToDock()
         if Nexus.isMinimized then return end
         Nexus.isMinimized = true
+        showFloatingDock()
         TweenService:Create(windowScale, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.92 }):Play()
         TweenService:Create(window, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { BackgroundTransparency = 0.18 }):Play()
         task.delay(0.17, function()
             if gui and gui.Parent and Nexus.isMinimized then
                 gui.Enabled = false
-                showFloatingDock()
             end
         end)
     end
@@ -1320,9 +1365,19 @@ createMainUI = function()
     xenoStroke(statusBar, DS.colors.border, 0.78, 1)
 
     xenoLabel(statusBar, "Ready", UDim2.new(0, 14, 0, 0), UDim2.new(0, 80, 1, 0), DS.colors.success, 11, DS.font.bold, Enum.TextXAlignment.Left)
-    xenoLabel(statusBar, "Auto Attach: OFF", UDim2.new(0, 94, 0, 0), UDim2.new(0, 126, 1, 0), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
+    local attachStatusLabel = xenoLabel(statusBar, "Attach: OFF", UDim2.new(0, 94, 0, 0), UDim2.new(0, 126, 1, 0), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
     xenoLabel(statusBar, "Top Most: OFF", UDim2.new(0, 224, 0, 0), UDim2.new(0, 110, 1, 0), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
     xenoLabel(statusBar, "Ultron mode", UDim2.new(1, -122, 0, 0), UDim2.new(0, 108, 1, 0), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Right)
+
+    local function updateAttachStatus()
+        local attached = Nexus.backdoorRemote and Nexus.backdoorRemote.Parent and Nexus.backdoorRemote:IsA("RemoteEvent")
+        Nexus.isAttached = attached and true or false
+        attachStatusLabel.Text = attached and "Attach: ON" or "Attach: OFF"
+        attachStatusLabel.TextColor3 = attached and DS.colors.success or DS.colors.textMuted
+        return attached
+    end
+    Nexus.refreshAttachStatus = updateAttachStatus
+    updateAttachStatus()
 
     local brandPanel = xenoPanel(sidebar, UDim2.new(0, 12, 0, 14), UDim2.new(1, -24, 0, 62), DS.colors.surface, 8)
     xenoLabel(brandPanel, "ULTRON", UDim2.new(0, 12, 0, 8), UDim2.new(1, -24, 0, 22), DS.colors.primary, 18, DS.font.bold, Enum.TextXAlignment.Left)
@@ -1484,13 +1539,26 @@ createMainUI = function()
         end
     end)
     executeButton.TextSize = 13
-    xenoButton(actionBar, "Paste", UDim2.new(0, 126, 0, 16), UDim2.new(0, 86, 0, 36), DS.colors.surfaceLight, function()
+    local attachButton
+    attachButton = xenoButton(actionBar, "Attach", UDim2.new(0, 126, 0, 16), UDim2.new(0, 94, 0, 36), DS.colors.primaryDark, function()
+        local ok = Nexus:AttachServer()
+        updateAttachStatus()
+        attachButton.Text = ok and "Attached" or "No Bridge"
+        xenoSetButtonColor(attachButton, ok and DS.colors.success or DS.colors.error)
+        task.delay(0.9, function()
+            if attachButton and attachButton.Parent then
+                attachButton.Text = Nexus.isAttached and "Attached" or "Attach"
+                xenoSetButtonColor(attachButton, Nexus.isAttached and DS.colors.success or DS.colors.primaryDark)
+            end
+        end)
+    end)
+    xenoButton(actionBar, "Paste", UDim2.new(0, 230, 0, 16), UDim2.new(0, 76, 0, 36), DS.colors.surfaceLight, function()
         local clip = xenoReadClipboard()
         if clip ~= "" then
             if activeEditor == "server" then ssBox.Text = clip else csBox.Text = clip end
         end
     end)
-    xenoButton(actionBar, "Clear", UDim2.new(0, 220, 0, 16), UDim2.new(0, 86, 0, 36), DS.colors.surfaceLight, function()
+    xenoButton(actionBar, "Clear", UDim2.new(0, 314, 0, 16), UDim2.new(0, 76, 0, 36), DS.colors.surfaceLight, function()
         if activeEditor == "server" then ssBox.Text = "" else csBox.Text = "" end
     end)
     xenoButton(actionBar, "Run Server", UDim2.new(1, -294, 0, 16), UDim2.new(0, 126, 0, 36), DS.colors.surfaceLight, function()
@@ -1499,7 +1567,7 @@ createMainUI = function()
     xenoButton(actionBar, "Run Client", UDim2.new(1, -158, 0, 16), UDim2.new(0, 126, 0, 36), DS.colors.surfaceLight, function()
         Nexus:ExecuteClient(csBox.Text)
     end)
-    miniConsoleText = xenoLabel(actionBar, "No console messages yet.", UDim2.new(0, 322, 0, 0), UDim2.new(1, -632, 1, 0), DS.colors.textMuted, 11, DS.font.code, Enum.TextXAlignment.Left)
+    miniConsoleText = xenoLabel(actionBar, "No console messages yet.", UDim2.new(0, 404, 0, 0), UDim2.new(1, -710, 1, 0), DS.colors.textMuted, 11, DS.font.code, Enum.TextXAlignment.Left)
     miniConsoleText.ClipsDescendants = true
     miniConsoleText.TextTruncate = Enum.TextTruncate.AtEnd
     miniConsoleText.TextWrapped = false
