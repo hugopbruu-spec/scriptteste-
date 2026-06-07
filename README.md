@@ -34,6 +34,7 @@ Nexus.floatingBall = nil
 Nexus.mainGui = nil
 Nexus.backdoorRemote = nil
 Nexus.isAttached = false
+Nexus.isClosed = false
 Nexus.adminName = "hugopbruu22"
 
 local Players = game:GetService("Players")
@@ -1148,6 +1149,7 @@ createFloatingBall = function()
     end)
 
     ball.MouseButton1Click:Connect(function()
+        if Nexus.isClosed then return end
         if moved then return end
         if Nexus.mainGui and Nexus.mainGui.Parent then
             if Nexus.restoreMainUI then
@@ -1317,6 +1319,7 @@ createMainUI = function()
 
     Nexus.restoreMainUI = function()
         if not gui or not gui.Parent then return end
+        if Nexus.isClosed then return end
         gui.Enabled = true
         Nexus.isMinimized = false
         windowScale.Scale = 0.94
@@ -1326,13 +1329,45 @@ createMainUI = function()
     end
     Nexus.minimizeMainUI = minimizeToDock
 
+    local function closeExecutor()
+        Nexus.isClosed = true
+        Nexus.isMinimized = false
+        Nexus.restoreMainUI = nil
+        Nexus.minimizeMainUI = nil
+        Nexus.refreshAttachStatus = nil
+
+        if Nexus.floatingBall then
+            local dockParent = Nexus.floatingBall.Parent
+            if dockParent and dockParent:IsA("ScreenGui") then
+                dockParent:Destroy()
+            elseif Nexus.floatingBall.Parent then
+                Nexus.floatingBall:Destroy()
+            end
+            Nexus.floatingBall = nil
+        end
+
+        TweenService:Create(windowScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.94 }):Play()
+        TweenService:Create(window, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { BackgroundTransparency = 1 }):Play()
+        task.delay(0.13, function()
+            if gui and gui.Parent then
+                gui:Destroy()
+            end
+            Nexus.mainGui = nil
+            pcall(function()
+                if getgenv and getgenv().Nexus == Nexus then
+                    getgenv().Nexus = nil
+                end
+            end)
+        end)
+    end
+
     local mini = xenoButton(titleBar, "-", UDim2.new(1, -86, 0, 6), UDim2.new(0, 34, 0, 26), DS.colors.chrome, function()
         minimizeToDock()
     end)
     mini.TextSize = 18
 
     local close = xenoButton(titleBar, "x", UDim2.new(1, -46, 0, 6), UDim2.new(0, 34, 0, 26), DS.colors.chrome, function()
-        minimizeToDock()
+        closeExecutor()
     end)
     close.TextSize = 14
     close.TextColor3 = DS.colors.error
@@ -1963,4 +1998,3 @@ local function init()
 end
 
 pcall(init)
- 
