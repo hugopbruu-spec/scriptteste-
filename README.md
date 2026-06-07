@@ -1,8 +1,8 @@
 --[[
-    🔥 Executor Pro – Versão Estável e Definitiva
-    Interface limpa, sem bugs. Editor com scroll nativo.
-    Console, botões de ação, scanner de backdoors.
-    Arrastável e com botão de fechar.
+    🔥 Executor Pro – Interface Corrigida e Completa
+    Editor com scroll nativo, console, botões alinhados.
+    Nenhum redimensionamento automático – estável e sem bugs.
+    Arrastável, com scanner de backdoors e execução Client/Server.
 --]]
 
 local Players = game:GetService("Players")
@@ -18,7 +18,7 @@ local Lighting = game:GetService("Lighting")
 -- Aguarda personagem
 if not Player.Character then Player.CharacterAdded:Wait() end
 
--- ==================== TEMAS E CORES ====================
+-- ==================== CORES ====================
 local C = {
     Bg = Color3.fromRGB(22, 22, 33),
     Surface = Color3.fromRGB(30, 30, 44),
@@ -71,25 +71,24 @@ end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui", CoreGui)
-gui.Name = "ExecutorProStable"
+gui.Name = "ExecutorProFinal"
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
 
 local Main = Instance.new("Frame", gui)
 Main.BackgroundColor3 = C.Bg
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 620, 0, 440)
-Main.Position = UDim2.new(0.5, -310, 0.5, -220)
+Main.Size = UDim2.new(0, 600, 0, 420)
+Main.Position = UDim2.new(0.5, -300, 0.5, -210)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
 Instance.new("UIStroke", Main).Color = C.Border
-Instance.new("UIStroke", Main).Thickness = 1
 
--- ==================== BARRA DE TÍTULO ====================
+-- ==================== BARRA DE TÍTULO (32px) ====================
 local TitleBar = Instance.new("Frame", Main)
 TitleBar.BackgroundColor3 = C.Surface
 TitleBar.BorderSizePixel = 0
-TitleBar.Size = UDim2.new(1, 0, 0, 36)
+TitleBar.Size = UDim2.new(1, 0, 0, 32)
 Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 10)
 local titleFix = Instance.new("Frame", TitleBar)
 titleFix.BackgroundColor3 = C.Surface; titleFix.BorderSizePixel = 0
@@ -97,58 +96,56 @@ titleFix.Size = UDim2.new(1, 0, 0, 10); titleFix.Position = UDim2.new(0, 0, 1, -
 
 local Logo = Instance.new("TextLabel", TitleBar)
 Logo.BackgroundTransparency = 1
-Logo.Position = UDim2.new(0, 14, 0, 6); Logo.Size = UDim2.new(0, 22, 0, 22)
+Logo.Position = UDim2.new(0, 12, 0, 5); Logo.Size = UDim2.new(0, 22, 0, 22)
 Logo.Font = Enum.Font.GothamBlack; Logo.Text = "⚡"; Logo.TextSize = 16
 Logo.TextColor3 = C.Accent
 
 local TitleText = Instance.new("TextLabel", TitleBar)
 TitleText.BackgroundTransparency = 1
-TitleText.Position = UDim2.new(0, 40, 0, 0); TitleText.Size = UDim2.new(1, -120, 1, 0)
+TitleText.Position = UDim2.new(0, 38, 0, 0); TitleText.Size = UDim2.new(1, -120, 1, 0)
 TitleText.Font = Enum.Font.GothamBold; TitleText.Text = "Executor Pro"
 TitleText.TextColor3 = C.Text; TitleText.TextSize = 14
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 
--- Botão Attach
 local AttachBtn = Instance.new("TextButton", TitleBar)
 AttachBtn.BackgroundColor3 = C.Accent; AttachBtn.BorderSizePixel = 0
-AttachBtn.Position = UDim2.new(1, -90, 0, 7); AttachBtn.Size = UDim2.new(0, 58, 0, 22)
+AttachBtn.Position = UDim2.new(1, -90, 0, 5); AttachBtn.Size = UDim2.new(0, 58, 0, 22)
 AttachBtn.Text = "Attach"; AttachBtn.Font = Enum.Font.GothamBold
 AttachBtn.TextColor3 = Color3.fromRGB(255, 255, 255); AttachBtn.TextSize = 11
 Instance.new("UICorner", AttachBtn).CornerRadius = UDim.new(0, 5)
 
--- Botão Fechar
 local CloseBtn = Instance.new("TextButton", TitleBar)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80); CloseBtn.BorderSizePixel = 0
-CloseBtn.Position = UDim2.new(1, -24, 0, 7); CloseBtn.Size = UDim2.new(0, 22, 0, 22)
+CloseBtn.Position = UDim2.new(1, -24, 0, 5); CloseBtn.Size = UDim2.new(0, 22, 0, 22)
 CloseBtn.Text = "✕"; CloseBtn.Font = Enum.Font.GothamBlack
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255); CloseBtn.TextSize = 12
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 5)
 CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Executor", "Fechado") end)
 
--- ==================== EDITOR (TEXTBOX COM SCROLL NATIVO) ====================
+-- ==================== EDITOR (280px) ====================
 local Editor = Instance.new("TextBox", Main)
 Editor.BackgroundColor3 = C.Surface
 Editor.BorderSizePixel = 0
-Editor.Position = UDim2.new(0, 10, 0, 42)
-Editor.Size = UDim2.new(1, -20, 0, 300)
+Editor.Position = UDim2.new(0, 10, 0, 38)
+Editor.Size = UDim2.new(1, -20, 0, 280)
 Editor.Font = Enum.Font.Code
 Editor.Text = "-- Cole seu script aqui\nprint('Hello, world!')"
 Editor.TextColor3 = C.Text
 Editor.TextSize = 13
 Editor.ClearTextOnFocus = false
 Editor.TextEditable = true
-Editor.TextWrapped = false  -- permite scroll horizontal também
+Editor.TextWrapped = true   -- ESSENCIAL para a barra de rolagem aparecer
 Editor.TextXAlignment = Enum.TextXAlignment.Left
 Editor.TextYAlignment = Enum.TextYAlignment.Top
-Editor.MaxLength = 0  -- sem limite
+Editor.MaxLength = 0
 Instance.new("UICorner", Editor).CornerRadius = UDim.new(0, 6)
 
--- ==================== CONSOLE ====================
+-- ==================== CONSOLE (60px) ====================
 local Console = Instance.new("TextBox", Main)
 Console.BackgroundColor3 = C.Surface
 Console.BorderSizePixel = 0
-Console.Position = UDim2.new(0, 10, 0, 352)
-Console.Size = UDim2.new(1, -20, 0, 70)
+Console.Position = UDim2.new(0, 10, 0, 324)
+Console.Size = UDim2.new(1, -20, 0, 60)
 Console.Font = Enum.Font.Code
 Console.Text = "Console iniciado.\n"
 Console.TextColor3 = C.Text2
@@ -164,45 +161,46 @@ local function Log(msg)
     Console.Text = Console.Text .. msg .. "\n"
 end
 
--- ==================== BOTÕES DE AÇÃO ====================
+-- ==================== BOTÕES DE AÇÃO (28px) ====================
+local buttonY = 390
 local RunClientBtn = Instance.new("TextButton", Main)
 RunClientBtn.BackgroundColor3 = C.Accent; RunClientBtn.BorderSizePixel = 0
-RunClientBtn.Position = UDim2.new(0, 10, 0, 400); RunClientBtn.Size = UDim2.new(0, 100, 0, 30)
+RunClientBtn.Position = UDim2.new(0, 10, 0, buttonY); RunClientBtn.Size = UDim2.new(0, 100, 0, 28)
 RunClientBtn.Text = "▶ Client"; RunClientBtn.Font = Enum.Font.GothamBold
 RunClientBtn.TextColor3 = Color3.fromRGB(255, 255, 255); RunClientBtn.TextSize = 11
 Instance.new("UICorner", RunClientBtn).CornerRadius = UDim.new(0, 5)
 
 local RunServerBtn = Instance.new("TextButton", Main)
 RunServerBtn.BackgroundColor3 = C.Orange; RunServerBtn.BorderSizePixel = 0
-RunServerBtn.Position = UDim2.new(0, 120, 0, 400); RunServerBtn.Size = UDim2.new(0, 100, 0, 30)
+RunServerBtn.Position = UDim2.new(0, 120, 0, buttonY); RunServerBtn.Size = UDim2.new(0, 100, 0, 28)
 RunServerBtn.Text = "🚀 Server"; RunServerBtn.Font = Enum.Font.GothamBold
 RunServerBtn.TextColor3 = Color3.fromRGB(255, 255, 255); RunServerBtn.TextSize = 11
 Instance.new("UICorner", RunServerBtn).CornerRadius = UDim.new(0, 5)
 
 local ClearBtn = Instance.new("TextButton", Main)
 ClearBtn.BackgroundColor3 = C.Surface; ClearBtn.BorderSizePixel = 0
-ClearBtn.Position = UDim2.new(0, 230, 0, 400); ClearBtn.Size = UDim2.new(0, 80, 0, 30)
+ClearBtn.Position = UDim2.new(0, 230, 0, buttonY); ClearBtn.Size = UDim2.new(0, 80, 0, 28)
 ClearBtn.Text = "🗑️ Limpar"; ClearBtn.Font = Enum.Font.GothamBold
 ClearBtn.TextColor3 = C.Text; ClearBtn.TextSize = 11
 Instance.new("UICorner", ClearBtn).CornerRadius = UDim.new(0, 5)
 
 local CopyBtn = Instance.new("TextButton", Main)
 CopyBtn.BackgroundColor3 = C.Surface; CopyBtn.BorderSizePixel = 0
-CopyBtn.Position = UDim2.new(0, 320, 0, 400); CopyBtn.Size = UDim2.new(0, 80, 0, 30)
+CopyBtn.Position = UDim2.new(0, 320, 0, buttonY); CopyBtn.Size = UDim2.new(0, 80, 0, 28)
 CopyBtn.Text = "📋 Copiar"; CopyBtn.Font = Enum.Font.GothamBold
 CopyBtn.TextColor3 = C.Text; CopyBtn.TextSize = 11
 Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 5)
 
 local SaveBtn = Instance.new("TextButton", Main)
 SaveBtn.BackgroundColor3 = C.Surface; SaveBtn.BorderSizePixel = 0
-SaveBtn.Position = UDim2.new(0, 410, 0, 400); SaveBtn.Size = UDim2.new(0, 80, 0, 30)
+SaveBtn.Position = UDim2.new(0, 410, 0, buttonY); SaveBtn.Size = UDim2.new(0, 80, 0, 28)
 SaveBtn.Text = "💾 Salvar"; SaveBtn.Font = Enum.Font.GothamBold
 SaveBtn.TextColor3 = C.Text; SaveBtn.TextSize = 11
 Instance.new("UICorner", SaveBtn).CornerRadius = UDim.new(0, 5)
 
 local OpenBtn = Instance.new("TextButton", Main)
 OpenBtn.BackgroundColor3 = C.Surface; OpenBtn.BorderSizePixel = 0
-OpenBtn.Position = UDim2.new(0, 500, 0, 400); OpenBtn.Size = UDim2.new(0, 80, 0, 30)
+OpenBtn.Position = UDim2.new(0, 500, 0, buttonY); OpenBtn.Size = UDim2.new(0, 80, 0, 28)
 OpenBtn.Text = "📂 Abrir"; OpenBtn.Font = Enum.Font.GothamBold
 OpenBtn.TextColor3 = C.Text; OpenBtn.TextSize = 11
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0, 5)
@@ -254,11 +252,11 @@ local function scanBackdoors()
 
     Log("📊 Total backdoors: " .. #backdoors)
     if #backdoors == 0 then
-        Log("⚠️ Nenhuma backdoor encontrada. Server-side indisponível.")
+        Log("⚠️ Nenhuma backdoor encontrada.")
         AttachBtn.Text = "Attach"
         AttachBtn.BackgroundColor3 = C.Accent
     else
-        Log("✅ Tudo pronto para execução server-side!")
+        Log("✅ Tudo pronto para server-side!")
         AttachBtn.Text = "Attached"
         AttachBtn.BackgroundColor3 = C.Green
     end
@@ -268,23 +266,23 @@ end
 local function executeClient(code)
     local func, err = loadstring(code)
     if not func then
-        Log("❌ Erro sintaxe (client): " .. tostring(err))
+        Log("❌ Erro sintaxe: " .. tostring(err))
         return false
     end
     local success, result = pcall(func)
     if success then
         Log("✅ Executado no cliente com sucesso.")
-        if result then Log("📤 Retorno: " .. tostring(result)) end
+        if result then Log("📤 " .. tostring(result)) end
         return true
     else
-        Log("❌ Erro execução (client): " .. tostring(result))
+        Log("❌ Erro execução: " .. tostring(result))
         return false
     end
 end
 
 local function executeServer(code)
     if #backdoors == 0 then
-        Log("❌ Nenhuma backdoor disponível. Use 'Attach' primeiro.")
+        Log("❌ Nenhuma backdoor. Use 'Attach' primeiro.")
         return false
     end
     Log("🚀 Enviando para o servidor...")
@@ -293,20 +291,20 @@ local function executeServer(code)
         local ok, err
         if bd.type == "RemoteEvent" then
             ok, err = pcall(function() bd.remote:FireServer(code) end)
-            if ok then Log("✅ Enviado via " .. bd.name); success = true; break
-            else Log("❌ Falha " .. bd.name .. ": " .. tostring(err)) end
+            if ok then Log("✅ " .. bd.name); success = true; break
+            else Log("❌ " .. bd.name .. ": " .. tostring(err)) end
         elseif bd.type == "RemoteFunction" then
             local res
             ok, res = pcall(function() return bd.remote:InvokeServer(code) end)
-            if ok then Log("✅ Invocado via " .. bd.name .. " (retorno: " .. tostring(res) .. ")"); success = true; break
-            else Log("❌ Falha " .. bd.name .. ": " .. tostring(res)) end
+            if ok then Log("✅ " .. bd.name .. " (" .. tostring(res) .. ")"); success = true; break
+            else Log("❌ " .. bd.name .. ": " .. tostring(res)) end
         elseif bd.type == "function" then
             ok, err = pcall(function() bd.func(code) end)
-            if ok then Log("✅ Executado via " .. bd.name); success = true; break
-            else Log("❌ Falha " .. bd.name .. ": " .. tostring(err)) end
+            if ok then Log("✅ " .. bd.name); success = true; break
+            else Log("❌ " .. bd.name .. ": " .. tostring(err)) end
         end
     end
-    if not success then Log("❌ Nenhum vetor de ataque funcionou.") end
+    if not success then Log("❌ Nenhum vetor funcionou.") end
     return success
 end
 
