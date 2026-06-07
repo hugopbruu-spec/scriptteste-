@@ -5,21 +5,25 @@
 -- DESIGN SYSTEM
 local DS = {
     colors = {
-        primary = Color3.fromRGB(170, 100, 255),        -- Roxo Xena
-        primaryDark = Color3.fromRGB(130, 70, 210),
-        secondary = Color3.fromRGB(80, 160, 255),       -- Azul neon
-        success = Color3.fromRGB(0, 255, 100),
-        error = Color3.fromRGB(255, 70, 70),
-        warning = Color3.fromRGB(255, 200, 50),
-        background = Color3.fromRGB(12, 12, 20),        -- Fundo escuro profundo
-        surface = Color3.fromRGB(22, 22, 35),           -- Cards
-        surfaceLight = Color3.fromRGB(35, 35, 55),
+        primary = Color3.fromRGB(218, 228, 255),
+        primaryDark = Color3.fromRGB(128, 153, 255),
+        secondary = Color3.fromRGB(64, 142, 255),
+        success = Color3.fromRGB(61, 214, 140),
+        error = Color3.fromRGB(244, 87, 87),
+        warning = Color3.fromRGB(245, 190, 78),
+        background = Color3.fromRGB(9, 10, 13),
+        chrome = Color3.fromRGB(14, 15, 20),
+        sidebar = Color3.fromRGB(12, 13, 18),
+        surface = Color3.fromRGB(19, 21, 28),
+        surfaceLight = Color3.fromRGB(28, 31, 41),
+        field = Color3.fromRGB(8, 9, 12),
         text = Color3.fromRGB(255, 255, 255),
-        textDim = Color3.fromRGB(180, 180, 210),
-        border = Color3.fromRGB(60, 60, 90)
+        textDim = Color3.fromRGB(160, 166, 184),
+        textMuted = Color3.fromRGB(96, 104, 126),
+        border = Color3.fromRGB(49, 54, 70)
     },
-    font = { main = Enum.Font.Gotham, code = Enum.Font.Code },
-    fontSize = { small = 12, body = 14, title = 18, large = 22 }
+    font = { main = Enum.Font.Gotham, bold = Enum.Font.GothamBold, code = Enum.Font.Code },
+    fontSize = { tiny = 10, small = 12, body = 14, title = 16, large = 20 }
 }
 
 -- NÚCLEO
@@ -873,6 +877,825 @@ local function createFloatingBall()
         end
     end)
     return ball
+end
+
+-- ============================================================================
+-- INTERFACE XENO STYLE (visual-only override)
+-- ============================================================================
+local function xenoColorShift(color, amount)
+    return Color3.new(
+        math.clamp(color.R + amount, 0, 1),
+        math.clamp(color.G + amount, 0, 1),
+        math.clamp(color.B + amount, 0, 1)
+    )
+end
+
+local function xenoCorner(parent, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius or 6)
+    corner.Parent = parent
+    return corner
+end
+
+local function xenoStroke(parent, color, transparency, thickness)
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = color or DS.colors.border
+    stroke.Transparency = transparency or 0.45
+    stroke.Thickness = thickness or 1
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent = parent
+    return stroke
+end
+
+local function xenoPadding(parent, left, top, right, bottom)
+    local padding = Instance.new("UIPadding")
+    padding.PaddingLeft = UDim.new(0, left or 0)
+    padding.PaddingTop = UDim.new(0, top or 0)
+    padding.PaddingRight = UDim.new(0, right or left or 0)
+    padding.PaddingBottom = UDim.new(0, bottom or top or 0)
+    padding.Parent = parent
+    return padding
+end
+
+local function xenoLabel(parent, text, pos, size, color, textSize, font, align)
+    local label = Instance.new("TextLabel")
+    label.BackgroundTransparency = 1
+    label.Position = pos
+    label.Size = size
+    label.Text = text
+    label.TextColor3 = color or DS.colors.text
+    label.Font = font or DS.font.main
+    label.TextSize = textSize or DS.fontSize.body
+    label.TextXAlignment = align or Enum.TextXAlignment.Left
+    label.TextYAlignment = Enum.TextYAlignment.Center
+    label.TextWrapped = true
+    label.Parent = parent
+    return label
+end
+
+local function xenoPanel(parent, pos, size, color, radius)
+    local panel = Instance.new("Frame")
+    panel.Position = pos
+    panel.Size = size
+    panel.BackgroundColor3 = color or DS.colors.surface
+    panel.BorderSizePixel = 0
+    panel.Parent = parent
+    xenoCorner(panel, radius or 8)
+    xenoStroke(panel, DS.colors.border, 0.62, 1)
+    return panel
+end
+
+local xenoButtonBaseColors = {}
+
+local function xenoSetButtonColor(button, color)
+    if not button then return end
+    xenoButtonBaseColors[button] = color
+    button.BackgroundColor3 = color
+end
+
+local function xenoButton(parent, text, pos, size, color, onClick)
+    local button = Instance.new("TextButton")
+    button.Position = pos
+    button.Size = size
+    button.BackgroundColor3 = color or DS.colors.surfaceLight
+    button.BorderSizePixel = 0
+    button.AutoButtonColor = false
+    button.Text = text
+    button.TextColor3 = DS.colors.text
+    button.Font = DS.font.bold
+    button.TextSize = DS.fontSize.small
+    button.TextWrapped = true
+    button.Parent = parent
+    xenoCorner(button, 6)
+    xenoStroke(button, DS.colors.border, 0.72, 1)
+
+    local baseColor = button.BackgroundColor3
+    xenoButtonBaseColors[button] = baseColor
+    button.MouseEnter:Connect(function()
+        local currentBase = xenoButtonBaseColors[button] or baseColor
+        TweenService:Create(button, TweenInfo.new(0.12, Enum.EasingStyle.Quad), {
+            BackgroundColor3 = xenoColorShift(currentBase, 0.055)
+        }):Play()
+    end)
+    button.MouseLeave:Connect(function()
+        local currentBase = xenoButtonBaseColors[button] or baseColor
+        TweenService:Create(button, TweenInfo.new(0.12, Enum.EasingStyle.Quad), {
+            BackgroundColor3 = currentBase
+        }):Play()
+    end)
+    if onClick then button.MouseButton1Click:Connect(onClick) end
+    return button
+end
+
+local function xenoCodeBox(parent, placeholder)
+    local box = Instance.new("TextBox")
+    box.BackgroundColor3 = DS.colors.field
+    box.BorderSizePixel = 0
+    box.ClearTextOnFocus = false
+    box.Font = DS.font.code
+    box.MultiLine = true
+    box.PlaceholderColor3 = DS.colors.textMuted
+    box.PlaceholderText = placeholder or "-- paste code here"
+    box.Text = placeholder or "-- paste code here"
+    box.TextColor3 = Color3.fromRGB(226, 232, 246)
+    box.TextSize = DS.fontSize.small
+    box.TextWrapped = false
+    box.TextXAlignment = Enum.TextXAlignment.Left
+    box.TextYAlignment = Enum.TextYAlignment.Top
+    box.Parent = parent
+    xenoCorner(box, 6)
+    xenoStroke(box, DS.colors.border, 0.72, 1)
+    xenoPadding(box, 12, 10, 12, 10)
+    return box
+end
+
+local function xenoReadClipboard()
+    local ok, result = pcall(function()
+        if getclipboard then return getclipboard() end
+        return ""
+    end)
+    if ok and result then return tostring(result) end
+    return ""
+end
+
+local function xenoBindDrag(handle, target, shadow)
+    local dragging = false
+    local dragStart, startPos, shadowStart
+
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = target.Position
+            if shadow then shadowStart = shadow.Position end
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            if shadow and shadowStart then
+                shadow.Position = UDim2.new(shadowStart.X.Scale, shadowStart.X.Offset + delta.X, shadowStart.Y.Scale, shadowStart.Y.Offset + delta.Y)
+            end
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+end
+
+createFloatingBall = function()
+    local parent
+    pcall(function() parent = CoreGui end)
+    if not parent then parent = localPlayer:WaitForChild("PlayerGui") end
+
+    local ball = Instance.new("TextButton")
+    ball.Name = "XenoDock"
+    ball.Size = UDim2.new(0, 58, 0, 58)
+    ball.Position = UDim2.new(0.92, 0, 0.82, 0)
+    ball.BackgroundColor3 = DS.colors.chrome
+    ball.BorderSizePixel = 0
+    ball.AutoButtonColor = false
+    ball.Text = "X"
+    ball.TextColor3 = DS.colors.primary
+    ball.Font = DS.font.bold
+    ball.TextSize = 22
+    ball.Parent = parent
+    xenoCorner(ball, 12)
+    xenoStroke(ball, DS.colors.primaryDark, 0.28, 1)
+
+    local glow = Instance.new("Frame")
+    glow.Size = UDim2.new(1, 10, 1, 10)
+    glow.Position = UDim2.new(0, -5, 0, -5)
+    glow.BackgroundColor3 = DS.colors.secondary
+    glow.BackgroundTransparency = 0.86
+    glow.BorderSizePixel = 0
+    glow.ZIndex = ball.ZIndex - 1
+    glow.Parent = ball
+    xenoCorner(glow, 16)
+
+    local label = xenoLabel(ball, "XENO", UDim2.new(0, 0, 1, -16), UDim2.new(1, 0, 0, 12), DS.colors.textDim, 8, DS.font.bold, Enum.TextXAlignment.Center)
+    label.TextWrapped = false
+
+    local dragging = false
+    local moved = false
+    local dragStart, startPos
+    ball.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            moved = false
+            dragStart = input.Position
+            startPos = ball.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            if math.abs(delta.X) + math.abs(delta.Y) > 4 then moved = true end
+            ball.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+
+    ball.MouseButton1Click:Connect(function()
+        if moved then return end
+        if Nexus.mainGui and Nexus.mainGui.Parent then
+            Nexus.mainGui.Enabled = true
+        else
+            Nexus.mainGui = createMainUI()
+        end
+        ball.Visible = false
+        Nexus.isMinimized = false
+    end)
+
+    return ball
+end
+
+createMainUI = function()
+    if Nexus.mainGui and Nexus.mainGui.Parent and Nexus.mainGui.Name == "NexusXenoUI" then
+        Nexus.mainGui:Destroy()
+    end
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "NexusXenoUI"
+    gui.ResetOnSpawn = false
+    pcall(function() gui.IgnoreGuiInset = true end)
+    pcall(function() gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling end)
+    pcall(function() gui.Parent = CoreGui end)
+    if not gui.Parent then gui.Parent = localPlayer:WaitForChild("PlayerGui") end
+    if not gui.Parent then return nil end
+
+    local windowW, windowH = 960, 600
+    local titleH, sidebarW, statusH = 38, 166, 30
+
+    local shadow = Instance.new("ImageLabel")
+    shadow.Name = "WindowShadow"
+    shadow.Size = UDim2.new(0, windowW + 44, 0, windowH + 44)
+    shadow.Position = UDim2.new(0.5, -(windowW + 44) / 2, 0.5, -(windowH + 44) / 2)
+    shadow.BackgroundTransparency = 1
+    shadow.Image = "rbxassetid://1316047698"
+    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.ImageTransparency = 0.42
+    shadow.ScaleType = Enum.ScaleType.Slice
+    shadow.SliceCenter = Rect.new(10, 10, 118, 118)
+    shadow.Parent = gui
+
+    local window = Instance.new("Frame")
+    window.Name = "Window"
+    window.Size = UDim2.new(0, windowW, 0, windowH)
+    window.Position = UDim2.new(0.5, -windowW / 2, 0.5, -windowH / 2)
+    window.BackgroundColor3 = DS.colors.background
+    window.BorderSizePixel = 0
+    window.Parent = gui
+    xenoCorner(window, 8)
+    xenoStroke(window, DS.colors.border, 0.34, 1)
+
+    local titleBar = Instance.new("Frame")
+    titleBar.Name = "TitleBar"
+    titleBar.Size = UDim2.new(1, 0, 0, titleH)
+    titleBar.BackgroundColor3 = DS.colors.chrome
+    titleBar.BorderSizePixel = 0
+    titleBar.Parent = window
+    xenoCorner(titleBar, 8)
+
+    local titleMask = Instance.new("Frame")
+    titleMask.Size = UDim2.new(1, 0, 0, 12)
+    titleMask.Position = UDim2.new(0, 0, 1, -12)
+    titleMask.BackgroundColor3 = DS.colors.chrome
+    titleMask.BorderSizePixel = 0
+    titleMask.Parent = titleBar
+
+    local logo = Instance.new("Frame")
+    logo.Size = UDim2.new(0, 22, 0, 22)
+    logo.Position = UDim2.new(0, 12, 0, 8)
+    logo.BackgroundColor3 = DS.colors.surfaceLight
+    logo.BorderSizePixel = 0
+    logo.Parent = titleBar
+    xenoCorner(logo, 5)
+    xenoStroke(logo, DS.colors.primaryDark, 0.22, 1)
+    xenoLabel(logo, "X", UDim2.new(0, 0, 0, 0), UDim2.new(1, 0, 1, 0), DS.colors.primary, 13, DS.font.bold, Enum.TextXAlignment.Center)
+
+    xenoLabel(titleBar, "Xeno", UDim2.new(0, 42, 0, 0), UDim2.new(0, 80, 1, 0), DS.colors.text, 14, DS.font.bold, Enum.TextXAlignment.Left)
+    xenoLabel(titleBar, "Nexus XT UI", UDim2.new(0, 86, 0, 0), UDim2.new(0, 150, 1, 0), DS.colors.textMuted, 12, DS.font.main, Enum.TextXAlignment.Left)
+
+    local mini = xenoButton(titleBar, "-", UDim2.new(1, -86, 0, 6), UDim2.new(0, 34, 0, 26), DS.colors.chrome, function()
+        Nexus.isMinimized = true
+        gui.Enabled = false
+        if not Nexus.floatingBall or not Nexus.floatingBall.Parent then
+            Nexus.floatingBall = createFloatingBall()
+        else
+            Nexus.floatingBall.Visible = true
+        end
+    end)
+    mini.TextSize = 18
+
+    local close = xenoButton(titleBar, "x", UDim2.new(1, -46, 0, 6), UDim2.new(0, 34, 0, 26), DS.colors.chrome, function()
+        if Nexus.floatingBall and Nexus.floatingBall.Parent then Nexus.floatingBall:Destroy() end
+        gui:Destroy()
+    end)
+    close.TextSize = 14
+    close.TextColor3 = DS.colors.error
+
+    xenoBindDrag(titleBar, window, shadow)
+
+    local sidebar = Instance.new("Frame")
+    sidebar.Name = "Sidebar"
+    sidebar.Size = UDim2.new(0, sidebarW, 1, -titleH)
+    sidebar.Position = UDim2.new(0, 0, 0, titleH)
+    sidebar.BackgroundColor3 = DS.colors.sidebar
+    sidebar.BorderSizePixel = 0
+    sidebar.Parent = window
+
+    local contentRoot = Instance.new("Frame")
+    contentRoot.Name = "Content"
+    contentRoot.Size = UDim2.new(1, -sidebarW, 1, -(titleH + statusH))
+    contentRoot.Position = UDim2.new(0, sidebarW, 0, titleH)
+    contentRoot.BackgroundColor3 = DS.colors.background
+    contentRoot.BorderSizePixel = 0
+    contentRoot.Parent = window
+
+    local statusBar = Instance.new("Frame")
+    statusBar.Name = "StatusBar"
+    statusBar.Size = UDim2.new(1, -sidebarW, 0, statusH)
+    statusBar.Position = UDim2.new(0, sidebarW, 1, -statusH)
+    statusBar.BackgroundColor3 = DS.colors.chrome
+    statusBar.BorderSizePixel = 0
+    statusBar.Parent = window
+    xenoStroke(statusBar, DS.colors.border, 0.78, 1)
+
+    xenoLabel(statusBar, "Ready", UDim2.new(0, 14, 0, 0), UDim2.new(0, 80, 1, 0), DS.colors.success, 11, DS.font.bold, Enum.TextXAlignment.Left)
+    xenoLabel(statusBar, "Auto Attach: OFF", UDim2.new(0, 94, 0, 0), UDim2.new(0, 126, 1, 0), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
+    xenoLabel(statusBar, "Top Most: OFF", UDim2.new(0, 224, 0, 0), UDim2.new(0, 110, 1, 0), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
+    xenoLabel(statusBar, "CoreGui mode", UDim2.new(1, -122, 0, 0), UDim2.new(0, 108, 1, 0), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Right)
+
+    local brandPanel = xenoPanel(sidebar, UDim2.new(0, 12, 0, 14), UDim2.new(1, -24, 0, 62), DS.colors.surface, 8)
+    xenoLabel(brandPanel, "XENO", UDim2.new(0, 12, 0, 8), UDim2.new(1, -24, 0, 22), DS.colors.primary, 18, DS.font.bold, Enum.TextXAlignment.Left)
+    xenoLabel(brandPanel, "executor shell", UDim2.new(0, 12, 0, 30), UDim2.new(1, -24, 0, 18), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
+
+    local tabDefs = {
+        { key = "editor", name = "Editor" },
+        { key = "players", name = "Players" },
+        { key = "tools", name = "Tools" },
+        { key = "console", name = "Console" },
+        { key = "hub", name = "Hub" }
+    }
+    local tabButtons = {}
+    local contentFrames = {}
+    local activeMainTab = "editor"
+
+    local function setMainTab(key)
+        activeMainTab = key
+        for _, tab in ipairs(tabDefs) do
+            local selected = tab.key == key
+            contentFrames[tab.key].Visible = selected
+            xenoSetButtonColor(tabButtons[tab.key], selected and DS.colors.surfaceLight or DS.colors.sidebar)
+            tabButtons[tab.key].TextColor3 = selected and DS.colors.primary or DS.colors.textDim
+            local mark = tabButtons[tab.key]:FindFirstChild("ActiveMark")
+            if mark then mark.Visible = selected end
+        end
+    end
+
+    for index, tab in ipairs(tabDefs) do
+        local frame = Instance.new("Frame")
+        frame.Name = tab.key .. "Frame"
+        frame.Size = UDim2.new(1, 0, 1, 0)
+        frame.BackgroundTransparency = 1
+        frame.Visible = tab.key == activeMainTab
+        frame.Parent = contentRoot
+        contentFrames[tab.key] = frame
+
+        local button = xenoButton(sidebar, tab.name, UDim2.new(0, 12, 0, 92 + (index - 1) * 42), UDim2.new(1, -24, 0, 34), DS.colors.sidebar, function()
+            setMainTab(tab.key)
+        end)
+        button.TextXAlignment = Enum.TextXAlignment.Left
+        button.TextSize = 12
+        xenoPadding(button, 18, 0, 8, 0)
+        local mark = Instance.new("Frame")
+        mark.Name = "ActiveMark"
+        mark.Size = UDim2.new(0, 3, 0, 18)
+        mark.Position = UDim2.new(0, 7, 0.5, -9)
+        mark.BackgroundColor3 = DS.colors.secondary
+        mark.BorderSizePixel = 0
+        mark.Visible = tab.key == activeMainTab
+        mark.Parent = button
+        xenoCorner(mark, 2)
+        tabButtons[tab.key] = button
+    end
+
+    local infoPanel = xenoPanel(sidebar, UDim2.new(0, 12, 1, -92), UDim2.new(1, -24, 0, 72), DS.colors.surface, 8)
+    xenoLabel(infoPanel, "Session", UDim2.new(0, 12, 0, 8), UDim2.new(1, -24, 0, 18), DS.colors.text, 12, DS.font.bold, Enum.TextXAlignment.Left)
+    xenoLabel(infoPanel, localPlayer and localPlayer.Name or "LocalPlayer", UDim2.new(0, 12, 0, 30), UDim2.new(1, -24, 0, 18), DS.colors.textDim, 11, DS.font.main, Enum.TextXAlignment.Left)
+    xenoLabel(infoPanel, "UI only rebuild", UDim2.new(0, 12, 0, 48), UDim2.new(1, -24, 0, 16), DS.colors.textMuted, 10, DS.font.main, Enum.TextXAlignment.Left)
+
+    local miniConsoleText
+    local consoleText
+    local consoleScroller
+
+    -- Editor
+    local editorFrame = contentFrames.editor
+    local editorPanel = xenoPanel(editorFrame, UDim2.new(0, 14, 0, 14), UDim2.new(1, -28, 1, -104), DS.colors.surface, 8)
+    local tabStrip = Instance.new("Frame")
+    tabStrip.Size = UDim2.new(1, 0, 0, 38)
+    tabStrip.BackgroundColor3 = DS.colors.chrome
+    tabStrip.BorderSizePixel = 0
+    tabStrip.Parent = editorPanel
+    xenoCorner(tabStrip, 8)
+    local tabMask = Instance.new("Frame")
+    tabMask.Size = UDim2.new(1, 0, 0, 10)
+    tabMask.Position = UDim2.new(0, 0, 1, -10)
+    tabMask.BackgroundColor3 = DS.colors.chrome
+    tabMask.BorderSizePixel = 0
+    tabMask.Parent = tabStrip
+
+    local activeEditor = "server"
+    local ssBox = xenoCodeBox(editorPanel, "-- server script")
+    ssBox.Name = "ServerEditor"
+    ssBox.Position = UDim2.new(0, 54, 0, 48)
+    ssBox.Size = UDim2.new(1, -66, 1, -60)
+    local csBox = xenoCodeBox(editorPanel, "-- client script")
+    csBox.Name = "ClientEditor"
+    csBox.Position = ssBox.Position
+    csBox.Size = ssBox.Size
+    csBox.Visible = false
+
+    local gutter = Instance.new("TextLabel")
+    gutter.BackgroundColor3 = DS.colors.field
+    gutter.BorderSizePixel = 0
+    gutter.Position = UDim2.new(0, 12, 0, 48)
+    gutter.Size = UDim2.new(0, 38, 1, -60)
+    gutter.Font = DS.font.code
+    gutter.Text = table.concat({ "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20" }, "\n")
+    gutter.TextColor3 = DS.colors.textMuted
+    gutter.TextSize = DS.fontSize.small
+    gutter.TextXAlignment = Enum.TextXAlignment.Center
+    gutter.TextYAlignment = Enum.TextYAlignment.Top
+    gutter.Parent = editorPanel
+    xenoCorner(gutter, 6)
+    xenoStroke(gutter, DS.colors.border, 0.78, 1)
+    xenoPadding(gutter, 0, 10, 0, 0)
+
+    local serverTab = xenoButton(tabStrip, "Tab 1 - Server", UDim2.new(0, 12, 0, 7), UDim2.new(0, 136, 0, 26), DS.colors.surfaceLight)
+    local clientTab = xenoButton(tabStrip, "Tab 2 - Client", UDim2.new(0, 154, 0, 7), UDim2.new(0, 136, 0, 26), DS.colors.chrome)
+    local plusTab = xenoButton(tabStrip, "+", UDim2.new(0, 296, 0, 7), UDim2.new(0, 30, 0, 26), DS.colors.chrome, function()
+        Nexus:AddLog("Use Server ou Client para manter a logica atual.", "info")
+    end)
+    plusTab.TextSize = 16
+
+    local function setEditorTab(mode)
+        activeEditor = mode
+        ssBox.Visible = mode == "server"
+        csBox.Visible = mode == "client"
+        xenoSetButtonColor(serverTab, mode == "server" and DS.colors.surfaceLight or DS.colors.chrome)
+        xenoSetButtonColor(clientTab, mode == "client" and DS.colors.surfaceLight or DS.colors.chrome)
+        serverTab.TextColor3 = mode == "server" and DS.colors.primary or DS.colors.textDim
+        clientTab.TextColor3 = mode == "client" and DS.colors.primary or DS.colors.textDim
+    end
+    serverTab.MouseButton1Click:Connect(function() setEditorTab("server") end)
+    clientTab.MouseButton1Click:Connect(function() setEditorTab("client") end)
+    setEditorTab("server")
+
+    local actionBar = xenoPanel(editorFrame, UDim2.new(0, 14, 1, -82), UDim2.new(1, -28, 0, 68), DS.colors.surface, 8)
+    local executeButton = xenoButton(actionBar, "Execute", UDim2.new(0, 12, 0, 16), UDim2.new(0, 106, 0, 36), DS.colors.secondary, function()
+        if activeEditor == "server" then
+            Nexus:ExecuteServer(ssBox.Text)
+        else
+            Nexus:ExecuteClient(csBox.Text)
+        end
+    end)
+    executeButton.TextSize = 13
+    xenoButton(actionBar, "Paste", UDim2.new(0, 126, 0, 16), UDim2.new(0, 86, 0, 36), DS.colors.surfaceLight, function()
+        local clip = xenoReadClipboard()
+        if clip ~= "" then
+            if activeEditor == "server" then ssBox.Text = clip else csBox.Text = clip end
+        end
+    end)
+    xenoButton(actionBar, "Clear", UDim2.new(0, 220, 0, 16), UDim2.new(0, 86, 0, 36), DS.colors.surfaceLight, function()
+        if activeEditor == "server" then ssBox.Text = "" else csBox.Text = "" end
+    end)
+    xenoButton(actionBar, "Run Server", UDim2.new(1, -294, 0, 16), UDim2.new(0, 126, 0, 36), DS.colors.surfaceLight, function()
+        Nexus:ExecuteServer(ssBox.Text)
+    end)
+    xenoButton(actionBar, "Run Client", UDim2.new(1, -158, 0, 16), UDim2.new(0, 126, 0, 36), DS.colors.surfaceLight, function()
+        Nexus:ExecuteClient(csBox.Text)
+    end)
+    miniConsoleText = xenoLabel(actionBar, "No console messages yet.", UDim2.new(0, 322, 0, 0), UDim2.new(1, -632, 1, 0), DS.colors.textMuted, 11, DS.font.code, Enum.TextXAlignment.Left)
+    miniConsoleText.ClipsDescendants = true
+    miniConsoleText.TextTruncate = Enum.TextTruncate.AtEnd
+    miniConsoleText.TextWrapped = false
+
+    -- Players
+    local playersFrame = contentFrames.players
+    local playersPanel = xenoPanel(playersFrame, UDim2.new(0, 14, 0, 14), UDim2.new(1, -28, 1, -28), DS.colors.surface, 8)
+    xenoLabel(playersPanel, "Players", UDim2.new(0, 16, 0, 12), UDim2.new(0, 160, 0, 22), DS.colors.text, 16, DS.font.bold, Enum.TextXAlignment.Left)
+    xenoLabel(playersPanel, "Quick actions", UDim2.new(0, 90, 0, 14), UDim2.new(0, 160, 0, 18), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
+
+    local playerList = Instance.new("ScrollingFrame")
+    playerList.Position = UDim2.new(0, 16, 0, 48)
+    playerList.Size = UDim2.new(1, -32, 1, -64)
+    playerList.BackgroundColor3 = DS.colors.field
+    playerList.BorderSizePixel = 0
+    playerList.ScrollBarThickness = 5
+    playerList.ScrollBarImageColor3 = DS.colors.border
+    playerList.CanvasSize = UDim2.new(0, 0, 0, 0)
+    playerList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    playerList.Parent = playersPanel
+    xenoCorner(playerList, 7)
+    xenoStroke(playerList, DS.colors.border, 0.72, 1)
+    xenoPadding(playerList, 8, 8, 8, 8)
+    local playerLayout = Instance.new("UIListLayout")
+    playerLayout.Padding = UDim.new(0, 8)
+    playerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    playerLayout.Parent = playerList
+
+    local function updatePlayers()
+        for _, child in pairs(playerList:GetChildren()) do
+            if child.Name == "PlayerRow" or child.Name == "EmptyPlayers" then child:Destroy() end
+        end
+
+        local count = 0
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= localPlayer then
+                count = count + 1
+                local row = Instance.new("Frame")
+                row.Name = "PlayerRow"
+                row.Size = UDim2.new(1, -6, 0, 58)
+                row.BackgroundColor3 = DS.colors.surface
+                row.BorderSizePixel = 0
+                row.Parent = playerList
+                xenoCorner(row, 7)
+                xenoStroke(row, DS.colors.border, 0.76, 1)
+
+                xenoLabel(row, plr.Name, UDim2.new(0, 14, 0, 9), UDim2.new(0, 260, 0, 20), DS.colors.text, 13, DS.font.bold, Enum.TextXAlignment.Left)
+                xenoLabel(row, "@" .. (plr.DisplayName or plr.Name), UDim2.new(0, 14, 0, 30), UDim2.new(0, 260, 0, 18), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
+
+                local actions = {
+                    { text = "TP", color = DS.colors.secondary, code = string.format([[
+                        local target = game:GetService("Players"):FindFirstChild("%s")
+                        local admin = game:GetService("Players"):FindFirstChild("%s")
+                        if target and admin and admin.Character then
+                            local tr = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+                            local ar = admin.Character:FindFirstChild("HumanoidRootPart")
+                            if tr and ar then ar.CFrame = tr.CFrame end
+                        end
+                    ]], plr.Name, Nexus.adminName) },
+                    { text = "KILL", color = DS.colors.error, code = string.format([[
+                        local target = game:GetService("Players"):FindFirstChild("%s")
+                        if target and target.Character then
+                            local hum = target.Character:FindFirstChild("Humanoid")
+                            if hum then hum:BreakJoints() end
+                        end
+                    ]], plr.Name) },
+                    { text = "FREEZE", color = DS.colors.warning, code = string.format([[
+                        local target = game:GetService("Players"):FindFirstChild("%s")
+                        if target and target.Character then
+                            local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+                            if hrp then hrp.Anchored = true end
+                        end
+                    ]], plr.Name) },
+                    { text = "FLING", color = DS.colors.primaryDark, code = string.format([[
+                        local target = game:GetService("Players"):FindFirstChild("%s")
+                        if target and target.Character then
+                            local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+                            if hrp then
+                                local v = Vector3.new(math.random(-100, 100), 50, math.random(-100, 100))
+                                hrp.Velocity = v
+                            end
+                        end
+                    ]], plr.Name) }
+                }
+
+                for i, act in ipairs(actions) do
+                    xenoButton(row, act.text, UDim2.new(1, -318 + (i - 1) * 76, 0, 15), UDim2.new(0, 68, 0, 28), act.color, function()
+                        Nexus:ExecuteServer(act.code)
+                        Nexus:AddLog(string.format("%s -> %s", plr.Name, act.text), "info")
+                    end)
+                end
+            end
+        end
+
+        if count == 0 then
+            local empty = xenoLabel(playerList, "No other players detected.", UDim2.new(0, 0, 0, 0), UDim2.new(1, -6, 0, 42), DS.colors.textMuted, 12, DS.font.main, Enum.TextXAlignment.Center)
+            empty.Name = "EmptyPlayers"
+        end
+    end
+    Players.PlayerAdded:Connect(updatePlayers)
+    Players.PlayerRemoving:Connect(updatePlayers)
+    updatePlayers()
+
+    -- Tools
+    local toolsFrame = contentFrames.tools
+    local toolsPanel = xenoPanel(toolsFrame, UDim2.new(0, 14, 0, 14), UDim2.new(1, -28, 1, -28), DS.colors.surface, 8)
+    xenoLabel(toolsPanel, "Tools", UDim2.new(0, 16, 0, 12), UDim2.new(0, 160, 0, 22), DS.colors.text, 16, DS.font.bold, Enum.TextXAlignment.Left)
+    xenoLabel(toolsPanel, "Utilities wired to the existing actions", UDim2.new(0, 68, 0, 14), UDim2.new(0, 260, 0, 18), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
+
+    local toolGrid = Instance.new("Frame")
+    toolGrid.Position = UDim2.new(0, 16, 0, 52)
+    toolGrid.Size = UDim2.new(1, -32, 1, -68)
+    toolGrid.BackgroundTransparency = 1
+    toolGrid.Parent = toolsPanel
+    local grid = Instance.new("UIGridLayout")
+    grid.CellSize = UDim2.new(0, 184, 0, 48)
+    grid.CellPadding = UDim2.new(0, 12, 0, 12)
+    grid.SortOrder = Enum.SortOrder.LayoutOrder
+    grid.Parent = toolGrid
+
+    local toolBtns = {
+        { text = "Anti-Ban ON", color = DS.colors.success, action = function()
+            Nexus:AddLog("Anti-Ban ativado (simulacao)", "success")
+        end },
+        { text = "Anti-Ban OFF", color = DS.colors.error, action = function()
+            Nexus:AddLog("Anti-Ban desativado", "warning")
+        end },
+        { text = "Voice ON", color = DS.colors.success, action = function() Nexus:EnableVoiceProtection() end },
+        { text = "Reset Char", color = DS.colors.warning, action = function()
+            Nexus:ExecuteServer("local p = game:GetService('Players').LocalPlayer; if p.Character then p.Character:BreakJoints() end")
+        end },
+        { text = "Fullbright", color = DS.colors.secondary, action = function()
+            Nexus:ExecuteClient([[
+                local l = game:GetService("Lighting")
+                l.ClockTime = 12
+                l.Brightness = 2
+                l.FogEnd = 1000
+                l.FogColor = Color3.new(1,1,1)
+                for _, v in pairs(l:GetDescendants()) do
+                    if v:IsA("Light") then v.Enabled = false end
+                end
+            ]])
+        end },
+        { text = "Kill All", color = DS.colors.error, action = function()
+            Nexus:ExecuteServer([[
+                for _, p in pairs(game:GetService("Players"):GetPlayers()) do
+                    if p ~= game:GetService("Players").LocalPlayer and p.Character then
+                        local h = p.Character:FindFirstChild("Humanoid")
+                        if h then h:BreakJoints() end
+                    end
+                end
+            ]])
+        end }
+    }
+    for _, bt in ipairs(toolBtns) do
+        local btn = xenoButton(toolGrid, bt.text, UDim2.new(0, 0, 0, 0), UDim2.new(0, 184, 0, 48), bt.color, bt.action)
+        btn.TextSize = 13
+    end
+
+    -- Console
+    local consoleFrame = contentFrames.console
+    local consolePanel = xenoPanel(consoleFrame, UDim2.new(0, 14, 0, 14), UDim2.new(1, -28, 1, -84), DS.colors.surface, 8)
+    xenoLabel(consolePanel, "Console", UDim2.new(0, 16, 0, 12), UDim2.new(0, 160, 0, 22), DS.colors.text, 16, DS.font.bold, Enum.TextXAlignment.Left)
+
+    consoleScroller = Instance.new("ScrollingFrame")
+    consoleScroller.Position = UDim2.new(0, 16, 0, 48)
+    consoleScroller.Size = UDim2.new(1, -32, 1, -64)
+    consoleScroller.BackgroundColor3 = DS.colors.field
+    consoleScroller.BorderSizePixel = 0
+    consoleScroller.ScrollBarThickness = 5
+    consoleScroller.ScrollBarImageColor3 = DS.colors.border
+    consoleScroller.CanvasSize = UDim2.new(0, 0, 0, 0)
+    consoleScroller.Parent = consolePanel
+    xenoCorner(consoleScroller, 7)
+    xenoStroke(consoleScroller, DS.colors.border, 0.72, 1)
+
+    consoleText = xenoLabel(consoleScroller, "", UDim2.new(0, 12, 0, 10), UDim2.new(1, -24, 0, 24), DS.colors.textDim, 12, DS.font.code, Enum.TextXAlignment.Left)
+    consoleText.TextYAlignment = Enum.TextYAlignment.Top
+
+    local consoleActions = xenoPanel(consoleFrame, UDim2.new(0, 14, 1, -56), UDim2.new(1, -28, 0, 42), DS.colors.surface, 8)
+    xenoButton(consoleActions, "Copy Logs", UDim2.new(1, -220, 0, 7), UDim2.new(0, 96, 0, 28), DS.colors.surfaceLight, function()
+        local full = ""
+        for _, entry in ipairs(Nexus.consoleLogs) do
+            full = full .. entry.text .. "\n"
+        end
+        if full == "" then full = "Nenhum log." end
+        pcall(setclipboard, full)
+        Nexus:AddLog("Log copiado!", "success")
+    end)
+    xenoButton(consoleActions, "Clear", UDim2.new(1, -116, 0, 7), UDim2.new(0, 96, 0, 28), DS.colors.error, function()
+        Nexus.consoleLogs = {}
+        Nexus.updateConsoleUI()
+        Nexus:AddLog("Console limpo.", "info")
+    end)
+    xenoLabel(consoleActions, "Last 200 log entries", UDim2.new(0, 14, 0, 0), UDim2.new(0, 220, 1, 0), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
+
+    function Nexus.updateConsoleUI()
+        local lines = {}
+        for i = math.max(1, #Nexus.consoleLogs - 200), #Nexus.consoleLogs do
+            table.insert(lines, Nexus.consoleLogs[i].text)
+        end
+        local str = table.concat(lines, "\n")
+        if str == "" then str = "Console vazio." end
+        if consoleText then
+            consoleText.Text = str
+            local height = math.max(32, consoleText.TextBounds.Y + 24)
+            consoleText.Size = UDim2.new(1, -24, 0, height)
+            if consoleScroller then
+                consoleScroller.CanvasSize = UDim2.new(0, 0, 0, height + 20)
+                consoleScroller.CanvasPosition = Vector2.new(0, math.max(0, height))
+            end
+        end
+        if miniConsoleText then
+            miniConsoleText.Text = (#lines > 0 and lines[#lines]) or "No console messages yet."
+        end
+    end
+
+    -- Hub
+    local hubFrame = contentFrames.hub
+    local hubPanel = xenoPanel(hubFrame, UDim2.new(0, 14, 0, 14), UDim2.new(1, -28, 1, -28), DS.colors.surface, 8)
+    xenoLabel(hubPanel, "Script Hub", UDim2.new(0, 16, 0, 12), UDim2.new(0, 180, 0, 22), DS.colors.text, 16, DS.font.bold, Enum.TextXAlignment.Left)
+    xenoLabel(hubPanel, "Client utilities", UDim2.new(0, 110, 0, 14), UDim2.new(0, 180, 0, 18), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
+
+    local hubList = Instance.new("ScrollingFrame")
+    hubList.Position = UDim2.new(0, 16, 0, 48)
+    hubList.Size = UDim2.new(1, -32, 1, -64)
+    hubList.BackgroundColor3 = DS.colors.field
+    hubList.BorderSizePixel = 0
+    hubList.ScrollBarThickness = 5
+    hubList.ScrollBarImageColor3 = DS.colors.border
+    hubList.CanvasSize = UDim2.new(0, 0, 0, 0)
+    hubList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    hubList.Parent = hubPanel
+    xenoCorner(hubList, 7)
+    xenoStroke(hubList, DS.colors.border, 0.72, 1)
+    xenoPadding(hubList, 8, 8, 8, 8)
+    local hubLayout = Instance.new("UIListLayout")
+    hubLayout.Padding = UDim.new(0, 8)
+    hubLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    hubLayout.Parent = hubList
+
+    local scripts = {
+        { name = "Infinite Jump", code = [[
+            local p = game:GetService("Players").LocalPlayer
+            local h = p.Character and p.Character:FindFirstChild("Humanoid")
+            if h then h.JumpPower = 100; h.Jump = true end
+        ]] },
+        { name = "Super Speed (WS)", code = [[
+            local p = game:GetService("Players").LocalPlayer
+            local h = p.Character and p.Character:FindFirstChild("Humanoid")
+            if h then h.WalkSpeed = 100 end
+        ]] },
+        { name = "Gravity (0.1)", code = [[
+            game:GetService("Workspace").Gravity = 0.1
+        ]] },
+        { name = "Reset Gravity", code = [[
+            game:GetService("Workspace").Gravity = 196.2
+        ]] },
+        { name = "Btools (Give)", code = [[
+            local p = game:GetService("Players").LocalPlayer
+            if p.Character then
+                local tools = {"Hammer", "Weld", "Arrow", "Crate"}
+                for _, t in ipairs(tools) do
+                    local b = Instance.new("Tool")
+                    b.Name = t
+                    b.Parent = p.Character
+                end
+            end
+        ]] },
+        { name = "Remove All Tools", code = [[
+            local p = game:GetService("Players").LocalPlayer
+            if p.Character then
+                for _, v in pairs(p.Character:GetChildren()) do
+                    if v:IsA("Tool") then v:Destroy() end
+                end
+            end
+        ]] },
+        { name = "ESP Player (Client)", code = [[
+            local p = game:GetService("Players")
+            for _, plr in pairs(p:GetPlayers()) do
+                if plr ~= p.LocalPlayer and plr.Character then
+                    local h = plr.Character:FindFirstChild("Head")
+                    if h then
+                        local hl = Instance.new("Highlight")
+                        hl.FillColor = Color3.new(1,0,0)
+                        hl.OutlineColor = Color3.new(1,1,1)
+                        hl.FillTransparency = 0.5
+                        hl.Parent = h
+                    end
+                end
+            end
+        ]] }
+    }
+
+    for _, s in ipairs(scripts) do
+        local row = Instance.new("Frame")
+        row.Name = "HubRow"
+        row.Size = UDim2.new(1, -6, 0, 48)
+        row.BackgroundColor3 = DS.colors.surface
+        row.BorderSizePixel = 0
+        row.Parent = hubList
+        xenoCorner(row, 7)
+        xenoStroke(row, DS.colors.border, 0.76, 1)
+        xenoLabel(row, s.name, UDim2.new(0, 14, 0, 0), UDim2.new(1, -150, 1, 0), DS.colors.text, 13, DS.font.bold, Enum.TextXAlignment.Left)
+        xenoButton(row, "Run", UDim2.new(1, -106, 0, 10), UDim2.new(0, 82, 0, 28), DS.colors.secondary, function()
+            Nexus:ExecuteClient(s.code)
+            Nexus:AddLog("Script Hub: " .. s.name .. " executado", "success")
+        end)
+    end
+
+    setMainTab("editor")
+    Nexus.updateConsoleUI()
+    return gui
 end
 
 -- ============================================================================
