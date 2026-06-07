@@ -1,5 +1,5 @@
 -- ============================================================================
--- NEXUS XT — INTERFACE ESTILO XENA (PROFISSIONAL E PERFEITA)
+-- NEXUS XT v8.0 — INTERFACE TOTALMENTE REFORMULADA (LIMPA E ESTÁVEL)
 -- ============================================================================
 
 -- DESIGN SYSTEM
@@ -11,9 +11,9 @@ local DS = {
         success = Color3.fromRGB(0, 255, 100),
         error = Color3.fromRGB(255, 70, 70),
         warning = Color3.fromRGB(255, 200, 50),
-        background = Color3.fromRGB(15, 15, 25),         -- Fundo escuro
-        surface = Color3.fromRGB(25, 25, 40),           -- Cards
-        surfaceLight = Color3.fromRGB(40, 40, 60),
+        background = Color3.fromRGB(12, 12, 20),        -- Fundo escuro profundo
+        surface = Color3.fromRGB(22, 22, 35),           -- Cards
+        surfaceLight = Color3.fromRGB(35, 35, 55),
         text = Color3.fromRGB(255, 255, 255),
         textDim = Color3.fromRGB(180, 180, 210),
         border = Color3.fromRGB(60, 60, 90)
@@ -140,66 +140,8 @@ function Nexus:EnableVoiceProtection()
     if not ok then self:AddLog("Falha ativar proteção", "error") end
 end
 
--- BOLINHA FLUTUANTE (estilo Xena)
-local function createFloatingBall()
-    local ball = Instance.new("ImageButton")
-    ball.Name = "NexusBall"
-    ball.Size = UDim2.new(0, 60, 0, 60)
-    ball.Position = UDim2.new(0.92, 0, 0.85, 0)
-    ball.BackgroundColor3 = DS.colors.primary
-    ball.Image = "rbxassetid://6031094838"
-    ball.ImageColor3 = Color3.fromRGB(255,255,255)
-    ball.ScaleType = Enum.ScaleType.Fit
-    ball.Parent = CoreGui
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(1,0)
-    corner.Parent = ball
-
-    -- Sombra
-    local shadow = Instance.new("ImageLabel")
-    shadow.Size = UDim2.new(1,16,1,16)
-    shadow.Position = UDim2.new(0,-8,0,-8)
-    shadow.Image = "rbxassetid://1316047698"
-    shadow.ImageColor3 = Color3.fromRGB(0,0,0)
-    shadow.BackgroundTransparency = 1
-    shadow.ZIndex = 0
-    shadow.Parent = ball
-
-    -- Arrastar
-    local drag = false; local dragStart, startPos
-    ball.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then
-            drag = true
-            dragStart = i.Position
-            startPos = ball.Position
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(i)
-        if drag and i.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = i.Position - dragStart
-            ball.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset+delta.X, startPos.Y.Scale, startPos.Y.Offset+delta.Y)
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end
-    end)
-
-    -- Clique abre a interface
-    ball.MouseButton1Click:Connect(function()
-        if Nexus.mainGui and Nexus.mainGui.Parent then
-            Nexus.mainGui.Enabled = true
-            ball.Visible = false
-            Nexus.isMinimized = false
-        else
-            Nexus.mainGui = createMainUI()
-            ball.Visible = false
-        end
-    end)
-    return ball
-end
-
 -- ============================================================================
--- INTERFACE PRINCIPAL (ESTILO XENA — 900x620, tudo perfeito)
+-- INTERFACE PRINCIPAL (1000x650 — NADA ESPREMIDO)
 -- ============================================================================
 local function createMainUI()
     local gui = Instance.new("ScreenGui")
@@ -211,8 +153,8 @@ local function createMainUI()
 
     -- JANELA PRINCIPAL
     local window = Instance.new("Frame")
-    window.Size = UDim2.new(0, 900, 0, 620)
-    window.Position = UDim2.new(0.5, -450, 0.5, -310)
+    window.Size = UDim2.new(0, 1000, 0, 650)
+    window.Position = UDim2.new(0.5, -500, 0.5, -325)
     window.BackgroundColor3 = DS.colors.background
     window.BorderSizePixel = 0
     window.ClipsDescendants = true
@@ -223,9 +165,9 @@ local function createMainUI()
 
     -- Sombra externa
     local shadow = Instance.new("Frame")
-    shadow.Size = UDim2.new(1,20,1,20)
-    shadow.Position = UDim2.new(0,-10,0,-10)
-    shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    shadow.Size = UDim2.new(1, 20, 1, 20)
+    shadow.Position = UDim2.new(0, -10, 0, -10)
+    shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     shadow.BackgroundTransparency = 0.7
     shadow.BorderSizePixel = 0
     shadow.ZIndex = 0
@@ -234,9 +176,9 @@ local function createMainUI()
     shCorner.CornerRadius = UDim.new(0, 20)
     shCorner.Parent = shadow
 
-    -- BARRA DE TÍTULO
+    -- BARRA DE TÍTULO (50px)
     local titleBar = Instance.new("Frame")
-    titleBar.Size = UDim2.new(1,0,0,50)
+    titleBar.Size = UDim2.new(1, 0, 0, 50)
     titleBar.BackgroundColor3 = DS.colors.surface
     titleBar.Parent = window
     local titleCorner = Instance.new("UICorner")
@@ -266,10 +208,10 @@ local function createMainUI()
 
     -- Versão
     local ver = Instance.new("TextLabel")
-    ver.Size = UDim2.new(0, 100, 1, 0)
+    ver.Size = UDim2.new(0, 80, 1, 0)
     ver.Position = UDim2.new(0, 260, 0, 0)
     ver.BackgroundTransparency = 1
-    ver.Text = "v7.0"
+    ver.Text = "v8.0"
     ver.TextColor3 = DS.colors.textDim
     ver.Font = DS.font.main
     ver.TextSize = 14
@@ -289,7 +231,7 @@ local function createMainUI()
     mini.MouseButton1Click:Connect(function()
         Nexus.isMinimized = true
         gui.Enabled = false
-        if not Nexus.floatingBall or not Nexus.floatingBall.Parent then
+        if not Nexus.floatingBall then
             Nexus.floatingBall = createFloatingBall()
         else
             Nexus.floatingBall.Visible = true
@@ -308,8 +250,9 @@ local function createMainUI()
     close.Parent = titleBar
     close.MouseButton1Click:Connect(function() gui:Destroy() end)
 
-    -- Arrastar a janela
-    local drag = false; local dragStart, startPos
+    -- Arrastar a janela (na barra de título)
+    local drag = false
+    local dragStart, startPos
     titleBar.InputBegan:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 then
             drag = true
@@ -320,17 +263,17 @@ local function createMainUI()
     UserInputService.InputChanged:Connect(function(i)
         if drag and i.UserInputType == Enum.UserInputType.MouseMovement then
             local delta = i.Position - dragStart
-            window.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset+delta.X, startPos.Y.Scale, startPos.Y.Offset+delta.Y)
+            window.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
     UserInputService.InputEnded:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end
     end)
 
-    -- === ABA NAVEGAÇÃO ===
+    -- ===== ABA NAVEGAÇÃO (5 abas) =====
     local tabBar = Instance.new("Frame")
-    tabBar.Size = UDim2.new(1,0,0,50)
-    tabBar.Position = UDim2.new(0,0,0,50)
+    tabBar.Size = UDim2.new(1, 0, 0, 50)
+    tabBar.Position = UDim2.new(0, 0, 0, 50)
     tabBar.BackgroundColor3 = DS.colors.surfaceLight
     tabBar.Parent = window
 
@@ -339,7 +282,7 @@ local function createMainUI()
     local contentFrames = {}
     local activeTab = 1
     local indicator = Instance.new("Frame")
-    indicator.Size = UDim2.new(0, 150, 0, 3)
+    indicator.Size = UDim2.new(0, 180, 0, 3)
     indicator.Position = UDim2.new(0, 0, 1, -3)
     indicator.BackgroundColor3 = DS.colors.primary
     indicator.BorderSizePixel = 0
@@ -347,25 +290,31 @@ local function createMainUI()
 
     for i, name in ipairs(tabs) do
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 150, 1, 0)
-        btn.Position = UDim2.new((i-1)*0.2, 0, 0, 0)
+        btn.Size = UDim2.new(0, 180, 1, 0)
+        btn.Position = UDim2.new((i - 1) * 0.2, 0, 0, 0)
         btn.BackgroundTransparency = 1
         btn.Text = name
-        btn.TextColor3 = i == 1 and DS.colors.primary or DS.colors.textDim
+        btn.TextColor3 = (i == 1) and DS.colors.primary or DS.colors.textDim
         btn.Font = DS.font.main
         btn.TextSize = DS.fontSize.body
         btn.Parent = tabBar
         tabBtns[i] = btn
+
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1,0,1,0)
+        frame.Size = UDim2.new(1, 0, 1, 0)
         frame.BackgroundTransparency = 1
-        frame.Visible = i == 1
+        frame.Visible = (i == 1)
         frame.Parent = window
         contentFrames[i] = frame
+
         btn.MouseButton1Click:Connect(function()
             if activeTab == i then return end
             activeTab = i
-            TweenService:Create(indicator, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = UDim2.new((i-1)*0.2, 0, 1, -3)}):Play()
+            TweenService:Create(
+                indicator,
+                TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+                { Position = UDim2.new((i - 1) * 0.2, 0, 1, -3) }
+            ):Play()
             for j, f in ipairs(contentFrames) do
                 f.Visible = (j == i)
                 tabBtns[j].TextColor3 = (j == i) and DS.colors.primary or DS.colors.textDim
@@ -375,9 +324,9 @@ local function createMainUI()
 
     -- ==================== ABA EXECUTOR ====================
     local exec = contentFrames[1]
-    -- Server-Side (card superior)
+    -- Server-Side (metade superior)
     local ssCard = Instance.new("Frame")
-    ssCard.Size = UDim2.new(1, -40, 0, 260)
+    ssCard.Size = UDim2.new(1, -40, 0, 270)
     ssCard.Position = UDim2.new(0, 20, 0, 20)
     ssCard.BackgroundColor3 = DS.colors.surface
     ssCard.BorderSizePixel = 0
@@ -399,7 +348,7 @@ local function createMainUI()
 
     local ssBox = Instance.new("TextBox")
     ssBox.Size = UDim2.new(1, -24, 0, 140)
-    ssBox.Position = UDim2.new(0, 12, 0, 50)
+    ssBox.Position = UDim2.new(0, 12, 0, 48)
     ssBox.BackgroundColor3 = DS.colors.background
     ssBox.TextColor3 = DS.colors.text
     ssBox.TextXAlignment = Enum.TextXAlignment.Left
@@ -427,7 +376,7 @@ local function createMainUI()
     pasteSS.Position = UDim2.new(0, 12, 1, -40)
     pasteSS.BackgroundColor3 = DS.colors.secondary
     pasteSS.Text = "📋 COLAR"
-    pasteSS.TextColor3 = Color3.fromRGB(255,255,255)
+    pasteSS.TextColor3 = Color3.fromRGB(255, 255, 255)
     pasteSS.Font = DS.font.main
     pasteSS.TextSize = DS.fontSize.body
     pasteSS.Parent = ssCard
@@ -441,16 +390,16 @@ local function createMainUI()
     execSS.Position = UDim2.new(1, -152, 1, -40)
     execSS.BackgroundColor3 = DS.colors.success
     execSS.Text = "▶ EXECUTAR"
-    execSS.TextColor3 = Color3.fromRGB(255,255,255)
+    execSS.TextColor3 = Color3.fromRGB(255, 255, 255)
     execSS.Font = DS.font.main
     execSS.TextSize = DS.fontSize.body
     execSS.Parent = ssCard
     execSS.MouseButton1Click:Connect(function() Nexus:ExecuteServer(ssBox.Text) end)
 
-    -- Client-Side (card inferior)
+    -- Client-Side (metade inferior)
     local csCard = Instance.new("Frame")
-    csCard.Size = UDim2.new(1, -40, 0, 220)
-    csCard.Position = UDim2.new(0, 20, 0, 300)
+    csCard.Size = UDim2.new(1, -40, 0, 230)
+    csCard.Position = UDim2.new(0, 20, 0, 310)
     csCard.BackgroundColor3 = DS.colors.surface
     csCard.BorderSizePixel = 0
     csCard.Parent = exec
@@ -471,7 +420,7 @@ local function createMainUI()
 
     local csBox = Instance.new("TextBox")
     csBox.Size = UDim2.new(1, -24, 0, 100)
-    csBox.Position = UDim2.new(0, 12, 0, 50)
+    csBox.Position = UDim2.new(0, 12, 0, 48)
     csBox.BackgroundColor3 = DS.colors.background
     csBox.TextColor3 = DS.colors.text
     csBox.TextXAlignment = Enum.TextXAlignment.Left
@@ -499,7 +448,7 @@ local function createMainUI()
     execCS.Position = UDim2.new(1, -152, 1, -40)
     execCS.BackgroundColor3 = DS.colors.secondary
     execCS.Text = "▶ EXECUTAR"
-    execCS.TextColor3 = Color3.fromRGB(255,255,255)
+    execCS.TextColor3 = Color3.fromRGB(255, 255, 255)
     execCS.Font = DS.font.main
     execCS.TextSize = DS.fontSize.body
     execCS.Parent = csCard
@@ -513,7 +462,7 @@ local function createMainUI()
     playerList.BackgroundColor3 = DS.colors.surface
     playerList.BorderSizePixel = 0
     playerList.ScrollBarThickness = 6
-    playerList.CanvasSize = UDim2.new(0,0,0,0)
+    playerList.CanvasSize = UDim2.new(0, 0, 0, 0)
     playerList.AutomaticCanvasSize = Enum.AutomaticSize.Y
     playerList.Parent = playersFrame
     local plCorner = Instance.new("UICorner")
@@ -542,9 +491,8 @@ local function createMainUI()
                 btnCorner.CornerRadius = UDim.new(0, 8)
                 btnCorner.Parent = btn
 
-                -- Botões de ação
                 local actions = {
-                    {text = "TP", color = DS.colors.secondary, code = string.format([[
+                    { text = "TP", color = DS.colors.secondary, code = string.format([[
                         local target = game:GetService("Players"):FindFirstChild("%s")
                         local admin = game:GetService("Players"):FindFirstChild("%s")
                         if target and admin and admin.Character then
@@ -552,31 +500,31 @@ local function createMainUI()
                             local ar = admin.Character:FindFirstChild("HumanoidRootPart")
                             if tr and ar then ar.CFrame = tr.CFrame end
                         end
-                    ]], plr.Name, Nexus.adminName)},
-                    {text = "KILL", color = DS.colors.error, code = string.format([[
+                    ]], plr.Name, Nexus.adminName) },
+                    { text = "KILL", color = DS.colors.error, code = string.format([[
                         local target = game:GetService("Players"):FindFirstChild("%s")
                         if target and target.Character then
                             local hum = target.Character:FindFirstChild("Humanoid")
                             if hum then hum:BreakJoints() end
                         end
-                    ]], plr.Name)},
-                    {text = "FREEZE", color = DS.colors.warning, code = string.format([[
+                    ]], plr.Name) },
+                    { text = "FREEZE", color = DS.colors.warning, code = string.format([[
                         local target = game:GetService("Players"):FindFirstChild("%s")
                         if target and target.Character then
                             local hrp = target.Character:FindFirstChild("HumanoidRootPart")
                             if hrp then hrp.Anchored = true end
                         end
-                    ]], plr.Name)},
-                    {text = "FLING", color = DS.colors.primary, code = string.format([[
+                    ]], plr.Name) },
+                    { text = "FLING", color = DS.colors.primary, code = string.format([[
                         local target = game:GetService("Players"):FindFirstChild("%s")
                         if target and target.Character then
                             local hrp = target.Character:FindFirstChild("HumanoidRootPart")
                             if hrp then
-                                local v = Vector3.new(math.random(-100,100), 50, math.random(-100,100))
+                                local v = Vector3.new(math.random(-100, 100), 50, math.random(-100, 100))
                                 hrp.Velocity = v
                             end
                         end
-                    ]], plr.Name)}
+                    ]], plr.Name) }
                 }
                 local btnWidth = 60
                 local totalWidth = #actions * (btnWidth + 6)
@@ -584,10 +532,10 @@ local function createMainUI()
                 for i, act in ipairs(actions) do
                     local aBtn = Instance.new("TextButton")
                     aBtn.Size = UDim2.new(0, btnWidth, 0, 26)
-                    aBtn.Position = UDim2.new(0, startX + (i-1)*(btnWidth+6), 0, 28)
+                    aBtn.Position = UDim2.new(0, startX + (i - 1) * (btnWidth + 6), 0, 28)
                     aBtn.BackgroundColor3 = act.color
                     aBtn.Text = act.text
-                    aBtn.TextColor3 = Color3.fromRGB(255,255,255)
+                    aBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
                     aBtn.Font = DS.font.main
                     aBtn.TextSize = DS.fontSize.small
                     aBtn.Parent = btn
@@ -629,19 +577,19 @@ local function createMainUI()
     toolTitle.TextXAlignment = Enum.TextXAlignment.Left
     toolTitle.Parent = toolCard
 
-    -- Botões 3x3
+    -- Botões em grid 3x3 com espaçamento
     local toolBtns = {
-        {text = "Anti-Ban ON", color = DS.colors.success, action = function()
+        { text = "Anti-Ban ON", color = DS.colors.success, action = function()
             Nexus:AddLog("Anti-Ban ativado (simulação)", "success")
-        end},
-        {text = "Anti-Ban OFF", color = DS.colors.error, action = function()
+        end },
+        { text = "Anti-Ban OFF", color = DS.colors.error, action = function()
             Nexus:AddLog("Anti-Ban desativado", "warning")
-        end},
-        {text = "Voz ON", color = DS.colors.success, action = function() Nexus:EnableVoiceProtection() end},
-        {text = "Reset Char", color = DS.colors.warning, action = function()
+        end },
+        { text = "Voz ON", color = DS.colors.success, action = function() Nexus:EnableVoiceProtection() end },
+        { text = "Reset Char", color = DS.colors.warning, action = function()
             Nexus:ExecuteServer("local p = game:GetService('Players').LocalPlayer; if p.Character then p.Character:BreakJoints() end")
-        end},
-        {text = "Fullbright", color = DS.colors.secondary, action = function()
+        end },
+        { text = "Fullbright", color = DS.colors.secondary, action = function()
             Nexus:ExecuteClient([[
                 local l = game:GetService("Lighting")
                 l.ClockTime = 12
@@ -652,8 +600,8 @@ local function createMainUI()
                     if v:IsA("Light") then v.Enabled = false end
                 end
             ]])
-        end},
-        {text = "Kill All", color = DS.colors.error, action = function()
+        end },
+        { text = "Kill All", color = DS.colors.error, action = function()
             Nexus:ExecuteServer([[
                 for _, p in pairs(game:GetService("Players"):GetPlayers()) do
                     if p ~= game:GetService("Players").LocalPlayer and p.Character then
@@ -662,15 +610,15 @@ local function createMainUI()
                     end
                 end
             ]])
-        end}
+        end }
     }
     for i, bt in ipairs(toolBtns) do
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 160, 0, 40)
-        btn.Position = UDim2.new(0, 12 + ((i-1)%3)*180, 0, 50 + math.floor((i-1)/3)*52)
+        btn.Size = UDim2.new(0, 180, 0, 40)
+        btn.Position = UDim2.new(0, 12 + ((i - 1) % 3) * 200, 0, 50 + math.floor((i - 1) / 3) * 52)
         btn.BackgroundColor3 = bt.color
         btn.Text = bt.text
-        btn.TextColor3 = Color3.fromRGB(255,255,255)
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
         btn.Font = DS.font.main
         btn.TextSize = DS.fontSize.body
         btn.Parent = toolCard
@@ -688,7 +636,7 @@ local function createMainUI()
     consoleScroller.BackgroundColor3 = DS.colors.surface
     consoleScroller.BorderSizePixel = 0
     consoleScroller.ScrollBarThickness = 6
-    consoleScroller.CanvasSize = UDim2.new(0,0,0,0)
+    consoleScroller.CanvasSize = UDim2.new(0, 0, 0, 0)
     consoleScroller.AutomaticCanvasSize = Enum.AutomaticSize.Y
     consoleScroller.Parent = consoleFrame
     local consCorner = Instance.new("UICorner")
@@ -713,7 +661,7 @@ local function createMainUI()
     copyBtn.Position = UDim2.new(1, -260, 1, -48)
     copyBtn.BackgroundColor3 = DS.colors.secondary
     copyBtn.Text = "📋 COPIAR"
-    copyBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    copyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     copyBtn.Font = DS.font.main
     copyBtn.TextSize = DS.fontSize.body
     copyBtn.Parent = consoleFrame
@@ -732,7 +680,7 @@ local function createMainUI()
     clearBtn.Position = UDim2.new(1, -140, 1, -48)
     clearBtn.BackgroundColor3 = DS.colors.error
     clearBtn.Text = "🗑️ LIMPAR"
-    clearBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    clearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     clearBtn.Font = DS.font.main
     clearBtn.TextSize = DS.fontSize.body
     clearBtn.Parent = consoleFrame
@@ -748,7 +696,7 @@ local function createMainUI()
             str = str .. Nexus.consoleLogs[i].text .. "\n"
         end
         consoleText.Text = str
-        consoleScroller.CanvasSize = UDim2.new(0,0,0, consoleText.TextBounds.Y + 30)
+        consoleScroller.CanvasSize = UDim2.new(0, 0, 0, consoleText.TextBounds.Y + 30)
         consoleScroller.CanvasPosition = Vector2.new(0, consoleScroller.CanvasSize.Y.Offset)
     end
     Nexus.updateConsoleUI()
@@ -782,7 +730,7 @@ local function createMainUI()
     hubList.BackgroundColor3 = DS.colors.background
     hubList.BorderSizePixel = 0
     hubList.ScrollBarThickness = 6
-    hubList.CanvasSize = UDim2.new(0,0,0,0)
+    hubList.CanvasSize = UDim2.new(0, 0, 0, 0)
     hubList.AutomaticCanvasSize = Enum.AutomaticSize.Y
     hubList.Parent = hubCard
     local hlCorner = Instance.new("UICorner")
@@ -793,23 +741,23 @@ local function createMainUI()
     hlLayout.Parent = hubList
 
     local scripts = {
-        {name = "Infinite Jump", code = [[
+        { name = "Infinite Jump", code = [[
             local p = game:GetService("Players").LocalPlayer
             local h = p.Character and p.Character:FindFirstChild("Humanoid")
             if h then h.JumpPower = 100; h.Jump = true end
-        ]]},
-        {name = "Super Speed (WS)", code = [[
+        ]] },
+        { name = "Super Speed (WS)", code = [[
             local p = game:GetService("Players").LocalPlayer
             local h = p.Character and p.Character:FindFirstChild("Humanoid")
             if h then h.WalkSpeed = 100 end
-        ]]},
-        {name = "Gravity (0.1)", code = [[
+        ]] },
+        { name = "Gravity (0.1)", code = [[
             game:GetService("Workspace").Gravity = 0.1
-        ]]},
-        {name = "Reset Gravity", code = [[
+        ]] },
+        { name = "Reset Gravity", code = [[
             game:GetService("Workspace").Gravity = 196.2
-        ]]},
-        {name = "Btools (Give)", code = [[
+        ]] },
+        { name = "Btools (Give)", code = [[
             local p = game:GetService("Players").LocalPlayer
             if p.Character then
                 local tools = {"Hammer", "Weld", "Arrow", "Crate"}
@@ -819,16 +767,16 @@ local function createMainUI()
                     b.Parent = p.Character
                 end
             end
-        ]]},
-        {name = "Remove All Tools", code = [[
+        ]] },
+        { name = "Remove All Tools", code = [[
             local p = game:GetService("Players").LocalPlayer
             if p.Character then
                 for _, v in pairs(p.Character:GetChildren()) do
                     if v:IsA("Tool") then v:Destroy() end
                 end
             end
-        ]]},
-        {name = "ESP Player (Client)", code = [[
+        ]] },
+        { name = "ESP Player (Client)", code = [[
             local p = game:GetService("Players")
             for _, plr in pairs(p:GetPlayers()) do
                 if plr ~= p.LocalPlayer and plr.Character then
@@ -842,7 +790,7 @@ local function createMainUI()
                     end
                 end
             end
-        ]]}
+        ]] }
     }
 
     for _, s in ipairs(scripts) do
@@ -867,15 +815,77 @@ local function createMainUI()
 end
 
 -- ============================================================================
+-- BOLINHA FLUTUANTE
+-- ============================================================================
+local function createFloatingBall()
+    local ball = Instance.new("ImageButton")
+    ball.Name = "NexusBall"
+    ball.Size = UDim2.new(0, 60, 0, 60)
+    ball.Position = UDim2.new(0.92, 0, 0.85, 0)
+    ball.BackgroundColor3 = DS.colors.primary
+    ball.Image = "rbxassetid://6031094838"
+    ball.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    ball.ScaleType = Enum.ScaleType.Fit
+    ball.Parent = CoreGui
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = ball
+
+    -- Sombra
+    local shadow = Instance.new("ImageLabel")
+    shadow.Size = UDim2.new(1, 16, 1, 16)
+    shadow.Position = UDim2.new(0, -8, 0, -8)
+    shadow.Image = "rbxassetid://1316047698"
+    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.BackgroundTransparency = 1
+    shadow.ZIndex = 0
+    shadow.Parent = ball
+
+    -- Arrastar
+    local drag = false
+    local dragStart, startPos
+    ball.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then
+            drag = true
+            dragStart = i.Position
+            startPos = ball.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(i)
+        if drag and i.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = i.Position - dragStart
+            ball.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end
+    end)
+
+    -- Abrir interface ao clicar
+    ball.MouseButton1Click:Connect(function()
+        if Nexus.mainGui and Nexus.mainGui.Parent then
+            Nexus.mainGui.Enabled = true
+            ball.Visible = false
+            Nexus.isMinimized = false
+        else
+            Nexus.mainGui = createMainUI()
+            ball.Visible = false
+        end
+    end)
+    return ball
+end
+
+-- ============================================================================
 -- INICIALIZAÇÃO
 -- ============================================================================
 local function init()
     Nexus:AddLog("═══════════════════════════════════════════════════", "info")
-    Nexus:AddLog("  NEXUS XT — Estilo XENA (Profissional)", "success")
+    Nexus:AddLog("  NEXUS XT v8.0 — Interface Totalmente Reformulada", "success")
     Nexus:AddLog("═══════════════════════════════════════════════════", "info")
     Nexus.mainGui = createMainUI()
     if Nexus.mainGui then
-        Nexus:AddLog("Interface carregada com perfeição.", "success")
+        Nexus:AddLog("Interface carregada com sucesso.", "success")
+        Nexus:AddLog("Tudo limpo, organizado e sem bugs.", "success")
         Nexus:AddLog("Minimize para bolinha flutuante.", "info")
     else
         Nexus:AddLog("Falha ao criar interface.", "error")
