@@ -1,7 +1,8 @@
 --[[
-    🔥 Executor Pro Final – Editor sem limites
-    O campo de script agora aceita textos enormes (sem limite de caracteres)
-    e possui uma barra de rolagem fina para navegação.
+    🔥 Executor Pro – Edição Definitiva
+    Interface premium funcional + Editor sem limites com scroll.
+    Corrigido: mantém o design anterior, apenas adiciona rolagem
+    e suporte a textos enormes. Arrastável, abas, console, backdoors.
 --]]
 
 local Players = game:GetService("Players")
