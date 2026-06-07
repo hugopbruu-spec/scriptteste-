@@ -1,8 +1,8 @@
 --[[
-    🔥 Executor Pro – Interface Corrigida e Completa
-    Editor com scroll nativo, console, botões alinhados.
-    Nenhum redimensionamento automático – estável e sem bugs.
-    Arrastável, com scanner de backdoors e execução Client/Server.
+    🔥 Executor Pro – Edição Definitiva Corrigida
+    Interface simplificada e robusta, sem elementos desnecessários.
+    Tamanhos fixos, sem cálculos dinâmicos, garantia de compatibilidade.
+    Arrastável, editor com scroll nativo, console, botões de ação.
 --]]
 
 local Players = game:GetService("Players")
@@ -15,8 +15,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local Lighting = game:GetService("Lighting")
 
--- Aguarda personagem
-if not Player.Character then Player.CharacterAdded:Wait() end
+-- Aguarda o personagem existir
+if not Player.Character then
+    Player.CharacterAdded:Wait()
+end
 
 -- ==================== CORES ====================
 local C = {
@@ -71,7 +73,7 @@ end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui", CoreGui)
-gui.Name = "ExecutorProFinal"
+gui.Name = "ExecutorPro"
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
 
@@ -84,41 +86,43 @@ Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
 Instance.new("UIStroke", Main).Color = C.Border
 
--- ==================== BARRA DE TÍTULO (32px) ====================
+-- ==================== BARRA DE TÍTULO (32px, sem arredondamento próprio) ====================
 local TitleBar = Instance.new("Frame", Main)
 TitleBar.BackgroundColor3 = C.Surface
 TitleBar.BorderSizePixel = 0
 TitleBar.Size = UDim2.new(1, 0, 0, 32)
-Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 10)
-local titleFix = Instance.new("Frame", TitleBar)
-titleFix.BackgroundColor3 = C.Surface; titleFix.BorderSizePixel = 0
-titleFix.Size = UDim2.new(1, 0, 0, 10); titleFix.Position = UDim2.new(0, 0, 1, -10)
-
-local Logo = Instance.new("TextLabel", TitleBar)
-Logo.BackgroundTransparency = 1
-Logo.Position = UDim2.new(0, 12, 0, 5); Logo.Size = UDim2.new(0, 22, 0, 22)
-Logo.Font = Enum.Font.GothamBlack; Logo.Text = "⚡"; Logo.TextSize = 16
-Logo.TextColor3 = C.Accent
+-- Sem UICorner; o Main com ClipsDescendants já corta as bordas
 
 local TitleText = Instance.new("TextLabel", TitleBar)
 TitleText.BackgroundTransparency = 1
-TitleText.Position = UDim2.new(0, 38, 0, 0); TitleText.Size = UDim2.new(1, -120, 1, 0)
-TitleText.Font = Enum.Font.GothamBold; TitleText.Text = "Executor Pro"
-TitleText.TextColor3 = C.Text; TitleText.TextSize = 14
+TitleText.Position = UDim2.new(0, 12, 0, 0)
+TitleText.Size = UDim2.new(1, -120, 1, 0)
+TitleText.Font = Enum.Font.GothamBold
+TitleText.Text = "Executor Pro"
+TitleText.TextColor3 = C.Text
+TitleText.TextSize = 14
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 
 local AttachBtn = Instance.new("TextButton", TitleBar)
-AttachBtn.BackgroundColor3 = C.Accent; AttachBtn.BorderSizePixel = 0
-AttachBtn.Position = UDim2.new(1, -90, 0, 5); AttachBtn.Size = UDim2.new(0, 58, 0, 22)
-AttachBtn.Text = "Attach"; AttachBtn.Font = Enum.Font.GothamBold
-AttachBtn.TextColor3 = Color3.fromRGB(255, 255, 255); AttachBtn.TextSize = 11
+AttachBtn.BackgroundColor3 = C.Accent
+AttachBtn.BorderSizePixel = 0
+AttachBtn.Position = UDim2.new(1, -90, 0, 5)
+AttachBtn.Size = UDim2.new(0, 58, 0, 22)
+AttachBtn.Text = "Attach"
+AttachBtn.Font = Enum.Font.GothamBold
+AttachBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+AttachBtn.TextSize = 11
 Instance.new("UICorner", AttachBtn).CornerRadius = UDim.new(0, 5)
 
 local CloseBtn = Instance.new("TextButton", TitleBar)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80); CloseBtn.BorderSizePixel = 0
-CloseBtn.Position = UDim2.new(1, -24, 0, 5); CloseBtn.Size = UDim2.new(0, 22, 0, 22)
-CloseBtn.Text = "✕"; CloseBtn.Font = Enum.Font.GothamBlack
-CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255); CloseBtn.TextSize = 12
+CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Position = UDim2.new(1, -24, 0, 5)
+CloseBtn.Size = UDim2.new(0, 22, 0, 22)
+CloseBtn.Text = "✕"
+CloseBtn.Font = Enum.Font.GothamBlack
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 12
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 5)
 CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Executor", "Fechado") end)
 
@@ -134,7 +138,7 @@ Editor.TextColor3 = C.Text
 Editor.TextSize = 13
 Editor.ClearTextOnFocus = false
 Editor.TextEditable = true
-Editor.TextWrapped = true   -- ESSENCIAL para a barra de rolagem aparecer
+Editor.TextWrapped = true   -- barra de rolagem nativa quando o texto excede a área
 Editor.TextXAlignment = Enum.TextXAlignment.Left
 Editor.TextYAlignment = Enum.TextYAlignment.Top
 Editor.MaxLength = 0
@@ -161,48 +165,72 @@ local function Log(msg)
     Console.Text = Console.Text .. msg .. "\n"
 end
 
--- ==================== BOTÕES DE AÇÃO (28px) ====================
+-- ==================== BOTÕES DE AÇÃO (26px) ====================
 local buttonY = 390
 local RunClientBtn = Instance.new("TextButton", Main)
-RunClientBtn.BackgroundColor3 = C.Accent; RunClientBtn.BorderSizePixel = 0
-RunClientBtn.Position = UDim2.new(0, 10, 0, buttonY); RunClientBtn.Size = UDim2.new(0, 100, 0, 28)
-RunClientBtn.Text = "▶ Client"; RunClientBtn.Font = Enum.Font.GothamBold
-RunClientBtn.TextColor3 = Color3.fromRGB(255, 255, 255); RunClientBtn.TextSize = 11
+RunClientBtn.BackgroundColor3 = C.Accent
+RunClientBtn.BorderSizePixel = 0
+RunClientBtn.Position = UDim2.new(0, 10, 0, buttonY)
+RunClientBtn.Size = UDim2.new(0, 100, 0, 26)
+RunClientBtn.Text = "▶ Client"
+RunClientBtn.Font = Enum.Font.GothamBold
+RunClientBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+RunClientBtn.TextSize = 11
 Instance.new("UICorner", RunClientBtn).CornerRadius = UDim.new(0, 5)
 
 local RunServerBtn = Instance.new("TextButton", Main)
-RunServerBtn.BackgroundColor3 = C.Orange; RunServerBtn.BorderSizePixel = 0
-RunServerBtn.Position = UDim2.new(0, 120, 0, buttonY); RunServerBtn.Size = UDim2.new(0, 100, 0, 28)
-RunServerBtn.Text = "🚀 Server"; RunServerBtn.Font = Enum.Font.GothamBold
-RunServerBtn.TextColor3 = Color3.fromRGB(255, 255, 255); RunServerBtn.TextSize = 11
+RunServerBtn.BackgroundColor3 = C.Orange
+RunServerBtn.BorderSizePixel = 0
+RunServerBtn.Position = UDim2.new(0, 120, 0, buttonY)
+RunServerBtn.Size = UDim2.new(0, 100, 0, 26)
+RunServerBtn.Text = "🚀 Server"
+RunServerBtn.Font = Enum.Font.GothamBold
+RunServerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+RunServerBtn.TextSize = 11
 Instance.new("UICorner", RunServerBtn).CornerRadius = UDim.new(0, 5)
 
 local ClearBtn = Instance.new("TextButton", Main)
-ClearBtn.BackgroundColor3 = C.Surface; ClearBtn.BorderSizePixel = 0
-ClearBtn.Position = UDim2.new(0, 230, 0, buttonY); ClearBtn.Size = UDim2.new(0, 80, 0, 28)
-ClearBtn.Text = "🗑️ Limpar"; ClearBtn.Font = Enum.Font.GothamBold
-ClearBtn.TextColor3 = C.Text; ClearBtn.TextSize = 11
+ClearBtn.BackgroundColor3 = C.Surface
+ClearBtn.BorderSizePixel = 0
+ClearBtn.Position = UDim2.new(0, 230, 0, buttonY)
+ClearBtn.Size = UDim2.new(0, 80, 0, 26)
+ClearBtn.Text = "🗑️ Limpar"
+ClearBtn.Font = Enum.Font.GothamBold
+ClearBtn.TextColor3 = C.Text
+ClearBtn.TextSize = 11
 Instance.new("UICorner", ClearBtn).CornerRadius = UDim.new(0, 5)
 
 local CopyBtn = Instance.new("TextButton", Main)
-CopyBtn.BackgroundColor3 = C.Surface; CopyBtn.BorderSizePixel = 0
-CopyBtn.Position = UDim2.new(0, 320, 0, buttonY); CopyBtn.Size = UDim2.new(0, 80, 0, 28)
-CopyBtn.Text = "📋 Copiar"; CopyBtn.Font = Enum.Font.GothamBold
-CopyBtn.TextColor3 = C.Text; CopyBtn.TextSize = 11
+CopyBtn.BackgroundColor3 = C.Surface
+CopyBtn.BorderSizePixel = 0
+CopyBtn.Position = UDim2.new(0, 320, 0, buttonY)
+CopyBtn.Size = UDim2.new(0, 80, 0, 26)
+CopyBtn.Text = "📋 Copiar"
+CopyBtn.Font = Enum.Font.GothamBold
+CopyBtn.TextColor3 = C.Text
+CopyBtn.TextSize = 11
 Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 5)
 
 local SaveBtn = Instance.new("TextButton", Main)
-SaveBtn.BackgroundColor3 = C.Surface; SaveBtn.BorderSizePixel = 0
-SaveBtn.Position = UDim2.new(0, 410, 0, buttonY); SaveBtn.Size = UDim2.new(0, 80, 0, 28)
-SaveBtn.Text = "💾 Salvar"; SaveBtn.Font = Enum.Font.GothamBold
-SaveBtn.TextColor3 = C.Text; SaveBtn.TextSize = 11
+SaveBtn.BackgroundColor3 = C.Surface
+SaveBtn.BorderSizePixel = 0
+SaveBtn.Position = UDim2.new(0, 410, 0, buttonY)
+SaveBtn.Size = UDim2.new(0, 80, 0, 26)
+SaveBtn.Text = "💾 Salvar"
+SaveBtn.Font = Enum.Font.GothamBold
+SaveBtn.TextColor3 = C.Text
+SaveBtn.TextSize = 11
 Instance.new("UICorner", SaveBtn).CornerRadius = UDim.new(0, 5)
 
 local OpenBtn = Instance.new("TextButton", Main)
-OpenBtn.BackgroundColor3 = C.Surface; OpenBtn.BorderSizePixel = 0
-OpenBtn.Position = UDim2.new(0, 500, 0, buttonY); OpenBtn.Size = UDim2.new(0, 80, 0, 28)
-OpenBtn.Text = "📂 Abrir"; OpenBtn.Font = Enum.Font.GothamBold
-OpenBtn.TextColor3 = C.Text; OpenBtn.TextSize = 11
+OpenBtn.BackgroundColor3 = C.Surface
+OpenBtn.BorderSizePixel = 0
+OpenBtn.Position = UDim2.new(0, 500, 0, buttonY)
+OpenBtn.Size = UDim2.new(0, 80, 0, 26)
+OpenBtn.Text = "📂 Abrir"
+OpenBtn.Font = Enum.Font.GothamBold
+OpenBtn.TextColor3 = C.Text
+OpenBtn.TextSize = 11
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0, 5)
 
 -- ==================== SCANNER DE BACKDOORS ====================
@@ -373,7 +401,6 @@ local function startDrag(input)
 end
 TitleBar.InputBegan:Connect(startDrag)
 TitleText.InputBegan:Connect(startDrag)
-Logo.InputBegan:Connect(startDrag)
 
 UIS.InputChanged:Connect(function(input)
     if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
