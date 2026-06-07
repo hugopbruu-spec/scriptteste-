@@ -1040,22 +1040,26 @@ local function xenoBindDrag(handle, target, shadow)
 end
 
 createFloatingBall = function()
-    local parent
-    pcall(function() parent = CoreGui end)
-    if not parent then parent = localPlayer:WaitForChild("PlayerGui") end
+    local dockGui = Instance.new("ScreenGui")
+    dockGui.Name = "UltronDockGui"
+    dockGui.ResetOnSpawn = false
+    pcall(function() dockGui.IgnoreGuiInset = true end)
+    pcall(function() dockGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling end)
+    pcall(function() dockGui.Parent = CoreGui end)
+    if not dockGui.Parent then dockGui.Parent = localPlayer:WaitForChild("PlayerGui") end
 
     local ball = Instance.new("TextButton")
-    ball.Name = "XenoDock"
+    ball.Name = "UltronDock"
     ball.Size = UDim2.new(0, 42, 0, 42)
     ball.Position = UDim2.new(0.92, 0, 0.80, 0)
     ball.BackgroundColor3 = DS.colors.surface
     ball.BorderSizePixel = 0
     ball.AutoButtonColor = false
-    ball.Text = "X"
+    ball.Text = "U"
     ball.TextColor3 = DS.colors.primary
     ball.Font = DS.font.bold
     ball.TextSize = 16
-    ball.Parent = parent
+    ball.Parent = dockGui
     xenoCorner(ball, 21)
     xenoStroke(ball, DS.colors.primaryDark, 0.18, 1)
 
@@ -1113,6 +1117,7 @@ createFloatingBall = function()
         else
             Nexus.mainGui = createMainUI()
         end
+        dockGui.Enabled = false
         ball.Visible = false
         Nexus.isMinimized = false
     end)
@@ -1120,13 +1125,72 @@ createFloatingBall = function()
     return ball
 end
 
+local function createUltronLoading()
+    local loaderGui = Instance.new("ScreenGui")
+    loaderGui.Name = "UltronLoading"
+    loaderGui.ResetOnSpawn = false
+    pcall(function() loaderGui.IgnoreGuiInset = true end)
+    pcall(function() loaderGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling end)
+    pcall(function() loaderGui.Parent = CoreGui end)
+    if not loaderGui.Parent then loaderGui.Parent = localPlayer:WaitForChild("PlayerGui") end
+
+    local panel = xenoPanel(loaderGui, UDim2.new(0.5, -180, 0.5, -66), UDim2.new(0, 360, 0, 132), DS.colors.surface, 10)
+    panel.BackgroundTransparency = 0.04
+    local scale = Instance.new("UIScale")
+    scale.Scale = 0.92
+    scale.Parent = panel
+
+    xenoLabel(panel, "ULTRON", UDim2.new(0, 22, 0, 16), UDim2.new(1, -44, 0, 28), DS.colors.primary, 22, DS.font.bold, Enum.TextXAlignment.Left)
+    xenoLabel(panel, "Inicializando executor", UDim2.new(0, 22, 0, 46), UDim2.new(1, -44, 0, 20), DS.colors.textMuted, 12, DS.font.main, Enum.TextXAlignment.Left)
+
+    local barBack = Instance.new("Frame")
+    barBack.Position = UDim2.new(0, 22, 0, 88)
+    barBack.Size = UDim2.new(1, -44, 0, 8)
+    barBack.BackgroundColor3 = DS.colors.field
+    barBack.BorderSizePixel = 0
+    barBack.Parent = panel
+    xenoCorner(barBack, 4)
+
+    local barFill = Instance.new("Frame")
+    barFill.Size = UDim2.new(0, 0, 1, 0)
+    barFill.BackgroundColor3 = DS.colors.secondary
+    barFill.BorderSizePixel = 0
+    barFill.Parent = barBack
+    xenoCorner(barFill, 4)
+
+    local status = xenoLabel(panel, "Carregando interface...", UDim2.new(0, 22, 0, 102), UDim2.new(1, -44, 0, 18), DS.colors.textDim, 11, DS.font.main, Enum.TextXAlignment.Left)
+
+    TweenService:Create(scale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+    TweenService:Create(barFill, TweenInfo.new(0.82, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(1, 0, 1, 0) }):Play()
+    task.delay(0.38, function()
+        if status and status.Parent then status.Text = "Preparando animacoes..." end
+    end)
+    task.delay(0.70, function()
+        if status and status.Parent then status.Text = "Abrindo Ultron..." end
+    end)
+
+    return loaderGui, panel, scale
+end
+
 createMainUI = function()
-    if Nexus.mainGui and Nexus.mainGui.Parent and Nexus.mainGui.Name == "NexusXenoUI" then
+    if Nexus.mainGui and Nexus.mainGui.Parent and (Nexus.mainGui.Name == "UltronUI" or Nexus.mainGui.Name == "NexusXenoUI") then
         Nexus.mainGui:Destroy()
     end
 
+    if not Nexus.hasShownLoader then
+        Nexus.hasShownLoader = true
+        local loaderGui, panel, scale = createUltronLoading()
+        task.wait(0.95)
+        if panel and panel.Parent then
+            TweenService:Create(scale, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.96 }):Play()
+            TweenService:Create(panel, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { BackgroundTransparency = 1 }):Play()
+        end
+        task.wait(0.15)
+        if loaderGui and loaderGui.Parent then loaderGui:Destroy() end
+    end
+
     local gui = Instance.new("ScreenGui")
-    gui.Name = "NexusXenoUI"
+    gui.Name = "UltronUI"
     gui.ResetOnSpawn = false
     pcall(function() gui.IgnoreGuiInset = true end)
     pcall(function() gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling end)
@@ -1179,15 +1243,16 @@ createMainUI = function()
     logo.Parent = titleBar
     xenoCorner(logo, 5)
     xenoStroke(logo, DS.colors.primaryDark, 0.22, 1)
-    xenoLabel(logo, "X", UDim2.new(0, 0, 0, 0), UDim2.new(1, 0, 1, 0), DS.colors.primary, 13, DS.font.bold, Enum.TextXAlignment.Center)
+    logo.Visible = false
 
-    xenoLabel(titleBar, "Xeno", UDim2.new(0, 42, 0, 0), UDim2.new(0, 80, 1, 0), DS.colors.text, 14, DS.font.bold, Enum.TextXAlignment.Left)
-    xenoLabel(titleBar, "Nexus XT UI", UDim2.new(0, 86, 0, 0), UDim2.new(0, 150, 1, 0), DS.colors.textMuted, 12, DS.font.main, Enum.TextXAlignment.Left)
+    xenoLabel(titleBar, "Ultron", UDim2.new(0, 14, 0, 0), UDim2.new(0, 86, 1, 0), DS.colors.text, 14, DS.font.bold, Enum.TextXAlignment.Left)
+    xenoLabel(titleBar, "executor", UDim2.new(0, 70, 0, 0), UDim2.new(0, 120, 1, 0), DS.colors.textMuted, 12, DS.font.main, Enum.TextXAlignment.Left)
 
     local function showFloatingDock()
         if not Nexus.floatingBall or not Nexus.floatingBall.Parent then
             Nexus.floatingBall = createFloatingBall()
         else
+            if Nexus.floatingBall.Parent:IsA("ScreenGui") then Nexus.floatingBall.Parent.Enabled = true end
             Nexus.floatingBall.Visible = true
         end
     end
@@ -1257,10 +1322,10 @@ createMainUI = function()
     xenoLabel(statusBar, "Ready", UDim2.new(0, 14, 0, 0), UDim2.new(0, 80, 1, 0), DS.colors.success, 11, DS.font.bold, Enum.TextXAlignment.Left)
     xenoLabel(statusBar, "Auto Attach: OFF", UDim2.new(0, 94, 0, 0), UDim2.new(0, 126, 1, 0), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
     xenoLabel(statusBar, "Top Most: OFF", UDim2.new(0, 224, 0, 0), UDim2.new(0, 110, 1, 0), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
-    xenoLabel(statusBar, "CoreGui mode", UDim2.new(1, -122, 0, 0), UDim2.new(0, 108, 1, 0), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Right)
+    xenoLabel(statusBar, "Ultron mode", UDim2.new(1, -122, 0, 0), UDim2.new(0, 108, 1, 0), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Right)
 
     local brandPanel = xenoPanel(sidebar, UDim2.new(0, 12, 0, 14), UDim2.new(1, -24, 0, 62), DS.colors.surface, 8)
-    xenoLabel(brandPanel, "XENO", UDim2.new(0, 12, 0, 8), UDim2.new(1, -24, 0, 22), DS.colors.primary, 18, DS.font.bold, Enum.TextXAlignment.Left)
+    xenoLabel(brandPanel, "ULTRON", UDim2.new(0, 12, 0, 8), UDim2.new(1, -24, 0, 22), DS.colors.primary, 18, DS.font.bold, Enum.TextXAlignment.Left)
     xenoLabel(brandPanel, "executor shell", UDim2.new(0, 12, 0, 30), UDim2.new(1, -24, 0, 18), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
 
     local tabDefs = {
@@ -1485,15 +1550,15 @@ createMainUI = function()
                 xenoLabel(row, "@" .. (plr.DisplayName or plr.Name), UDim2.new(0, 14, 0, 30), UDim2.new(0, 260, 0, 18), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
 
                 local actions = {
-                    { text = "TP", color = DS.colors.secondary, code = string.format([[
+                    { text = "TP", color = DS.colors.secondary, client = true, code = string.format([[
                         local target = game:GetService("Players"):FindFirstChild("%s")
-                        local admin = game:GetService("Players"):FindFirstChild("%s")
+                        local admin = game:GetService("Players").LocalPlayer
                         if target and admin and admin.Character then
                             local tr = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
                             local ar = admin.Character:FindFirstChild("HumanoidRootPart")
-                            if tr and ar then ar.CFrame = tr.CFrame end
+                            if tr and ar then ar.CFrame = tr.CFrame + Vector3.new(0, 3, 0) end
                         end
-                    ]], plr.Name, Nexus.adminName) },
+                    ]], plr.Name) },
                     { text = "KILL", color = DS.colors.error, code = string.format([[
                         local target = game:GetService("Players"):FindFirstChild("%s")
                         if target and target.Character then
@@ -1522,7 +1587,11 @@ createMainUI = function()
 
                 for i, act in ipairs(actions) do
                     xenoButton(row, act.text, UDim2.new(1, -318 + (i - 1) * 76, 0, 15), UDim2.new(0, 68, 0, 28), act.color, function()
-                        Nexus:ExecuteServer(act.code)
+                        if act.client then
+                            Nexus:ExecuteClient(act.code)
+                        else
+                            Nexus:ExecuteServer(act.code)
+                        end
                         Nexus:AddLog(string.format("%s -> %s", plr.Name, act.text), "info")
                     end)
                 end
@@ -1696,53 +1765,75 @@ createMainUI = function()
     hubLayout.Parent = hubList
 
     local scripts = {
-        { name = "Infinite Jump", code = [[
+        { name = "Infinite Jump", on = [[
+            if getgenv().UltronJumpConn then getgenv().UltronJumpConn:Disconnect() end
+            getgenv().UltronInfiniteJump = true
+            getgenv().UltronJumpConn = game:GetService("UserInputService").JumpRequest:Connect(function()
+                local p = game:GetService("Players").LocalPlayer
+                local h = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+                if getgenv().UltronInfiniteJump and h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
+            end)
+        ]], off = [[
+            getgenv().UltronInfiniteJump = false
+            if getgenv().UltronJumpConn then getgenv().UltronJumpConn:Disconnect(); getgenv().UltronJumpConn = nil end
+        ]] },
+        { name = "Super Speed", on = [[
+            if getgenv().UltronSpeedConn then getgenv().UltronSpeedConn:Disconnect() end
+            getgenv().UltronSpeed = true
+            getgenv().UltronSpeedConn = game:GetService("RunService").Heartbeat:Connect(function()
+                local p = game:GetService("Players").LocalPlayer
+                local h = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+                if getgenv().UltronSpeed and h then h.WalkSpeed = 100 end
+            end)
+        ]], off = [[
+            getgenv().UltronSpeed = false
+            if getgenv().UltronSpeedConn then getgenv().UltronSpeedConn:Disconnect(); getgenv().UltronSpeedConn = nil end
             local p = game:GetService("Players").LocalPlayer
-            local h = p.Character and p.Character:FindFirstChild("Humanoid")
-            if h then h.JumpPower = 100; h.Jump = true end
+            local h = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+            if h then h.WalkSpeed = 16 end
         ]] },
-        { name = "Super Speed (WS)", code = [[
-            local p = game:GetService("Players").LocalPlayer
-            local h = p.Character and p.Character:FindFirstChild("Humanoid")
-            if h then h.WalkSpeed = 100 end
-        ]] },
-        { name = "Gravity (0.1)", code = [[
-            game:GetService("Workspace").Gravity = 0.1
-        ]] },
-        { name = "Reset Gravity", code = [[
+        { name = "Low Gravity", on = [[
+            getgenv().UltronLowGravity = true
+            game:GetService("Workspace").Gravity = 45
+        ]], off = [[
+            getgenv().UltronLowGravity = false
             game:GetService("Workspace").Gravity = 196.2
         ]] },
-        { name = "Btools (Give)", code = [[
-            local p = game:GetService("Players").LocalPlayer
-            if p.Character then
-                local tools = {"Hammer", "Weld", "Arrow", "Crate"}
-                for _, t in ipairs(tools) do
-                    local b = Instance.new("Tool")
-                    b.Name = t
-                    b.Parent = p.Character
-                end
-            end
-        ]] },
-        { name = "Remove All Tools", code = [[
-            local p = game:GetService("Players").LocalPlayer
-            if p.Character then
-                for _, v in pairs(p.Character:GetChildren()) do
-                    if v:IsA("Tool") then v:Destroy() end
-                end
-            end
-        ]] },
-        { name = "ESP Player (Client)", code = [[
-            local p = game:GetService("Players")
-            for _, plr in pairs(p:GetPlayers()) do
-                if plr ~= p.LocalPlayer and plr.Character then
-                    local h = plr.Character:FindFirstChild("Head")
-                    if h then
-                        local hl = Instance.new("Highlight")
-                        hl.FillColor = Color3.new(1,0,0)
-                        hl.OutlineColor = Color3.new(1,1,1)
-                        hl.FillTransparency = 0.5
-                        hl.Parent = h
+        { name = "Noclip", on = [[
+            if getgenv().UltronNoclipConn then getgenv().UltronNoclipConn:Disconnect() end
+            getgenv().UltronNoclip = true
+            getgenv().UltronNoclipConn = game:GetService("RunService").Stepped:Connect(function()
+                local p = game:GetService("Players").LocalPlayer
+                local char = p.Character
+                if getgenv().UltronNoclip and char then
+                    for _, part in pairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") then part.CanCollide = false end
                     end
+                end
+            end)
+        ]], off = [[
+            getgenv().UltronNoclip = false
+            if getgenv().UltronNoclipConn then getgenv().UltronNoclipConn:Disconnect(); getgenv().UltronNoclipConn = nil end
+        ]] },
+        { name = "ESP Players", on = [[
+            getgenv().UltronESP = true
+            local players = game:GetService("Players")
+            for _, plr in pairs(players:GetPlayers()) do
+                if plr ~= players.LocalPlayer and plr.Character and not plr.Character:FindFirstChild("UltronESP") then
+                    local hl = Instance.new("Highlight")
+                    hl.Name = "UltronESP"
+                    hl.FillColor = Color3.fromRGB(64, 142, 255)
+                    hl.OutlineColor = Color3.fromRGB(218, 228, 255)
+                    hl.FillTransparency = 0.55
+                    hl.Parent = plr.Character
+                end
+            end
+        ]], off = [[
+            getgenv().UltronESP = false
+            for _, plr in pairs(game:GetService("Players"):GetPlayers()) do
+                if plr.Character then
+                    local hl = plr.Character:FindFirstChild("UltronESP")
+                    if hl then hl:Destroy() end
                 end
             end
         ]] }
@@ -1758,9 +1849,21 @@ createMainUI = function()
         xenoCorner(row, 7)
         xenoStroke(row, DS.colors.border, 0.76, 1)
         xenoLabel(row, s.name, UDim2.new(0, 14, 0, 0), UDim2.new(1, -150, 1, 0), DS.colors.text, 13, DS.font.bold, Enum.TextXAlignment.Left)
-        xenoButton(row, "Run", UDim2.new(1, -106, 0, 10), UDim2.new(0, 82, 0, 28), DS.colors.secondary, function()
-            Nexus:ExecuteClient(s.code)
-            Nexus:AddLog("Script Hub: " .. s.name .. " executado", "success")
+        local enabled = false
+        local toggleBtn
+        toggleBtn = xenoButton(row, "OFF", UDim2.new(1, -106, 0, 10), UDim2.new(0, 82, 0, 28), DS.colors.surfaceLight, function()
+            enabled = not enabled
+            if enabled then
+                Nexus:ExecuteClient(s.on)
+                toggleBtn.Text = "ON"
+                xenoSetButtonColor(toggleBtn, DS.colors.success)
+                Nexus:AddLog("Hub: " .. s.name .. " ativado", "success")
+            else
+                Nexus:ExecuteClient(s.off)
+                toggleBtn.Text = "OFF"
+                xenoSetButtonColor(toggleBtn, DS.colors.surfaceLight)
+                Nexus:AddLog("Hub: " .. s.name .. " desativado", "info")
+            end
         end)
     end
 
@@ -1776,11 +1879,15 @@ local function init()
     Nexus:AddLog("═══════════════════════════════════════════════════", "info")
     Nexus:AddLog("  NEXUS XT v8.0 — Interface Totalmente Reformulada", "success")
     Nexus:AddLog("═══════════════════════════════════════════════════", "info")
+    Nexus.consoleLogs = {}
+    Nexus:AddLog("==================================================", "info")
+    Nexus:AddLog("  ULTRON - executor interface loaded", "success")
+    Nexus:AddLog("==================================================", "info")
     Nexus.mainGui = createMainUI()
     if Nexus.mainGui then
-        Nexus:AddLog("Interface carregada com sucesso.", "success")
-        Nexus:AddLog("Tudo limpo, organizado e sem bugs.", "success")
-        Nexus:AddLog("Minimize para bolinha flutuante.", "info")
+        Nexus:AddLog("Interface Ultron carregada com sucesso.", "success")
+        Nexus:AddLog("Hub, Players, Client e Server organizados.", "success")
+        Nexus:AddLog("Minimize para abrir o botao redondo.", "info")
     else
         Nexus:AddLog("Falha ao criar interface.", "error")
     end
