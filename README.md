@@ -1,23 +1,20 @@
 --[[
-    🔥 Executor Pro Final – Interface premium, multi-método
-    Design moderno, responsivo, abas, console em tempo real,
-    execução client e server com feedback claro de sucesso/falha.
-    Tenta execução server-side via todos os vetores disponíveis.
+    🔥 Executor Pro Final – Editor sem limites
+    O campo de script agora aceita textos enormes (sem limite de caracteres)
+    e possui uma barra de rolagem fina para navegação.
 --]]
 
--- Serviços
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local Lighting = game:GetService("Lighting")
+local TextService = game:GetService("TextService")
 
--- Aguarda personagem
 if not Player.Character then Player.CharacterAdded:Wait() end
 
 -- ==================== TEMAS E CORES ====================
@@ -81,8 +78,8 @@ gui.ResetOnSpawn = false
 local Main = Instance.new("Frame", gui)
 Main.BackgroundColor3 = C.Bg
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 640, 0, 440)
-Main.Position = UDim2.new(0.5, -320, 0.5, -220)
+Main.Size = UDim2.new(0, 660, 0, 460)
+Main.Position = UDim2.new(0.5, -330, 0.5, -230)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
 Instance.new("UIStroke", Main).Color = C.Border
@@ -106,28 +103,27 @@ Logo.TextColor3 = C.Accent
 
 local TitleText = Instance.new("TextLabel", TitleBar)
 TitleText.BackgroundTransparency = 1
-TitleText.Position = UDim2.new(0, 40, 0, 0); TitleText.Size = UDim2.new(1, -130, 1, 0)
+TitleText.Position = UDim2.new(0, 40, 0, 0); TitleText.Size = UDim2.new(1, -160, 1, 0)
 TitleText.Font = Enum.Font.GothamBold; TitleText.Text = "Executor Pro"
 TitleText.TextColor3 = C.Text; TitleText.TextSize = 14
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 
--- Indicador de status (Attached / Detached)
 local StatusDot = Instance.new("Frame", TitleBar)
 StatusDot.BackgroundColor3 = C.Red; StatusDot.BorderSizePixel = 0
-StatusDot.Position = UDim2.new(0, 140, 0, 14); StatusDot.Size = UDim2.new(0, 8, 0, 8)
+StatusDot.Position = UDim2.new(0, 155, 0, 14); StatusDot.Size = UDim2.new(0, 8, 0, 8)
 Instance.new("UICorner", StatusDot).CornerRadius = UDim.new(1, 0)
 
 local StatusLabel = Instance.new("TextLabel", TitleBar)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Position = UDim2.new(0, 152, 0, 0); StatusLabel.Size = UDim2.new(0, 80, 1, 0)
+StatusLabel.Position = UDim2.new(0, 167, 0, 0); StatusLabel.Size = UDim2.new(0, 100, 1, 0)
 StatusLabel.Font = Enum.Font.GothamBold; StatusLabel.Text = "Detached"
 StatusLabel.TextColor3 = C.Text2; StatusLabel.TextSize = 11
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local function SetStatus(attached, backdoorCount)
+local function SetStatus(attached, count)
     if attached then
         StatusDot.BackgroundColor3 = C.Green
-        StatusLabel.Text = "Attached (" .. backdoorCount .. ")"
+        StatusLabel.Text = "Attached (" .. count .. ")"
         StatusLabel.TextColor3 = C.Green
     else
         StatusDot.BackgroundColor3 = C.Red
@@ -136,7 +132,6 @@ local function SetStatus(attached, backdoorCount)
     end
 end
 
--- Botão Attach
 local AttachBtn = Instance.new("TextButton", TitleBar)
 AttachBtn.BackgroundColor3 = C.Accent; AttachBtn.BorderSizePixel = 0
 AttachBtn.Position = UDim2.new(1, -90, 0, 7); AttachBtn.Size = UDim2.new(0, 58, 0, 22)
@@ -144,7 +139,6 @@ AttachBtn.Text = "Attach"; AttachBtn.Font = Enum.Font.GothamBold
 AttachBtn.TextColor3 = Color3.fromRGB(255, 255, 255); AttachBtn.TextSize = 11
 Instance.new("UICorner", AttachBtn).CornerRadius = UDim.new(0, 5)
 
--- Botão Fechar
 local CloseBtn = Instance.new("TextButton", TitleBar)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80); CloseBtn.BorderSizePixel = 0
 CloseBtn.Position = UDim2.new(1, -24, 0, 7); CloseBtn.Size = UDim2.new(0, 22, 0, 22)
@@ -160,8 +154,10 @@ TabBar.Position = UDim2.new(0, 0, 0, 36); TabBar.Size = UDim2.new(1, 0, 0, 30)
 
 local function createTab(name, parent, isActive)
     local btn = Instance.new("TextButton", parent)
-    btn.BackgroundColor3 = isActive and C.Bg or C.Surface2; btn.BorderSizePixel = 0
-    btn.Size = UDim2.new(0, 80, 0, 30); btn.Position = UDim2.new(0, 10 + (85 * (#parent:GetChildren()-1)), 0, 0)
+    btn.BackgroundColor3 = isActive and C.Bg or C.Surface2
+    btn.BorderSizePixel = 0
+    btn.Position = UDim2.new(0, 10 + (85 * (#parent:GetChildren())), 0, 0)
+    btn.Size = UDim2.new(0, 80, 0, 30)
     btn.Text = name; btn.Font = Enum.Font.GothamBold
     btn.TextColor3 = isActive and C.Accent or C.Text2; btn.TextSize = 11
     return btn
@@ -171,25 +167,65 @@ local EditorTab = createTab("📝 Editor", TabBar, true)
 local ConsoleTab = createTab("📋 Console", TabBar, false)
 local BackdoorTab = createTab("🔓 Backdoors", TabBar, false)
 
--- ==================== PÁGINAS ====================
 local Pages = {}
 
--- Página do Editor
+-- Página do Editor (com scrolling frame + textbox ilimitado)
 Pages.Editor = Instance.new("Frame", Main)
 Pages.Editor.BackgroundTransparency = 1
 Pages.Editor.Position = UDim2.new(0, 10, 0, 72); Pages.Editor.Size = UDim2.new(1, -20, 1, -125)
 Pages.Editor.Visible = true
 
-local Editor = Instance.new("TextBox", Pages.Editor)
-Editor.BackgroundColor3 = C.Surface; Editor.BorderSizePixel = 0
-Editor.Size = UDim2.new(1, 0, 1, 0); Editor.Font = Enum.Font.Code
+-- ScrollingFrame com barra fina
+local EditorScroll = Instance.new("ScrollingFrame", Pages.Editor)
+EditorScroll.BackgroundTransparency = 1; EditorScroll.BorderSizePixel = 0
+EditorScroll.Size = UDim2.new(1, 0, 1, 0)
+EditorScroll.ScrollBarThickness = 3
+EditorScroll.ScrollBarImageColor3 = C.Accent
+EditorScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+EditorScroll.ScrollingDirection = Enum.ScrollingDirection.Y
+
+-- TextBox sem limites
+local Editor = Instance.new("TextBox", EditorScroll)
+Editor.BackgroundColor3 = C.Surface
+Editor.BorderSizePixel = 0
+Editor.Position = UDim2.new(0, 0, 0, 0)
+Editor.Size = UDim2.new(1, -4, 0, 0) -- largura menos scrollbar
+Editor.Font = Enum.Font.Code
 Editor.Text = "-- Cole seu script aqui\nprint('Hello, world!')"
-Editor.TextColor3 = C.Text; Editor.TextSize = 13
-Editor.ClearTextOnFocus = false; Editor.TextEditable = true
-Editor.TextWrapped = true; Editor.TextXAlignment = Enum.TextXAlignment.Left; Editor.TextYAlignment = Enum.TextYAlignment.Top
+Editor.TextColor3 = C.Text
+Editor.TextSize = 13
+Editor.ClearTextOnFocus = false
+Editor.TextEditable = true
+Editor.TextWrapped = false  -- permite scroll horizontal também
+Editor.TextXAlignment = Enum.TextXAlignment.Left
+Editor.TextYAlignment = Enum.TextYAlignment.Top
+Editor.MaxLength = 0  -- sem limite de caracteres
 Instance.new("UICorner", Editor).CornerRadius = UDim.new(0, 6)
 
--- Página do Console
+-- Ajusta dinamicamente o CanvasSize baseado no tamanho real do texto
+local function updateEditorCanvas()
+    local text = Editor.Text
+    if text == "" then text = " " end
+    local font = Editor.Font
+    local size = Editor.TextSize
+    local width = Editor.AbsoluteSize.X - 8  -- margem
+    local textSize = TextService:GetTextSize(text, size, font, Vector2.new(width, math.huge))
+    local neededHeight = math.max(textSize.Y + 20, EditorScroll.AbsoluteSize.Y)
+    Editor.Size = UDim2.new(1, -4, 0, neededHeight)
+    EditorScroll.CanvasSize = UDim2.new(0, 0, 0, neededHeight)
+end
+
+Editor:GetPropertyChangedSignal("Text"):Connect(updateEditorCanvas)
+Editor:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateEditorCanvas)
+Editor.AncestryChanged:Connect(function()
+    if Editor.Parent then
+        updateEditorCanvas()
+    end
+end)
+-- Chamada inicial
+updateEditorCanvas()
+
+-- Página Console
 Pages.Console = Instance.new("Frame", Main)
 Pages.Console.BackgroundTransparency = 1
 Pages.Console.Position = UDim2.new(0, 10, 0, 72); Pages.Console.Size = UDim2.new(1, -20, 1, -125)
@@ -204,11 +240,10 @@ Console.TextWrapped = true; Console.TextXAlignment = Enum.TextXAlignment.Left; C
 Instance.new("UICorner", Console).CornerRadius = UDim.new(0, 6)
 
 local function Log(msg, color)
-    color = color or C.Text2
     Console.Text = Console.Text .. msg .. "\n"
 end
 
--- Página de Backdoors
+-- Página Backdoors
 Pages.Backdoors = Instance.new("Frame", Main)
 Pages.Backdoors.BackgroundTransparency = 1
 Pages.Backdoors.Position = UDim2.new(0, 10, 0, 72); Pages.Backdoors.Size = UDim2.new(1, -20, 1, -125)
@@ -248,12 +283,10 @@ local backdoors = {}
 
 local function scanBackdoors()
     backdoors = {}
-    -- Limpa lista visual
     for _, child in ipairs(BackdoorList:GetChildren()) do if child:IsA("TextLabel") then child:Destroy() end end
     Console.Text = ""
     Log("🔍 Escaneando backdoors...", C.Accent)
 
-    -- _G e shared
     local funcs = {"loadstring", "execute", "run", "eval", "exec", "RunScript", "ServerScript", "require"}
     for _, fn in ipairs(funcs) do
         if _G[fn] and type(_G[fn]) == "function" then
@@ -274,7 +307,6 @@ local function scanBackdoors()
         end
     end
 
-    -- RemoteEvents/RemoteFunctions
     local suspicious = {"Execute", "Run", "Load", "Eval", "Script", "Server", "Command", "Admin", "Backdoor", "Kick", "Fire", "Invoke", "DoScript", "RunCode", "Exec"}
     local function search(container, depth)
         if depth > 80 then return end
@@ -309,11 +341,11 @@ local function scanBackdoors()
     if Player.Character then search(Player.Character, 0) end
 
     BackdoorList.CanvasSize = UDim2.new(0, 0, 0, #BackdoorList:GetChildren() * 20)
-    Log("📊 Total de backdoors: " .. #backdoors, #backdoors > 0 and C.Green or C.Red)
+    Log("📊 Total: " .. #backdoors, #backdoors > 0 and C.Green or C.Red)
     if #backdoors == 0 then
-        Log("⚠️ Nenhuma backdoor encontrada. Execução server-side indisponível.", C.Red)
+        Log("⚠️ Nenhuma backdoor.", C.Red)
     else
-        Log("✅ Tudo pronto para execução server-side!", C.Green)
+        Log("✅ Tudo pronto!", C.Green)
     end
     SetStatus(#backdoors > 0, #backdoors)
 end
@@ -322,65 +354,49 @@ end
 local function executeClient(code)
     local func, err = loadstring(code)
     if not func then
-        Log("❌ Erro de sintaxe (client): " .. tostring(err), C.Red)
+        Log("❌ Erro (client): " .. tostring(err), C.Red)
         return false
     end
     local success, result = pcall(func)
     if success then
-        Log("✅ Executado no cliente com sucesso.", C.Green)
-        if result then Log("📤 Retorno: " .. tostring(result), C.Text) end
+        Log("✅ Client OK.", C.Green)
+        if result then Log("📤 " .. tostring(result), C.Text) end
         return true
     else
-        Log("❌ Erro em execução (client): " .. tostring(result), C.Red)
+        Log("❌ Erro exec: " .. tostring(result), C.Red)
         return false
     end
 end
 
 local function executeServer(code)
     if #backdoors == 0 then
-        Log("❌ Nenhuma backdoor disponível. Use 'Attach' primeiro.", C.Red)
+        Log("❌ Sem backdoors.", C.Red)
         return false
     end
-    Log("🚀 Enviando script para o servidor via " .. #backdoors .. " backdoors...", C.Orange)
+    Log("🚀 Enviando...", C.Orange)
     local success = false
     for _, bd in ipairs(backdoors) do
         local ok, err
         if bd.type == "RemoteEvent" then
             ok, err = pcall(function() bd.remote:FireServer(code) end)
-            if ok then
-                Log("✅ Enviado via " .. bd.name, C.Green)
-                success = true
-            else
-                Log("❌ Falha " .. bd.name .. ": " .. tostring(err), C.Red)
-            end
+            if ok then Log("✅ " .. bd.name, C.Green); success = true; break
+            else Log("❌ " .. bd.name .. ": " .. tostring(err), C.Red) end
         elseif bd.type == "RemoteFunction" then
             local res
             ok, res = pcall(function() return bd.remote:InvokeServer(code) end)
-            if ok then
-                Log("✅ Invocado via " .. bd.name .. " (retorno: " .. tostring(res) .. ")", C.Green)
-                success = true
-            else
-                Log("❌ Falha " .. bd.name .. ": " .. tostring(res), C.Red)
-            end
+            if ok then Log("✅ " .. bd.name .. " (" .. tostring(res) .. ")", C.Green); success = true; break
+            else Log("❌ " .. bd.name .. ": " .. tostring(res), C.Red) end
         elseif bd.type == "function" then
             ok, err = pcall(function() bd.func(code) end)
-            if ok then
-                Log("✅ Executado via " .. bd.name, C.Green)
-                success = true
-            else
-                Log("❌ Falha " .. bd.name .. ": " .. tostring(err), C.Red)
-            end
+            if ok then Log("✅ " .. bd.name, C.Green); success = true; break
+            else Log("❌ " .. bd.name .. ": " .. tostring(err), C.Red) end
         end
-        if success then break end
     end
-    if not success then
-        Log("❌ Nenhum vetor de ataque funcionou. O jogo pode ser seguro.", C.Red)
-    end
+    if not success then Log("❌ Nenhum vetor funcionou.", C.Red) end
     return success
 end
 
 -- ==================== EVENTOS ====================
--- Attach
 AttachBtn.MouseButton1Click:Connect(function()
     AttachBtn.Text = "Scanning..."; AttachBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
     task.wait(0.1)
@@ -392,7 +408,6 @@ AttachBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Abas
 local tabs = {
     {btn = EditorTab, page = Pages.Editor},
     {btn = ConsoleTab, page = Pages.Console},
@@ -402,76 +417,72 @@ for _, tab in ipairs(tabs) do
     tab.btn.MouseButton1Click:Connect(function()
         for _, t in ipairs(tabs) do
             t.page.Visible = false
-            t.btn.BackgroundColor3 = C.Surface2
-            t.btn.TextColor3 = C.Text2
+            t.btn.BackgroundColor3 = C.Surface2; t.btn.TextColor3 = C.Text2
         end
         tab.page.Visible = true
-        tab.btn.BackgroundColor3 = C.Bg
-        tab.btn.TextColor3 = C.Accent
+        tab.btn.BackgroundColor3 = C.Bg; tab.btn.TextColor3 = C.Accent
+        if tab.page == Pages.Editor then
+            updateEditorCanvas()
+        end
     end)
 end
 
--- Botões
 RunClientBtn.MouseButton1Click:Connect(function()
     local code = Editor.Text
     if code:gsub("%s", "") == "" then
-        Notify("Aviso", "Digite um script primeiro!", 3, C.Orange)
+        Notify("Aviso", "Digite um script!", 3, C.Orange)
         return
     end
-    Log("📝 Executando no cliente...", C.Accent)
+    Log("📝 Client...", C.Accent)
     executeClient(code)
 end)
 
 RunServerBtn.MouseButton1Click:Connect(function()
     local code = Editor.Text
     if code:gsub("%s", "") == "" then
-        Notify("Aviso", "Digite um script primeiro!", 3, C.Orange)
+        Notify("Aviso", "Digite um script!", 3, C.Orange)
         return
     end
-    Log("📝 Enviando para servidor...", C.Orange)
+    Log("📝 Server...", C.Orange)
     if executeServer(code) then
-        Notify("Sucesso", "Script enviado ao servidor!", 2, C.Green)
+        Notify("Sucesso", "Script enviado!", 2, C.Green)
     else
-        Notify("Falha", "Não foi possível executar no servidor.", 3, C.Red)
+        Notify("Falha", "Execução server falhou.", 3, C.Red)
     end
 end)
 
 ClearBtn.MouseButton1Click:Connect(function()
     Editor.Text = ""
-    Log("🧹 Editor limpo.", C.Text2)
+    updateEditorCanvas()
+    Log("🧹 Limpo.", C.Text2)
 end)
 
 CopyBtn.MouseButton1Click:Connect(function()
     pcall(function()
-        if setclipboard then setclipboard(Editor.Text)
-        elseif writefile then writefile("script.txt", Editor.Text) end
+        if setclipboard then setclipboard(Editor.Text) end
     end)
-    Notify("Copiado", "Script copiado para área de transferência.", 2, C.Green)
+    Notify("Copiado", "Área de transferência.", 2, C.Green)
 end)
 
 SaveBtn.MouseButton1Click:Connect(function()
-    pcall(function()
-        if writefile then writefile("script.txt", Editor.Text) end
-    end)
-    Notify("Salvo", "Script salvo em script.txt", 2, C.Green)
+    pcall(function() if writefile then writefile("script.txt", Editor.Text) end end)
+    Notify("Salvo", "script.txt", 2, C.Green)
 end)
 
 OpenBtn.MouseButton1Click:Connect(function()
-    local success, content = pcall(function()
-        return readfile and readfile("script.txt") or nil
-    end)
+    local success, content = pcall(function() return readfile("script.txt") end)
     if success and content then
         Editor.Text = content
-        Notify("Aberto", "Arquivo script.txt carregado.", 2, C.Green)
+        updateEditorCanvas()
+        Notify("Aberto", "script.txt", 2, C.Green)
     else
-        Notify("Erro", "Não foi possível abrir o arquivo.", 3, C.Red)
+        Notify("Erro", "Arquivo não encontrado.", 3, C.Red)
     end
 end)
 
 -- ==================== ARRASTE ====================
 local dragging = false
-local dragStartPos = nil
-local dragStartMainPos = nil
+local dragStartPos, dragStartMainPos
 
 local function startDrag(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -488,18 +499,13 @@ UIS.InputChanged:Connect(function(input)
     if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
         local delta = input.Position - dragStartPos
         Main.Position = UDim2.new(
-            dragStartMainPos.X.Scale,
-            dragStartMainPos.X.Offset + delta.X,
-            dragStartMainPos.Y.Scale,
-            dragStartMainPos.Y.Offset + delta.Y
+            dragStartMainPos.X.Scale, dragStartMainPos.X.Offset + delta.X,
+            dragStartMainPos.Y.Scale, dragStartMainPos.Y.Offset + delta.Y
         )
     end
 end)
-
 UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
 end)
 
 -- ==================== INICIALIZAÇÃO ====================
@@ -508,4 +514,4 @@ if #backdoors > 0 then
     AttachBtn.Text = "Attached"; AttachBtn.BackgroundColor3 = C.Green
     SetStatus(true, #backdoors)
 end
-Notify("Executor Pro", "Interface carregada. Use Attach e execute scripts!", 5)
+Notify("Executor Pro", "Editor sem limites ativo. Cole scripts enormes!", 5)
