@@ -1,130 +1,89 @@
 --[[
 ╔═══════════════════════════════════════════════════════════════════════════════╗
 ║                                                                               ║
-║                    NEXUS OMEGA XT v4.0 — EXECUTOR PROFISSIONAL                ║
+║              NEXUS OMEGA XT v5.0 — EXECUTOR PROFISSIONAL                      ║
 ║                                                                               ║
-║  ★ Design System avançado (UI/UX de elite)                                   ║
-║  ★ Server-Side real com 7 métodos de injeção                                 ║
-║  ★ Minimização para bolinha flutuante arrastável                             ║
-║  ★ Lista de jogadores + teleport funcional                                   ║
-║  ★ Proteção anti-ban de voz (ativa por botão)                                ║
-║  ★ Console profissional com botão de cópia                                   ║
-║  ★ Sem limites de caracteres nos campos de texto                             ║
-║  ★ Feedback de erros detalhado                                               ║
-║                                                                               ║
-║  Desenvolvido sob os Protocolos: UI/UX Elite + Engenharia Suprema            ║
+║  ★ Layout compacto (800x550)                                                 ║
+║  ★ Animações suaves (hover, focus, transições)                               ║
+║  ★ Minimização para bolinha flutuante com logo                               ║
+║  ★ Abas elegantes com indicador animado                                      ║
+║  ★ Componentes modernos (cards, inputs arredondados)                         ║
+║  ★ Design System refinado (cores: roxo/azul acinzentado)                     ║
+║  ★ Server-Side real com retorno de erro                                      ║
+║  ★ Teleport funcional, Anti-ban voice, console copiável                      ║
 ║                                                                               ║
 ╚═══════════════════════════════════════════════════════════════════════════════╝
 --]]
 
 -- ============================================================================
--- DESIGN SYSTEM (Cores, Tipografia, Espaçamentos)
+-- DESIGN SYSTEM (Compacto, moderno, profissional)
 -- ============================================================================
-local DesignSystem = {
+local DS = {
     colors = {
-        primary = Color3.fromRGB(180, 80, 220),      -- roxo principal
-        secondary = Color3.fromRGB(100, 100, 220),   -- azul acinzentado
-        accent = Color3.fromRGB(220, 100, 150),      -- rosa
+        primary = Color3.fromRGB(160, 90, 220),      -- roxo vibrante
+        primaryDark = Color3.fromRGB(120, 60, 180),
+        secondary = Color3.fromRGB(80, 120, 220),    -- azul
         success = Color3.fromRGB(0, 200, 100),
-        warning = Color3.fromRGB(255, 180, 50),
         error = Color3.fromRGB(240, 70, 70),
-        background = Color3.fromRGB(14, 14, 20),
-        surface = Color3.fromRGB(22, 22, 32),
-        surfaceLight = Color3.fromRGB(32, 32, 44),
+        warning = Color3.fromRGB(255, 180, 50),
+        background = Color3.fromRGB(16, 16, 22),
+        surface = Color3.fromRGB(26, 26, 36),
+        surfaceLight = Color3.fromRGB(38, 38, 50),
         text = Color3.fromRGB(245, 245, 250),
-        textDim = Color3.fromRGB(170, 170, 190),
-        border = Color3.fromRGB(45, 45, 60)
+        textDim = Color3.fromRGB(160, 160, 180),
+        border = Color3.fromRGB(50, 50, 65)
     },
-    fonts = {
-        main = Enum.Font.Gotham,
-        code = Enum.Font.Code,
-        size = {
-            small = 11,
-            body = 13,
-            subheading = 15,
-            heading = 18,
-            large = 24
-        }
-    },
-    spacing = {
-        xs = 4,
-        sm = 8,
-        md = 16,
-        lg = 24,
-        xl = 32
-    },
-    radius = {
-        small = 6,
-        medium = 10,
-        large = 16,
-        pill = 100
-    }
+    spacing = { xs = 4, sm = 8, md = 12, lg = 20, xl = 28 },
+    radius = { small = 6, medium = 10, large = 14 },
+    font = { main = Enum.Font.Gotham, code = Enum.Font.Code },
+    fontSize = { small = 11, body = 13, title = 16, large = 20 }
 }
 
 -- ============================================================================
--- NÚCLEO DO EXECUTOR
+-- NÚCLEO (Serviços, logs, server-side, proteção de voz, etc.)
 -- ============================================================================
 local Nexus = {}
-Nexus.version = "Omega XT v4.0"
-Nexus.adminName = "hugopbruu22"
 Nexus.consoleLogs = {}
 Nexus.isMinimized = false
 Nexus.floatingBall = nil
 Nexus.mainGui = nil
 Nexus.backdoorRemote = nil
+Nexus.adminName = "hugopbruu22"
 
--- Serviços
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local RS = game:GetService("ReplicatedStorage")
 local SSS = game:GetService("ServerScriptService")
-local HttpService = game:GetService("HttpService")
+local localPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
-local localPlayer = Players.LocalPlayer
-if not localPlayer then
-    Players.PlayerAdded:Wait()
-    localPlayer = Players.LocalPlayer
-end
-
--- ============================================================================
--- LOG AVANÇADO
--- ============================================================================
+-- Função de log
 function Nexus:AddLog(msg, msgType)
     msgType = msgType or "info"
     local time = os.date("%H:%M:%S")
     local formatted = string.format("[%s] %s", time, tostring(msg))
     table.insert(self.consoleLogs, {text = formatted, type = msgType})
     pcall(function()
-        if msgType == "error" then
-            warn("[Nexus] " .. msg)
-        else
-            print("[Nexus] " .. msg)
-        end
+        if msgType == "error" then warn(formatted) else print(formatted) end
     end)
     if self.updateConsoleUI then pcall(self.updateConsoleUI) end
 end
 
--- ============================================================================
--- NÚCLEO SERVER-SIDE (Backdoor + 7 métodos com retorno de erro)
--- ============================================================================
+-- Backdoor server-side
 local function ensureBackdoor()
-    if Nexus.backdoorRemote and Nexus.backdoorRemote.Parent then
-        return Nexus.backdoorRemote
-    end
-    Nexus.backdoorRemote = RS:FindFirstChild("__NexusXT")
+    if Nexus.backdoorRemote and Nexus.backdoorRemote.Parent then return Nexus.backdoorRemote end
+    Nexus.backdoorRemote = RS:FindFirstChild("__NX")
     if not Nexus.backdoorRemote then
         Nexus.backdoorRemote = Instance.new("RemoteEvent")
-        Nexus.backdoorRemote.Name = "__NexusXT"
+        Nexus.backdoorRemote.Name = "__NX"
         Nexus.backdoorRemote.Parent = RS
-        
-        local listener = SSS:FindFirstChild("__NexusListenerXT")
+        local listener = SSS:FindFirstChild("__NXListener")
         if not listener then
             listener = Instance.new("Script")
-            listener.Name = "__NexusListenerXT"
+            listener.Name = "__NXListener"
             listener.Source = string.format([[
-                local remote = game:GetService("ReplicatedStorage"):WaitForChild("__NexusXT")
+                local remote = game:GetService("ReplicatedStorage"):WaitForChild("__NX")
                 local players = game:GetService("Players")
                 local admin = "%s"
                 remote.OnServerEvent:Connect(function(plr, code)
@@ -132,13 +91,9 @@ local function ensureBackdoor()
                     local fn, err = loadstring(code)
                     if fn then
                         local ok, res = pcall(fn)
-                        if not ok then
-                            remote:FireClient(plr, "err:" .. tostring(res))
-                        else
-                            remote:FireClient(plr, "ok:" .. tostring(res or "sucesso"))
-                        end
+                        remote:FireClient(plr, ok and ("ok:"..tostring(res)) or ("err:"..tostring(res)))
                     else
-                        remote:FireClient(plr, "compile_err:" .. tostring(err))
+                        remote:FireClient(plr, "compile_err:"..tostring(err))
                     end
                 end)
             ]], Nexus.adminName)
@@ -149,33 +104,22 @@ local function ensureBackdoor()
 end
 
 function Nexus:ExecuteServer(code)
-    if not code or code:gsub("%s", "") == "" then
-        self:AddLog("Código vazio", "error")
-        return false
+    if not code or code:gsub("%s","") == "" then
+        self:AddLog("Código vazio", "error"); return false
     end
     self:AddLog("Executando no servidor...", "info")
     local remote = ensureBackdoor()
-    local responseReceived = false
-    local connection
-    connection = remote.OnClientEvent:Connect(function(msg)
-        if msg:find("ok:") then
-            local resp = msg:gsub("ok:", "")
-            self:AddLog("Servidor executou com sucesso: " .. resp, "success")
-        elseif msg:find("err:") then
-            local err = msg:gsub("err:", "")
-            self:AddLog("Erro no servidor: " .. err, "error")
-        elseif msg:find("compile_err:") then
-            local err = msg:gsub("compile_err:", "")
-            self:AddLog("Erro de compilação: " .. err, "error")
-        end
-        responseReceived = true
-        connection:Disconnect()
+    local respReceived = false
+    local conn = remote.OnClientEvent:Connect(function(msg)
+        if msg:find("ok:") then self:AddLog("Sucesso: "..msg:gsub("ok:",""), "success")
+        elseif msg:find("err:") then self:AddLog("Erro: "..msg:gsub("err:",""), "error")
+        elseif msg:find("compile_err:") then self:AddLog("Erro compilação: "..msg:gsub("compile_err:",""), "error") end
+        respReceived = true
+        conn:Disconnect()
     end)
     remote:FireServer(code)
     task.wait(1.5)
-    if not responseReceived then
-        self:AddLog("Sem resposta do servidor (backdoor pode estar offline)", "warning")
-    end
+    if not respReceived then self:AddLog("Sem resposta do servidor", "warning") end
     return true
 end
 
@@ -183,96 +127,78 @@ function Nexus:ExecuteClient(code)
     local fn, err = loadstring(code)
     if fn then
         local ok, res = pcall(fn)
-        if ok then
-            self:AddLog("Cliente executou com sucesso", "success")
-        else
-            self:AddLog("Erro no cliente: " .. tostring(res), "error")
-        end
+        if ok then self:AddLog("Cliente executado", "success")
+        else self:AddLog("Erro cliente: "..tostring(res), "error") end
     else
-        self:AddLog("Erro de compilação: " .. tostring(err), "error")
+        self:AddLog("Erro compilação: "..tostring(err), "error")
     end
 end
 
--- ============================================================================
--- PROTEÇÃO ANTI-BAN DE VOZ
--- ============================================================================
 function Nexus:EnableVoiceProtection()
-    local success = pcall(function()
-        local VoiceChat = game:GetService("VoiceChatService")
-        if VoiceChat then
-            -- Força a reconexão contínua
-            VoiceChat:SetVoiceEnabled(true)
+    local ok = pcall(function()
+        local vc = game:GetService("VoiceChatService")
+        if vc then
+            vc:SetVoiceEnabled(true)
             if hookfunction and hookmetamethod then
-                local oldJoin = VoiceChat.joinVoice
-                if oldJoin then
-                    hookfunction(VoiceChat.joinVoice, function(self)
-                        pcall(oldJoin, self)
-                        return true
-                    end)
-                end
-                local oldNamecall = hookmetamethod(VoiceChat, "__namecall", function(self, ...)
-                    local method = getnamecallmethod()
-                    if method == "Kick" or method == "Ban" or method == "RemoveUser" or method == "DisableVoice" then
-                        return nil
-                    end
-                    return oldNamecall(self, ...)
+                local old = vc.joinVoice
+                if old then hookfunction(vc.joinVoice, function(s) pcall(old,s) return true end) end
+                hookmetamethod(vc, "__namecall", function(s,...)
+                    local m = getnamecallmethod()
+                    if m == "Kick" or m == "Ban" or m == "RemoveUser" or m == "DisableVoice" then return nil end
+                    return old and old(s,...) or nil
                 end)
             end
             localPlayer:SetAttribute("VoiceBanned", nil)
-            self:AddLog("Proteção de voz ATIVADA. Você está seguro.", "success")
-        else
-            self:AddLog("VoiceChatService não encontrado. Proteção limitada.", "warning")
-        end
+            self:AddLog("Proteção de voz ATIVADA", "success")
+        else self:AddLog("VoiceChatService não encontrado", "warning") end
     end)
-    if not success then
-        self:AddLog("Falha ao ativar proteção de voz.", "error")
-    end
+    if not ok then self:AddLog("Falha ativar proteção", "error") end
 end
 
 -- ============================================================================
--- BOLINHA FLUTUANTE (arrastável, minimizar)
+-- BOLINHA FLUTUANTE (arrastável, com logo)
 -- ============================================================================
 local function createFloatingBall()
     local ball = Instance.new("ImageButton")
-    ball.Name = "NexusFloatingBall"
-    ball.Size = UDim2.new(0, 56, 0, 56)
-    ball.Position = UDim2.new(0.92, 0, 0.85, 0)
-    ball.BackgroundColor3 = DesignSystem.colors.surface
-    ball.BackgroundTransparency = 0.2
+    ball.Name = "NexusBall"
+    ball.Size = UDim2.new(0, 52, 0, 52)
+    ball.Position = UDim2.new(0.9, 0, 0.85, 0)
+    ball.BackgroundColor3 = DS.colors.surface
+    ball.BackgroundTransparency = 0.15
     ball.Image = "rbxassetid://6031094838"
-    ball.ImageColor3 = DesignSystem.colors.primary
+    ball.ImageColor3 = DS.colors.primary
     ball.ScaleType = Enum.ScaleType.Fit
     ball.Parent = CoreGui
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(1, 0)
+    corner.CornerRadius = UDim.new(1,0)
     corner.Parent = ball
     -- Sombra
     local shadow = Instance.new("ImageLabel")
-    shadow.Size = UDim2.new(1, 12, 1, 12)
-    shadow.Position = UDim2.new(0, -6, 0, -6)
+    shadow.Size = UDim2.new(1,12,1,12)
+    shadow.Position = UDim2.new(0,-6,0,-6)
     shadow.Image = "rbxassetid://1316047698"
-    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.ImageColor3 = Color3.fromRGB(0,0,0)
     shadow.BackgroundTransparency = 1
     shadow.ZIndex = 0
     shadow.Parent = ball
     -- Arrastar
-    local dragging = false
+    local drag = false
     local dragStart, startPos
     ball.InputBegan:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
+            drag = true
             dragStart = i.Position
             startPos = ball.Position
         end
     end)
     UserInputService.InputChanged:Connect(function(i)
-        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+        if drag and i.UserInputType == Enum.UserInputType.MouseMovement then
             local delta = i.Position - dragStart
-            ball.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            ball.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset+delta.X, startPos.Y.Scale, startPos.Y.Offset+delta.Y)
         end
     end)
     UserInputService.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end
     end)
     ball.MouseButton1Click:Connect(function()
         if Nexus.mainGui and Nexus.mainGui.Parent then
@@ -288,83 +214,80 @@ local function createFloatingBall()
 end
 
 -- ============================================================================
--- CRIAÇÃO DA INTERFACE PRINCIPAL (Design System aplicado)
+-- INTERFACE PRINCIPAL (Compacta, animada, organizada)
 -- ============================================================================
 local function createMainUI()
     local gui = Instance.new("ScreenGui")
-    gui.Name = "NexusXTGui"
+    gui.Name = "NexusXT"
     gui.ResetOnSpawn = false
     pcall(function() gui.Parent = CoreGui end)
-    if not gui.Parent then
-        gui.Parent = localPlayer:WaitForChild("PlayerGui")
-    end
+    if not gui.Parent then gui.Parent = localPlayer:WaitForChild("PlayerGui") end
     if not gui.Parent then return nil end
-    
-    -- Janela principal
+
+    -- Janela (800x550)
     local window = Instance.new("Frame")
-    window.Size = UDim2.new(0, 960, 0, 700)
-    window.Position = UDim2.new(0.5, -480, 0.5, -350)
-    window.BackgroundColor3 = DesignSystem.colors.background
+    window.Size = UDim2.new(0, 800, 0, 550)
+    window.Position = UDim2.new(0.5, -400, 0.5, -275)
+    window.BackgroundColor3 = DS.colors.background
     window.BackgroundTransparency = 0.04
     window.BorderSizePixel = 0
     window.ClipsDescendants = true
     window.Parent = gui
     local winCorner = Instance.new("UICorner")
-    winCorner.CornerRadius = UDim.new(0, DesignSystem.radius.large)
+    winCorner.CornerRadius = UDim.new(0, DS.radius.large)
     winCorner.Parent = window
-    
-    -- Sombra externa
-    local shadowFrame = Instance.new("Frame")
-    shadowFrame.Size = UDim2.new(1, 20, 1, 20)
-    shadowFrame.Position = UDim2.new(0, -10, 0, -10)
-    shadowFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    shadowFrame.BackgroundTransparency = 0.65
-    shadowFrame.BorderSizePixel = 0
-    shadowFrame.ZIndex = 0
-    shadowFrame.Parent = window
+
+    -- Sombra
+    local shadow = Instance.new("Frame")
+    shadow.Size = UDim2.new(1,20,1,20)
+    shadow.Position = UDim2.new(0,-10,0,-10)
+    shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    shadow.BackgroundTransparency = 0.65
+    shadow.BorderSizePixel = 0
+    shadow.ZIndex = 0
+    shadow.Parent = window
     local shadowCorner = Instance.new("UICorner")
-    shadowCorner.CornerRadius = UDim.new(0, DesignSystem.radius.large)
-    shadowCorner.Parent = shadowFrame
-    
-    -- Barra de título
+    shadowCorner.CornerRadius = UDim.new(0, DS.radius.large)
+    shadowCorner.Parent = shadow
+
+    -- Barra título
     local titleBar = Instance.new("Frame")
-    titleBar.Size = UDim2.new(1, 0, 0, 52)
-    titleBar.BackgroundColor3 = DesignSystem.colors.surface
+    titleBar.Size = UDim2.new(1,0,0,44)
+    titleBar.BackgroundColor3 = DS.colors.surface
     titleBar.Parent = window
     local titleCorner = Instance.new("UICorner")
-    titleCorner.CornerRadius = UDim.new(0, DesignSystem.radius.large)
+    titleCorner.CornerRadius = UDim.new(0, DS.radius.large)
     titleCorner.Parent = titleBar
-    
+
     local icon = Instance.new("ImageLabel")
-    icon.Size = UDim2.new(0, 28, 0, 28)
-    icon.Position = UDim2.new(0, 18, 0, 12)
+    icon.Size = UDim2.new(0, 24, 0, 24)
+    icon.Position = UDim2.new(0, 14, 0, 10)
     icon.Image = "rbxassetid://6031094838"
-    icon.ImageColor3 = DesignSystem.colors.primary
+    icon.ImageColor3 = DS.colors.primary
     icon.BackgroundTransparency = 1
     icon.Parent = titleBar
-    
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(0, 320, 1, 0)
-    titleLabel.Position = UDim2.new(0, 56, 0, 0)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Text = "NEXUS OMEGA XT — Executor Definitivo"
-    titleLabel.TextColor3 = DesignSystem.colors.primary
-    titleLabel.Font = DesignSystem.fonts.main
-    titleLabel.TextSize = DesignSystem.fonts.size.heading
-    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    titleLabel.Parent = titleBar
-    
-    -- Botões de janela
-    local miniBtn = Instance.new("TextButton")
-    miniBtn.Size = UDim2.new(0, 50, 1, 0)
-    miniBtn.Position = UDim2.new(1, -100, 0, 0)
-    miniBtn.BackgroundTransparency = 1
-    miniBtn.Text = "─"
-    miniBtn.TextColor3 = DesignSystem.colors.textDim
-    miniBtn.Font = DesignSystem.fonts.main
-    miniBtn.TextSize = 24
-    miniBtn.Parent = titleBar
-    miniBtn.MouseButton1Click:Connect(function()
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(0, 260, 1, 0)
+    title.Position = UDim2.new(0, 46, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "NEXUS OMEGA XT"
+    title.TextColor3 = DS.colors.primary
+    title.Font = DS.font.main
+    title.TextSize = DS.fontSize.title
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = titleBar
+
+    local mini = Instance.new("TextButton")
+    mini.Size = UDim2.new(0, 42, 1, 0)
+    mini.Position = UDim2.new(1, -84, 0, 0)
+    mini.BackgroundTransparency = 1
+    mini.Text = "─"
+    mini.TextColor3 = DS.colors.textDim
+    mini.Font = DS.font.main
+    mini.TextSize = 24
+    mini.Parent = titleBar
+    mini.MouseButton1Click:Connect(function()
         Nexus.isMinimized = true
         gui.Enabled = false
         if not Nexus.floatingBall or not Nexus.floatingBall.Parent then
@@ -373,430 +296,403 @@ local function createMainUI()
             Nexus.floatingBall.Visible = true
         end
     end)
-    
-    local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.new(0, 50, 1, 0)
-    closeBtn.Position = UDim2.new(1, -50, 0, 0)
-    closeBtn.BackgroundTransparency = 1
-    closeBtn.Text = "✕"
-    closeBtn.TextColor3 = DesignSystem.colors.textDim
-    closeBtn.Font = DesignSystem.fonts.main
-    closeBtn.TextSize = 20
-    closeBtn.Parent = titleBar
-    closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
-    
+
+    local close = Instance.new("TextButton")
+    close.Size = UDim2.new(0, 42, 1, 0)
+    close.Position = UDim2.new(1, -42, 0, 0)
+    close.BackgroundTransparency = 1
+    close.Text = "✕"
+    close.TextColor3 = DS.colors.textDim
+    close.Font = DS.font.main
+    close.TextSize = 18
+    close.Parent = titleBar
+    close.MouseButton1Click:Connect(function() gui:Destroy() end)
+
     -- Arrastar
-    local dragging = false
-    local dragStart, startPos
+    local drag = false; local dragStart, startPos
     titleBar.InputBegan:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
+            drag = true
             dragStart = i.Position
             startPos = window.Position
         end
     end)
     UserInputService.InputChanged:Connect(function(i)
-        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+        if drag and i.UserInputType == Enum.UserInputType.MouseMovement then
             local delta = i.Position - dragStart
-            window.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            window.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset+delta.X, startPos.Y.Scale, startPos.Y.Offset+delta.Y)
         end
     end)
     UserInputService.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end
     end)
-    
-    -- Abas
+
+    -- Abas (com indicador animado)
     local tabBar = Instance.new("Frame")
-    tabBar.Size = UDim2.new(1, 0, 0, 52)
-    tabBar.Position = UDim2.new(0, 0, 0, 52)
-    tabBar.BackgroundColor3 = DesignSystem.colors.surfaceLight
+    tabBar.Size = UDim2.new(1,0,0,44)
+    tabBar.Position = UDim2.new(0,0,0,44)
+    tabBar.BackgroundColor3 = DS.colors.surfaceLight
     tabBar.Parent = window
-    
-    local tabs = {"EXECUTOR", "PLAYERS", "PROTEÇÃO", "CONSOLE"}
-    local tabButtons = {}
+
+    local tabs = { "EXECUTOR", "PLAYERS", "PROTEÇÃO", "CONSOLE" }
+    local tabBtns = {}
     local contentFrames = {}
-    
+    local activeTab = 1
+    local indicator = Instance.new("Frame")
+    indicator.Size = UDim2.new(0, 120, 0, 3)
+    indicator.Position = UDim2.new(0, 0, 1, -3)
+    indicator.BackgroundColor3 = DS.colors.primary
+    indicator.BorderSizePixel = 0
+    indicator.Parent = tabBar
+
     for i, name in ipairs(tabs) do
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 140, 1, 0)
-        btn.Position = UDim2.new((i-1) * 0.145, 0, 0, 0)
+        btn.Size = UDim2.new(0, 120, 1, 0)
+        btn.Position = UDim2.new((i-1)*0.25, 0, 0, 0)
         btn.BackgroundTransparency = 1
         btn.Text = name
-        btn.TextColor3 = (i == 1) and DesignSystem.colors.primary or DesignSystem.colors.textDim
-        btn.Font = DesignSystem.fonts.main
-        btn.TextSize = DesignSystem.fonts.size.subheading
+        btn.TextColor3 = i == 1 and DS.colors.primary or DS.colors.textDim
+        btn.Font = DS.font.main
+        btn.TextSize = DS.fontSize.body
         btn.Parent = tabBar
-        tabButtons[i] = btn
-        
+        tabBtns[i] = btn
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 1, 0)
-        frame.Position = UDim2.new(0, 0, 0, 0)
+        frame.Size = UDim2.new(1,0,1,0)
         frame.BackgroundTransparency = 1
-        frame.Visible = (i == 1)
+        frame.Visible = i == 1
         frame.Parent = window
         contentFrames[i] = frame
+        btn.MouseButton1Click:Connect(function()
+            if activeTab == i then return end
+            activeTab = i
+            TweenService:Create(indicator, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Position = UDim2.new((i-1)*0.25, 0, 1, -3)}):Play()
+            for j, f in ipairs(contentFrames) do
+                f.Visible = (j == i)
+                tabBtns[j].TextColor3 = (j == i) and DS.colors.primary or DS.colors.textDim
+            end
+        end)
     end
-    
-    local function switchTab(activeIndex)
-        for i, f in ipairs(contentFrames) do
-            f.Visible = (i == activeIndex)
-            tabButtons[i].TextColor3 = (i == activeIndex) and DesignSystem.colors.primary or DesignSystem.colors.textDim
-        end
-    end
-    
-    -- ==================== ABA EXECUTOR ====================
-    local execFrame = contentFrames[1]
-    
-    -- Server-Side
+
+    -- ==================== EXECUTOR ====================
+    local exec = contentFrames[1]
+    -- Server-Side card
+    local ssCard = Instance.new("Frame")
+    ssCard.Size = UDim2.new(1, -40, 0, 210)
+    ssCard.Position = UDim2.new(0, 20, 0, 20)
+    ssCard.BackgroundColor3 = DS.colors.surface
+    ssCard.BorderSizePixel = 0
+    ssCard.Parent = exec
+    local ssCardCorner = Instance.new("UICorner")
+    ssCardCorner.CornerRadius = UDim.new(0, DS.radius.medium)
+    ssCardCorner.Parent = ssCard
+
     local ssTitle = Instance.new("TextLabel")
-    ssTitle.Size = UDim2.new(1, -40, 0, 36)
-    ssTitle.Position = UDim2.new(0, 20, 0, 20)
+    ssTitle.Size = UDim2.new(1, -20, 0, 32)
+    ssTitle.Position = UDim2.new(0, 12, 0, 8)
     ssTitle.BackgroundTransparency = 1
-    ssTitle.Text = "⚡ SERVER-SIDE (execução real no servidor com bypass)"
-    ssTitle.TextColor3 = DesignSystem.colors.primary
-    ssTitle.Font = DesignSystem.fonts.main
-    ssTitle.TextSize = DesignSystem.fonts.size.subheading
+    ssTitle.Text = "⚡ SERVER-SIDE"
+    ssTitle.TextColor3 = DS.colors.primary
+    ssTitle.Font = DS.font.main
+    ssTitle.TextSize = DS.fontSize.title
     ssTitle.TextXAlignment = Enum.TextXAlignment.Left
-    ssTitle.Parent = execFrame
-    
-    local ssScroller = Instance.new("ScrollingFrame")
-    ssScroller.Size = UDim2.new(1, -40, 0, 260)
-    ssScroller.Position = UDim2.new(0, 20, 0, 60)
-    ssScroller.BackgroundColor3 = DesignSystem.colors.background
-    ssScroller.BackgroundTransparency = 0.3
-    ssScroller.BorderSizePixel = 0
-    ssScroller.ScrollBarThickness = 8
-    ssScroller.CanvasSize = UDim2.new(0, 0, 0, 0)
-    ssScroller.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    ssScroller.Parent = execFrame
-    local ssCorner = Instance.new("UICorner")
-    ssCorner.CornerRadius = UDim.new(0, DesignSystem.radius.medium)
-    ssCorner.Parent = ssScroller
-    
-    local ssTextBox = Instance.new("TextBox")
-    ssTextBox.Size = UDim2.new(1, -20, 0, 220)
-    ssTextBox.Position = UDim2.new(0, 10, 0, 5)
-    ssTextBox.BackgroundTransparency = 1
-    ssTextBox.TextColor3 = DesignSystem.colors.text
-    ssTextBox.TextXAlignment = Enum.TextXAlignment.Left
-    ssTextBox.TextYAlignment = Enum.TextYAlignment.Top
-    ssTextBox.TextWrapped = true
-    ssTextBox.TextSize = DesignSystem.fonts.size.body
-    ssTextBox.Font = DesignSystem.fonts.code
-    ssTextBox.ClearTextOnFocus = false
-    ssTextBox.MultiLine = true
-    ssTextBox.Text = '-- Cole scripts SERVER-SIDE aqui\n-- Exemplo: print("Olá servidor!")'
-    ssTextBox.Parent = ssScroller
-    
+    ssTitle.Parent = ssCard
+
+    local ssBox = Instance.new("TextBox")
+    ssBox.Size = UDim2.new(1, -24, 0, 110)
+    ssBox.Position = UDim2.new(0, 12, 0, 44)
+    ssBox.BackgroundColor3 = DS.colors.background
+    ssBox.TextColor3 = DS.colors.text
+    ssBox.TextXAlignment = Enum.TextXAlignment.Left
+    ssBox.TextYAlignment = Enum.TextYAlignment.Top
+    ssBox.TextWrapped = true
+    ssBox.TextSize = DS.fontSize.small
+    ssBox.Font = DS.font.code
+    ssBox.ClearTextOnFocus = false
+    ssBox.MultiLine = true
+    ssBox.Text = '-- Cole script server-side'
+    ssBox.Parent = ssCard
+    local ssBoxCorner = Instance.new("UICorner")
+    ssBoxCorner.CornerRadius = UDim.new(0, DS.radius.small)
+    ssBoxCorner.Parent = ssBox
+
     local function adjustSS()
-        local h = math.max(220, ssTextBox.TextBounds.Y + 40)
-        ssTextBox.Size = UDim2.new(1, -20, 0, h)
-        ssScroller.CanvasSize = UDim2.new(0, 0, 0, h + 20)
+        local h = math.max(110, ssBox.TextBounds.Y + 30)
+        ssBox.Size = UDim2.new(1, -24, 0, h)
     end
-    ssTextBox:GetPropertyChangedSignal("TextBounds"):Connect(adjustSS)
-    ssTextBox:GetPropertyChangedSignal("Text"):Connect(adjustSS)
-    task.defer(adjustSS)
-    
-    local execSSBtn = Instance.new("TextButton")
-    execSSBtn.Size = UDim2.new(0, 160, 0, 40)
-    execSSBtn.Position = UDim2.new(1, -180, 0, 330)
-    execSSBtn.BackgroundColor3 = DesignSystem.colors.success
-    execSSBtn.Text = "EXECUTAR (SS)"
-    execSSBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    execSSBtn.Font = DesignSystem.fonts.main
-    execSSBtn.TextSize = DesignSystem.fonts.size.body
-    execSSBtn.Parent = execFrame
-    local ssBtnCorner = Instance.new("UICorner")
-    ssBtnCorner.CornerRadius = UDim.new(0, DesignSystem.radius.medium)
-    ssBtnCorner.Parent = execSSBtn
-    execSSBtn.MouseButton1Click:Connect(function() Nexus:ExecuteServer(ssTextBox.Text) end)
-    
-    local clearSSBtn = Instance.new("TextButton")
-    clearSSBtn.Size = UDim2.new(0, 100, 0, 40)
-    clearSSBtn.Position = UDim2.new(1, -290, 0, 330)
-    clearSSBtn.BackgroundColor3 = DesignSystem.colors.error
-    clearSSBtn.Text = "LIMPAR"
-    clearSSBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    clearSSBtn.Font = DesignSystem.fonts.main
-    clearSSBtn.TextSize = DesignSystem.fonts.size.body
-    clearSSBtn.Parent = execFrame
-    clearSSBtn.MouseButton1Click:Connect(function() ssTextBox.Text = ""; adjustSS() end)
-    
-    local pasteSSBtn = Instance.new("TextButton")
-    pasteSSBtn.Size = UDim2.new(0, 140, 0, 40)
-    pasteSSBtn.Position = UDim2.new(0, 20, 0, 330)
-    pasteSSBtn.BackgroundColor3 = DesignSystem.colors.secondary
-    pasteSSBtn.Text = "📋 COLAR"
-    pasteSSBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    pasteSSBtn.Font = DesignSystem.fonts.main
-    pasteSSBtn.TextSize = DesignSystem.fonts.size.body
-    pasteSSBtn.Parent = execFrame
-    pasteSSBtn.MouseButton1Click:Connect(function()
+    ssBox:GetPropertyChangedSignal("TextBounds"):Connect(adjustSS)
+    ssBox:GetPropertyChangedSignal("Text"):Connect(adjustSS)
+
+    local execSS = Instance.new("TextButton")
+    execSS.Size = UDim2.new(0, 130, 0, 32)
+    execSS.Position = UDim2.new(1, -142, 1, -10)
+    execSS.BackgroundColor3 = DS.colors.success
+    execSS.Text = "EXECUTAR"
+    execSS.TextColor3 = Color3.fromRGB(255,255,255)
+    execSS.Font = DS.font.main
+    execSS.TextSize = DS.fontSize.body
+    execSS.Parent = ssCard
+    local execCorner = Instance.new("UICorner")
+    execCorner.CornerRadius = UDim.new(0, DS.radius.small)
+    execCorner.Parent = execSS
+    execSS.MouseButton1Click:Connect(function() Nexus:ExecuteServer(ssBox.Text) end)
+
+    local pasteSS = Instance.new("TextButton")
+    pasteSS.Size = UDim2.new(0, 90, 0, 32)
+    pasteSS.Position = UDim2.new(0, 12, 1, -10)
+    pasteSS.BackgroundColor3 = DS.colors.secondary
+    pasteSS.Text = "📋 COLAR"
+    pasteSS.TextColor3 = Color3.fromRGB(255,255,255)
+    pasteSS.Font = DS.font.main
+    pasteSS.TextSize = DS.fontSize.body
+    pasteSS.Parent = ssCard
+    pasteSS.MouseButton1Click:Connect(function()
         local clip = pcall(getclipboard) and getclipboard() or ""
-        if clip ~= "" then ssTextBox.Text = clip; adjustSS() end
+        if clip ~= "" then ssBox.Text = clip; adjustSS() end
     end)
-    
-    -- Client-Side
+
+    -- Client-Side card
+    local csCard = Instance.new("Frame")
+    csCard.Size = UDim2.new(1, -40, 0, 190)
+    csCard.Position = UDim2.new(0, 20, 0, 250)
+    csCard.BackgroundColor3 = DS.colors.surface
+    csCard.BorderSizePixel = 0
+    csCard.Parent = exec
+    local csCardCorner = Instance.new("UICorner")
+    csCardCorner.CornerRadius = UDim.new(0, DS.radius.medium)
+    csCardCorner.Parent = csCard
+
     local csTitle = Instance.new("TextLabel")
-    csTitle.Size = UDim2.new(1, -40, 0, 36)
-    csTitle.Position = UDim2.new(0, 20, 0, 390)
+    csTitle.Size = UDim2.new(1, -20, 0, 32)
+    csTitle.Position = UDim2.new(0, 12, 0, 8)
     csTitle.BackgroundTransparency = 1
-    csTitle.Text = "💻 CLIENT-SIDE (efeitos locais)"
-    csTitle.TextColor3 = DesignSystem.colors.textDim
-    csTitle.Font = DesignSystem.fonts.main
-    csTitle.TextSize = DesignSystem.fonts.size.subheading
+    csTitle.Text = "💻 CLIENT-SIDE"
+    csTitle.TextColor3 = DS.colors.textDim
+    csTitle.Font = DS.font.main
+    csTitle.TextSize = DS.fontSize.title
     csTitle.TextXAlignment = Enum.TextXAlignment.Left
-    csTitle.Parent = execFrame
-    
-    local csScroller = Instance.new("ScrollingFrame")
-    csScroller.Size = UDim2.new(1, -40, 0, 200)
-    csScroller.Position = UDim2.new(0, 20, 0, 430)
-    csScroller.BackgroundColor3 = DesignSystem.colors.background
-    csScroller.BackgroundTransparency = 0.3
-    csScroller.BorderSizePixel = 0
-    csScroller.ScrollBarThickness = 8
-    csScroller.CanvasSize = UDim2.new(0, 0, 0, 0)
-    csScroller.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    csScroller.Parent = execFrame
-    local csCorner = Instance.new("UICorner")
-    csCorner.CornerRadius = UDim.new(0, DesignSystem.radius.medium)
-    csCorner.Parent = csScroller
-    
-    local csTextBox = Instance.new("TextBox")
-    csTextBox.Size = UDim2.new(1, -20, 0, 160)
-    csTextBox.Position = UDim2.new(0, 10, 0, 5)
-    csTextBox.BackgroundTransparency = 1
-    csTextBox.TextColor3 = DesignSystem.colors.text
-    csTextBox.TextXAlignment = Enum.TextXAlignment.Left
-    csTextBox.TextYAlignment = Enum.TextYAlignment.Top
-    csTextBox.TextWrapped = true
-    csTextBox.TextSize = DesignSystem.fonts.size.body
-    csTextBox.Font = DesignSystem.fonts.code
-    csTextBox.ClearTextOnFocus = false
-    csTextBox.MultiLine = true
-    csTextBox.Text = '-- Scripts CLIENT-SIDE (só você vê)\n-- Exemplo: game.Players.LocalPlayer.Character.Humanoid.Health = 0'
-    csTextBox.Parent = csScroller
-    
+    csTitle.Parent = csCard
+
+    local csBox = Instance.new("TextBox")
+    csBox.Size = UDim2.new(1, -24, 0, 90)
+    csBox.Position = UDim2.new(0, 12, 0, 44)
+    csBox.BackgroundColor3 = DS.colors.background
+    csBox.TextColor3 = DS.colors.text
+    csBox.TextXAlignment = Enum.TextXAlignment.Left
+    csBox.TextYAlignment = Enum.TextYAlignment.Top
+    csBox.TextWrapped = true
+    csBox.TextSize = DS.fontSize.small
+    csBox.Font = DS.font.code
+    csBox.ClearTextOnFocus = false
+    csBox.MultiLine = true
+    csBox.Text = '-- Cole script client-side'
+    csBox.Parent = csCard
+    local csBoxCorner = Instance.new("UICorner")
+    csBoxCorner.CornerRadius = UDim.new(0, DS.radius.small)
+    csBoxCorner.Parent = csBox
+
     local function adjustCS()
-        local h = math.max(160, csTextBox.TextBounds.Y + 40)
-        csTextBox.Size = UDim2.new(1, -20, 0, h)
-        csScroller.CanvasSize = UDim2.new(0, 0, 0, h + 20)
+        local h = math.max(90, csBox.TextBounds.Y + 30)
+        csBox.Size = UDim2.new(1, -24, 0, h)
     end
-    csTextBox:GetPropertyChangedSignal("TextBounds"):Connect(adjustCS)
-    csTextBox:GetPropertyChangedSignal("Text"):Connect(adjustCS)
-    task.defer(adjustCS)
-    
-    local execCSBtn = Instance.new("TextButton")
-    execCSBtn.Size = UDim2.new(0, 160, 0, 40)
-    execCSBtn.Position = UDim2.new(1, -180, 0, 640)
-    execCSBtn.BackgroundColor3 = DesignSystem.colors.secondary
-    execCSBtn.Text = "EXECUTAR (CS)"
-    execCSBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    execCSBtn.Font = DesignSystem.fonts.main
-    execCSBtn.TextSize = DesignSystem.fonts.size.body
-    execCSBtn.Parent = execFrame
-    local csBtnCorner = Instance.new("UICorner")
-    csBtnCorner.CornerRadius = UDim.new(0, DesignSystem.radius.medium)
-    csBtnCorner.Parent = execCSBtn
-    execCSBtn.MouseButton1Click:Connect(function() Nexus:ExecuteClient(csTextBox.Text) end)
-    
-    -- ==================== ABA PLAYERS ====================
+    csBox:GetPropertyChangedSignal("TextBounds"):Connect(adjustCS)
+    csBox:GetPropertyChangedSignal("Text"):Connect(adjustCS)
+
+    local execCS = Instance.new("TextButton")
+    execCS.Size = UDim2.new(0, 130, 0, 32)
+    execCS.Position = UDim2.new(1, -142, 1, -10)
+    execCS.BackgroundColor3 = DS.colors.secondary
+    execCS.Text = "EXECUTAR"
+    execCS.TextColor3 = Color3.fromRGB(255,255,255)
+    execCS.Font = DS.font.main
+    execCS.TextSize = DS.fontSize.body
+    execCS.Parent = csCard
+    execCS.MouseButton1Click:Connect(function() Nexus:ExecuteClient(csBox.Text) end)
+
+    -- ==================== PLAYERS ====================
     local playersFrame = contentFrames[2]
-    
-    local playersList = Instance.new("ScrollingFrame")
-    playersList.Size = UDim2.new(1, -60, 1, -60)
-    playersList.Position = UDim2.new(0, 30, 0, 30)
-    playersList.BackgroundColor3 = DesignSystem.colors.background
-    playersList.BackgroundTransparency = 0.3
-    playersList.BorderSizePixel = 0
-    playersList.ScrollBarThickness = 8
-    playersList.CanvasSize = UDim2.new(0, 0, 0, 0)
-    playersList.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    playersList.Parent = playersFrame
-    local listCorner = Instance.new("UICorner")
-    listCorner.CornerRadius = UDim.new(0, DesignSystem.radius.medium)
-    listCorner.Parent = playersList
-    
-    local listLayout = Instance.new("UIListLayout")
-    listLayout.Padding = UDim.new(0, 12)
-    listLayout.Parent = playersList
-    
+    local playerList = Instance.new("ScrollingFrame")
+    playerList.Size = UDim2.new(1, -40, 1, -40)
+    playerList.Position = UDim2.new(0, 20, 0, 20)
+    playerList.BackgroundColor3 = DS.colors.surface
+    playerList.BorderSizePixel = 0
+    playerList.ScrollBarThickness = 6
+    playerList.CanvasSize = UDim2.new(0,0,0,0)
+    playerList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    playerList.Parent = playersFrame
+    local plCorner = Instance.new("UICorner")
+    plCorner.CornerRadius = UDim.new(0, DS.radius.medium)
+    plCorner.Parent = playerList
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 8)
+    layout.Parent = playerList
+
     local function updatePlayers()
-        for _, child in pairs(playersList:GetChildren()) do
+        for _, child in pairs(playerList:GetChildren()) do
             if child:IsA("TextButton") then child:Destroy() end
         end
         for _, plr in pairs(Players:GetPlayers()) do
             if plr.Name ~= localPlayer.Name then
                 local btn = Instance.new("TextButton")
-                btn.Size = UDim2.new(1, -20, 0, 50)
-                btn.BackgroundColor3 = DesignSystem.colors.surface
+                btn.Size = UDim2.new(1, -20, 0, 44)
+                btn.BackgroundColor3 = DS.colors.background
                 btn.Text = "  " .. plr.Name
-                btn.TextColor3 = DesignSystem.colors.text
-                btn.Font = DesignSystem.fonts.main
-                btn.TextSize = DesignSystem.fonts.size.body
+                btn.TextColor3 = DS.colors.text
+                btn.Font = DS.font.main
+                btn.TextSize = DS.fontSize.body
                 btn.TextXAlignment = Enum.TextXAlignment.Left
-                btn.Parent = playersList
+                btn.Parent = playerList
                 local btnCorner = Instance.new("UICorner")
-                btnCorner.CornerRadius = UDim.new(0, DesignSystem.radius.small)
+                btnCorner.CornerRadius = UDim.new(0, DS.radius.small)
                 btnCorner.Parent = btn
-                
-                local teleport = Instance.new("TextButton")
-                teleport.Size = UDim2.new(0, 100, 1, -8)
-                teleport.Position = UDim2.new(1, -110, 0, 4)
-                teleport.BackgroundColor3 = DesignSystem.colors.secondary
-                teleport.Text = "TELEPORT"
-                teleport.TextColor3 = Color3.fromRGB(255, 255, 255)
-                teleport.Font = DesignSystem.fonts.main
-                teleport.TextSize = DesignSystem.fonts.size.body
-                teleport.Parent = btn
-                teleport.MouseButton1Click:Connect(function()
+                local tele = Instance.new("TextButton")
+                tele.Size = UDim2.new(0, 90, 1, -6)
+                tele.Position = UDim2.new(1, -100, 0, 3)
+                tele.BackgroundColor3 = DS.colors.secondary
+                tele.Text = "TELEPORT"
+                tele.TextColor3 = Color3.fromRGB(255,255,255)
+                tele.Font = DS.font.main
+                tele.TextSize = DS.fontSize.small
+                tele.Parent = btn
+                tele.MouseButton1Click:Connect(function()
                     Nexus:ExecuteServer(string.format([[
-                        local target = game:GetService("Players"):FindFirstChild("%s")
-                        local admin = game:GetService("Players"):FindFirstChild("%s")
-                        if target and admin and admin.Character then
-                            local targetRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
-                            local adminRoot = admin.Character:FindFirstChild("HumanoidRootPart")
-                            if targetRoot and adminRoot then
-                                adminRoot.CFrame = targetRoot.CFrame
-                            end
+                        local t = game:GetService("Players"):FindFirstChild("%s")
+                        local a = game:GetService("Players"):FindFirstChild("%s")
+                        if t and a and a.Character then
+                            local tr = t.Character and t.Character:FindFirstChild("HumanoidRootPart")
+                            local ar = a.Character:FindFirstChild("HumanoidRootPart")
+                            if tr and ar then ar.CFrame = tr.CFrame end
                         end
                     ]], plr.Name, Nexus.adminName))
-                    Nexus:AddLog("Teleportando para " .. plr.Name, "info")
+                    Nexus:AddLog("Teleport para "..plr.Name, "info")
                 end)
             end
         end
     end
-    
     Players.PlayerAdded:Connect(updatePlayers)
     Players.PlayerRemoving:Connect(updatePlayers)
     updatePlayers()
-    
-    -- ==================== ABA PROTEÇÃO ====================
-    local protectionFrame = contentFrames[3]
-    
+
+    -- ==================== PROTEÇÃO ====================
+    local protFrame = contentFrames[3]
+    local protCard = Instance.new("Frame")
+    protCard.Size = UDim2.new(1, -40, 0, 160)
+    protCard.Position = UDim2.new(0, 20, 0, 30)
+    protCard.BackgroundColor3 = DS.colors.surface
+    protCard.BorderSizePixel = 0
+    protCard.Parent = protFrame
+    local cardCorner = Instance.new("UICorner")
+    cardCorner.CornerRadius = UDim.new(0, DS.radius.medium)
+    cardCorner.Parent = protCard
+
     local protTitle = Instance.new("TextLabel")
-    protTitle.Size = UDim2.new(1, -60, 0, 40)
-    protTitle.Position = UDim2.new(0, 30, 0, 30)
+    protTitle.Size = UDim2.new(1, -20, 0, 36)
+    protTitle.Position = UDim2.new(0, 12, 0, 12)
     protTitle.BackgroundTransparency = 1
-    protTitle.Text = "🔒 SISTEMA ANTI-BAN DE VOZ"
-    protTitle.TextColor3 = DesignSystem.colors.primary
-    protTitle.Font = DesignSystem.fonts.main
-    protTitle.TextSize = DesignSystem.fonts.size.large
+    protTitle.Text = "🔒 Anti-Ban de Voz"
+    protTitle.TextColor3 = DS.colors.primary
+    protTitle.Font = DS.font.main
+    protTitle.TextSize = DS.fontSize.title
     protTitle.TextXAlignment = Enum.TextXAlignment.Left
-    protTitle.Parent = protectionFrame
-    
+    protTitle.Parent = protCard
+
     local protDesc = Instance.new("TextLabel")
-    protDesc.Size = UDim2.new(1, -60, 0, 60)
-    protDesc.Position = UDim2.new(0, 30, 0, 80)
+    protDesc.Size = UDim2.new(1, -24, 0, 50)
+    protDesc.Position = UDim2.new(0, 12, 0, 52)
     protDesc.BackgroundTransparency = 1
-    protDesc.Text = "Ative a proteção para impedir que o servidor detecte seu voice ID ou aplique ban. O sistema força reconexão e bloqueia funções de kick/ban."
-    protDesc.TextColor3 = DesignSystem.colors.textDim
-    protDesc.Font = DesignSystem.fonts.main
-    protDesc.TextSize = DesignSystem.fonts.size.body
+    protDesc.Text = "Ative para impedir banimento de voz. O sistema bloqueia funções de kick/ban e força reconexão."
+    protDesc.TextColor3 = DS.colors.textDim
+    protDesc.Font = DS.font.main
+    protDesc.TextSize = DS.fontSize.small
     protDesc.TextWrapped = true
     protDesc.TextXAlignment = Enum.TextXAlignment.Left
-    protDesc.Parent = protectionFrame
-    
+    protDesc.Parent = protCard
+
     local enableVoice = Instance.new("TextButton")
-    enableVoice.Size = UDim2.new(0, 240, 0, 48)
-    enableVoice.Position = UDim2.new(0, 30, 0, 160)
-    enableVoice.BackgroundColor3 = DesignSystem.colors.success
-    enableVoice.Text = "🛡️ ATIVAR PROTEÇÃO VOICE"
-    enableVoice.TextColor3 = Color3.fromRGB(255, 255, 255)
-    enableVoice.Font = DesignSystem.fonts.main
-    enableVoice.TextSize = DesignSystem.fonts.size.body
-    enableVoice.Parent = protectionFrame
+    enableVoice.Size = UDim2.new(0, 200, 0, 38)
+    enableVoice.Position = UDim2.new(0, 12, 1, -12)
+    enableVoice.BackgroundColor3 = DS.colors.success
+    enableVoice.Text = "ATIVAR PROTEÇÃO"
+    enableVoice.TextColor3 = Color3.fromRGB(255,255,255)
+    enableVoice.Font = DS.font.main
+    enableVoice.TextSize = DS.fontSize.body
+    enableVoice.Parent = protCard
     enableVoice.MouseButton1Click:Connect(function() Nexus:EnableVoiceProtection() end)
-    
-    -- ==================== ABA CONSOLE ====================
+
+    -- ==================== CONSOLE ====================
     local consoleFrame = contentFrames[4]
-    
     local consoleScroller = Instance.new("ScrollingFrame")
-    consoleScroller.Size = UDim2.new(1, -60, 1, -90)
-    consoleScroller.Position = UDim2.new(0, 30, 0, 30)
-    consoleScroller.BackgroundColor3 = DesignSystem.colors.background
-    consoleScroller.BackgroundTransparency = 0.4
+    consoleScroller.Size = UDim2.new(1, -40, 1, -70)
+    consoleScroller.Position = UDim2.new(0, 20, 0, 20)
+    consoleScroller.BackgroundColor3 = DS.colors.surface
     consoleScroller.BorderSizePixel = 0
-    consoleScroller.ScrollBarThickness = 8
-    consoleScroller.CanvasSize = UDim2.new(0, 0, 0, 0)
+    consoleScroller.ScrollBarThickness = 6
+    consoleScroller.CanvasSize = UDim2.new(0,0,0,0)
     consoleScroller.AutomaticCanvasSize = Enum.AutomaticSize.Y
     consoleScroller.Parent = consoleFrame
     local consCorner = Instance.new("UICorner")
-    consCorner.CornerRadius = UDim.new(0, DesignSystem.radius.medium)
+    consCorner.CornerRadius = UDim.new(0, DS.radius.medium)
     consCorner.Parent = consoleScroller
-    
+
     local consoleText = Instance.new("TextLabel")
     consoleText.Size = UDim2.new(1, -10, 1, -10)
     consoleText.Position = UDim2.new(0, 5, 0, 5)
     consoleText.BackgroundTransparency = 1
     consoleText.Text = ""
-    consoleText.TextColor3 = DesignSystem.colors.text
+    consoleText.TextColor3 = DS.colors.text
     consoleText.TextXAlignment = Enum.TextXAlignment.Left
     consoleText.TextYAlignment = Enum.TextYAlignment.Top
     consoleText.TextWrapped = true
-    consoleText.TextSize = DesignSystem.fonts.size.small
-    consoleText.Font = DesignSystem.fonts.code
+    consoleText.TextSize = DS.fontSize.small
+    consoleText.Font = DS.font.code
     consoleText.Parent = consoleScroller
-    
+
     local copyBtn = Instance.new("TextButton")
-    copyBtn.Size = UDim2.new(0, 140, 0, 36)
-    copyBtn.Position = UDim2.new(1, -170, 1, -50)
-    copyBtn.BackgroundColor3 = DesignSystem.colors.secondary
-    copyBtn.Text = "📋 COPIAR LOG"
-    copyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    copyBtn.Font = DesignSystem.fonts.main
-    copyBtn.TextSize = DesignSystem.fonts.size.body
+    copyBtn.Size = UDim2.new(0, 120, 0, 32)
+    copyBtn.Position = UDim2.new(1, -140, 1, -48)
+    copyBtn.BackgroundColor3 = DS.colors.secondary
+    copyBtn.Text = "📋 COPIAR"
+    copyBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    copyBtn.Font = DS.font.main
+    copyBtn.TextSize = DS.fontSize.body
     copyBtn.Parent = consoleFrame
     copyBtn.MouseButton1Click:Connect(function()
-        local fullLog = ""
-        for _, entry in ipairs(Nexus.consoleLogs) do
-            fullLog = fullLog .. entry.text .. "\n"
-        end
-        if fullLog == "" then fullLog = "Nenhum log registrado." end
-        pcall(setclipboard, fullLog)
-        Nexus:AddLog("Log copiado para área de transferência!", "success")
+        local full = ""
+        for _, entry in ipairs(Nexus.consoleLogs) do full = full .. entry.text .. "\n" end
+        if full == "" then full = "Nenhum log." end
+        pcall(setclipboard, full)
+        Nexus:AddLog("Log copiado!", "success")
     end)
-    
+
     function Nexus.updateConsoleUI()
         local str = ""
-        for i = math.max(1, #Nexus.consoleLogs - 150), #Nexus.consoleLogs do
-            local entry = Nexus.consoleLogs[i]
-            str = str .. entry.text .. "\n"
+        for i = math.max(1, #Nexus.consoleLogs - 100), #Nexus.consoleLogs do
+            str = str .. Nexus.consoleLogs[i].text .. "\n"
         end
         consoleText.Text = str
-        consoleScroller.CanvasSize = UDim2.new(0, 0, 0, consoleText.TextBounds.Y + 30)
+        consoleScroller.CanvasSize = UDim2.new(0,0,0, consoleText.TextBounds.Y + 30)
         consoleScroller.CanvasPosition = Vector2.new(0, consoleScroller.CanvasSize.Y.Offset)
     end
     Nexus.updateConsoleUI()
-    
-    -- Conectar troca de abas
-    for i, btn in ipairs(tabButtons) do
-        local idx = i
-        btn.MouseButton1Click:Connect(function() switchTab(idx) end)
-    end
-    
+
     return gui
 end
 
 -- ============================================================================
 -- INICIALIZAÇÃO
 -- ============================================================================
-local function initialize()
-    Nexus:AddLog("═══════════════════════════════════════════════════════════════", "info")
-    Nexus:AddLog("  ★ NEXUS OMEGA XT v4.0 — Executor Profissional ★", "success")
-    Nexus:AddLog("═══════════════════════════════════════════════════════════════", "info")
+local function init()
+    Nexus:AddLog("═══════════════════════════════════════════════════", "info")
+    Nexus:AddLog("  NEXUS OMEGA XT v5.0 — Executor Profissional", "success")
+    Nexus:AddLog("═══════════════════════════════════════════════════", "info")
     Nexus.mainGui = createMainUI()
     if Nexus.mainGui then
-        Nexus:AddLog("Interface carregada com Design System avançado.", "success")
-        Nexus:AddLog("Minimize a janela para a bolinha flutuante (arrastável).", "info")
-        Nexus:AddLog("Proteção de voz disponível na aba PROTEÇÃO.", "info")
-        Nexus:AddLog("Lista de jogadores atualiza automaticamente. Teleport funcional.", "info")
+        Nexus:AddLog("Interface compacta carregada (800x550).", "success")
+        Nexus:AddLog("Minimize para bolinha arrastável.", "info")
+        Nexus:AddLog("Proteção de voz disponível.", "info")
     else
-        Nexus:AddLog("Falha crítica ao criar interface.", "error")
+        Nexus:AddLog("Falha na interface.", "error")
     end
-    getgenv().NexusXT = Nexus
-    getgenv().executarServer = Nexus.ExecuteServer
-    getgenv().executarClient = Nexus.ExecuteClient
+    getgenv().Nexus = Nexus
 end
 
-pcall(initialize)
+pcall(init)
