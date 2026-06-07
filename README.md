@@ -1,8 +1,7 @@
 --[[
-    🔥 Executor Pro – Edição Definitiva Corrigida
-    Interface simplificada e robusta, sem elementos desnecessários.
-    Tamanhos fixos, sem cálculos dinâmicos, garantia de compatibilidade.
-    Arrastável, editor com scroll nativo, console, botões de ação.
+    🔥 Executor Pro – Versão Estável e Completa
+    Interface sem bugs, editor com scroll, console, scanner de backdoors.
+    Execute scripts no cliente ou no servidor com um clique.
 --]]
 
 local Players = game:GetService("Players")
@@ -15,7 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local Lighting = game:GetService("Lighting")
 
--- Aguarda o personagem existir
+-- Aguarda o personagem existir (se já não existir)
 if not Player.Character then
     Player.CharacterAdded:Wait()
 end
@@ -33,7 +32,7 @@ local C = {
     Border = Color3.fromRGB(51, 51, 65),
 }
 
--- ==================== NOTIFICAÇÕES ====================
+-- ==================== NOTIFICAÇÕES RÁPIDAS ====================
 local function Notify(title, text, duration, color)
     duration = duration or 4
     color = color or C.Accent
@@ -80,18 +79,17 @@ gui.ResetOnSpawn = false
 local Main = Instance.new("Frame", gui)
 Main.BackgroundColor3 = C.Bg
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 600, 0, 420)
-Main.Position = UDim2.new(0.5, -300, 0.5, -210)
+Main.Size = UDim2.new(0, 600, 0, 400)   -- altura total 400
+Main.Position = UDim2.new(0.5, -300, 0.5, -200)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
 Instance.new("UIStroke", Main).Color = C.Border
 
--- ==================== BARRA DE TÍTULO (32px, sem arredondamento próprio) ====================
+-- ==================== BARRA DE TÍTULO (32px) ====================
 local TitleBar = Instance.new("Frame", Main)
 TitleBar.BackgroundColor3 = C.Surface
 TitleBar.BorderSizePixel = 0
 TitleBar.Size = UDim2.new(1, 0, 0, 32)
--- Sem UICorner; o Main com ClipsDescendants já corta as bordas
 
 local TitleText = Instance.new("TextLabel", TitleBar)
 TitleText.BackgroundTransparency = 1
@@ -103,6 +101,7 @@ TitleText.TextColor3 = C.Text
 TitleText.TextSize = 14
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 
+-- Botão Attach (Scan de backdoors)
 local AttachBtn = Instance.new("TextButton", TitleBar)
 AttachBtn.BackgroundColor3 = C.Accent
 AttachBtn.BorderSizePixel = 0
@@ -114,6 +113,7 @@ AttachBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 AttachBtn.TextSize = 11
 Instance.new("UICorner", AttachBtn).CornerRadius = UDim.new(0, 5)
 
+-- Botão Fechar
 local CloseBtn = Instance.new("TextButton", TitleBar)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
 CloseBtn.BorderSizePixel = 0
@@ -126,19 +126,19 @@ CloseBtn.TextSize = 12
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 5)
 CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Executor", "Fechado") end)
 
--- ==================== EDITOR (280px) ====================
+-- ==================== EDITOR (260px) ====================
 local Editor = Instance.new("TextBox", Main)
 Editor.BackgroundColor3 = C.Surface
 Editor.BorderSizePixel = 0
 Editor.Position = UDim2.new(0, 10, 0, 38)
-Editor.Size = UDim2.new(1, -20, 0, 280)
+Editor.Size = UDim2.new(1, -20, 0, 260)
 Editor.Font = Enum.Font.Code
 Editor.Text = "-- Cole seu script aqui\nprint('Hello, world!')"
 Editor.TextColor3 = C.Text
 Editor.TextSize = 13
 Editor.ClearTextOnFocus = false
 Editor.TextEditable = true
-Editor.TextWrapped = true   -- barra de rolagem nativa quando o texto excede a área
+Editor.TextWrapped = true   -- scroll nativo quando o texto é grande
 Editor.TextXAlignment = Enum.TextXAlignment.Left
 Editor.TextYAlignment = Enum.TextYAlignment.Top
 Editor.MaxLength = 0
@@ -148,7 +148,7 @@ Instance.new("UICorner", Editor).CornerRadius = UDim.new(0, 6)
 local Console = Instance.new("TextBox", Main)
 Console.BackgroundColor3 = C.Surface
 Console.BorderSizePixel = 0
-Console.Position = UDim2.new(0, 10, 0, 324)
+Console.Position = UDim2.new(0, 10, 0, 304)
 Console.Size = UDim2.new(1, -20, 0, 60)
 Console.Font = Enum.Font.Code
 Console.Text = "Console iniciado.\n"
@@ -166,7 +166,7 @@ local function Log(msg)
 end
 
 -- ==================== BOTÕES DE AÇÃO (26px) ====================
-local buttonY = 390
+local buttonY = 370
 local RunClientBtn = Instance.new("TextButton", Main)
 RunClientBtn.BackgroundColor3 = C.Accent
 RunClientBtn.BorderSizePixel = 0
@@ -241,6 +241,7 @@ local function scanBackdoors()
     Console.Text = ""
     Log("🔍 Escaneando backdoors...")
 
+    -- Funções globais
     local funcs = {"loadstring", "execute", "run", "eval", "exec", "RunScript", "ServerScript", "require"}
     for _, fn in ipairs(funcs) do
         if _G[fn] and type(_G[fn]) == "function" then
@@ -253,6 +254,7 @@ local function scanBackdoors()
         end
     end
 
+    -- RemoteEvents / RemoteFunctions
     local suspicious = {"Execute", "Run", "Load", "Eval", "Script", "Server", "Command", "Admin", "Backdoor", "Kick", "Fire", "Invoke", "DoScript", "RunCode", "Exec"}
     local function search(container, depth)
         if depth > 80 then return end
@@ -290,7 +292,7 @@ local function scanBackdoors()
     end
 end
 
--- ==================== EXECUÇÃO ====================
+-- ==================== EXECUÇÃO DE SCRIPTS ====================
 local function executeClient(code)
     local func, err = loadstring(code)
     if not func then
@@ -336,7 +338,7 @@ local function executeServer(code)
     return success
 end
 
--- ==================== EVENTOS ====================
+-- ==================== EVENTOS DOS BOTÕES ====================
 AttachBtn.MouseButton1Click:Connect(scanBackdoors)
 
 RunClientBtn.MouseButton1Click:Connect(function()
