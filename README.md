@@ -1,55 +1,37 @@
 --[[
-    NEXUS OMEGA - EXECUTOR SERVER-SIDE UNIVERSAL
-    Versão: 6.0 (Protocolo Anarquia)
-    Métodos: syn.server_execute, getrenv, getscriptclosure, HttpService, RemoteSpy, StudioService
+    NEXUS OMEGA V7 - Executor Server-Side + Client-Side
+    Com campo de texto SEM LIMITES (rolagem automática)
+    Interface menor, arrastável, sem cortes de script
 --]]
 
--- ========== CONSOLE DE LOG SEGURO ==========
-local consoleLines = {}
-local function log(msg, color)
+local Nexus = {}
+
+-- ========== CONSOLE ==========
+Nexus.logs = {}
+Nexus.addLog = function(msg, color)
     color = color or Color3.fromRGB(200,200,200)
     print("[Nexus] " .. msg)
-    table.insert(consoleLines, {msg = msg, color = color})
-    -- Atualizar UI se existir
+    table.insert(Nexus.logs, {msg = msg, color = color})
     pcall(function()
-        local frame = game:GetService("CoreGui"):FindFirstChild("NexusConsole")
-        if frame then
-            local text = frame.TextLabel
-            text.Text = table.concat(consoleLines, "\n")
-        end
+        if Nexus.updateConsole then Nexus.updateConsole() end
     end)
 end
 
 -- ========== MÉTODOS SERVER-SIDE ==========
-local ServerMethods = {}
-local activeMethod = nil
-
--- Método 1: Synapse X / Electron (nativo)
+local serverMethods = {}
 if syn and syn.server_execute then
-    ServerMethods.syn = function(code)
-        return syn.server_execute(code)
-    end
+    serverMethods.syn = function(code) return syn.server_execute(code) end
 end
-
--- Método 2: getrenv + exploit do ambiente do servidor
 if getrenv then
-    ServerMethods.getrenv = function(code)
+    serverMethods.getrenv = function(code)
         local env = getrenv()
-        if env and env._G then
-            -- Tenta executar no ambiente do servidor
-            local fn = loadstring(code)
-            if fn then
-                setfenv(fn, env)
-                return fn()
-            end
-        end
-        error("getrenv falhou")
+        local fn = loadstring(code)
+        if fn then setfenv(fn, env); return fn() end
+        error("loadstring falhou")
     end
 end
-
--- Método 3: getscriptclosure (substitui um script do servidor)
-if getscriptclosure and getgc then
-    ServerMethods.closure = function(code)
+if getscriptclosure then
+    serverMethods.closure = function(code)
         local scripts = {}
         for _, v in ipairs(getgc(true)) do
             if type(v) == "function" and debug.getinfo(v).source:match("Script") then
@@ -57,136 +39,85 @@ if getscriptclosure and getgc then
             end
         end
         if #scripts > 0 then
-            -- Substitui a função de um script de servidor
-            local old = scripts[1]
             local new = loadstring(code)
-            if new then
-                debug.setupvalue(old, 1, new)
-                return true
-            end
+            if new then debug.setupvalue(scripts[1], 1, new); return true end
         end
-        error("Nenhum script encontrado")
+        error("Nenhum script disponível")
     end
 end
-
--- Método 4: Criar um Script no ServerScriptService (requer que o executor possa criar scripts no servidor)
-ServerMethods.newScript = function(code)
-    local script = Instance.new("Script")
-    script.Source = code
-    script.Parent = game:GetService("ServerScriptService")
-    task.wait(0.5)
-    script:Destroy()
+serverMethods.newScript = function(code)
+    local s = Instance.new("Script")
+    s.Source = code
+    s.Parent = game:GetService("ServerScriptService")
+    task.wait(0.2)
+    s:Destroy()
     return true
 end
 
--- Método 5: Backdoor via HttpService (simula um listener local)
-ServerMethods.http = function(code)
-    local http = game:GetService("HttpService")
-    -- Tenta enviar para um servidor local (se existir) ou usa um webhook falso
-    pcall(function()
-        http:PostAsync("http://127.0.0.1:54321/exec", code)
-    end)
-    return true -- assume sucesso
-end
-
--- Método 6: Usar um RemoteEvent existente (injetar listener)
-ServerMethods.remoteSpy = function(code)
-    local replicated = game:GetService("ReplicatedStorage")
-    local remote = replicated:FindFirstChild("__NexusBackdoor")
-    if not remote then
-        remote = Instance.new("RemoteEvent")
-        remote.Name = "__NexusBackdoor"
-        remote.Parent = replicated
-        -- Cria um script que escuta no servidor (se o exploit permitir criar script)
-        local listener = Instance.new("Script")
-        listener.Source = [[
-            local event = script.Parent:WaitForChild("__NexusBackdoor")
-            event.OnServerEvent:Connect(function(plr, code)
-                local fn = loadstring(code)
-                if fn then pcall(fn) end
-            end)
-        ]]
-        listener.Parent = game:GetService("ServerScriptService")
-    end
-    remote:FireServer(code)
-    return true
-end
-
--- Função principal de execução
-function ExecuteServerSide(code)
+function Nexus.executeServer(code)
     if not code or code:gsub("%s","") == "" then
-        log("Código vazio", Color3.fromRGB(255,100,100))
+        Nexus.addLog("Código vazio", Color3.fromRGB(255,100,100))
         return false
     end
-    
-    -- Lista de métodos a tentar
-    local methods = {"syn", "getrenv", "closure", "newScript", "http", "remoteSpy"}
-    
-    for _, method in ipairs(methods) do
-        if ServerMethods[method] then
-            local success, err = pcall(function()
-                return ServerMethods[method](code)
-            end)
-            if success then
-                activeMethod = method
-                log("✓ Server-side executado via: " .. method, Color3.fromRGB(0,255,0))
-                return true
-            else
-                log("✗ Método " .. method .. " falhou: " .. tostring(err), Color3.fromRGB(255,150,0))
-            end
+    for name, method in pairs(serverMethods) do
+        local ok, err = pcall(method, code)
+        if ok then
+            Nexus.addLog("✓ Server-side executado via " .. name, Color3.fromRGB(0,255,0))
+            return true
+        else
+            Nexus.addLog("✗ " .. name .. " falhou: " .. tostring(err), Color3.fromRGB(255,150,0))
         end
     end
-    
-    log("❌ Nenhum método server-side funcionou. Seu executor não tem suporte a server-side.", Color3.fromRGB(255,50,50))
+    Nexus.addLog("❌ Nenhum método server-side disponível", Color3.fromRGB(255,50,50))
     return false
 end
 
--- ========== CLIENT-SIDE NORMAL ==========
-function ExecuteClientSide(code)
+function Nexus.executeClient(code)
     local fn, err = loadstring(code)
     if fn then
         pcall(fn)
-        log("✓ Cliente executado", Color3.fromRGB(0,255,0))
+        Nexus.addLog("✓ Client-side executado", Color3.fromRGB(0,255,0))
     else
-        log("Erro cliente: " .. tostring(err), Color3.fromRGB(255,100,100))
+        Nexus.addLog("Erro client: " .. tostring(err), Color3.fromRGB(255,100,100))
     end
 end
 
--- ========== INTERFACE SIMPLES E EFICAZ ==========
+-- ========== INTERFACE (com campo de texto INFINITO) ==========
 local gui = Instance.new("ScreenGui")
-gui.Name = "NexusOmegaV6"
+gui.Name = "NexusOmegaV7"
 gui.ResetOnSpawn = false
 pcall(function() gui.Parent = game:GetService("CoreGui") end)
 if not gui.Parent then
     gui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 end
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 550, 0, 400)
-frame.Position = UDim2.new(0.5, -275, 0.5, -200)
-frame.BackgroundColor3 = Color3.fromRGB(20,20,25)
-frame.BorderSizePixel = 0
-frame.Parent = gui
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
-corner.Parent = frame
+-- Janela principal
+local window = Instance.new("Frame")
+window.Size = UDim2.new(0, 580, 0, 420)
+window.Position = UDim2.new(0.5, -290, 0.5, -210)
+window.BackgroundColor3 = Color3.fromRGB(18,18,24)
+window.BorderSizePixel = 0
+window.Parent = gui
+local winCorner = Instance.new("UICorner")
+winCorner.CornerRadius = UDim.new(0, 8)
+winCorner.Parent = window
 
 -- Barra título
-local title = Instance.new("Frame")
-title.Size = UDim2.new(1,0,0,30)
-title.BackgroundColor3 = Color3.fromRGB(30,30,38)
-title.Parent = frame
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1,0,0,30)
+titleBar.BackgroundColor3 = Color3.fromRGB(28,28,36)
+titleBar.Parent = window
 local titleCorner = Instance.new("UICorner")
 titleCorner.CornerRadius = UDim.new(0, 8)
-titleCorner.Parent = title
+titleCorner.Parent = titleBar
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1,0,1,0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "NEXUS OMEGA | SERVER-SIDE (V6)"
+titleLabel.Text = "NEXUS OMEGA V7 | SS+CLIENT (sem limites de texto)"
 titleLabel.TextColor3 = Color3.fromRGB(0,180,255)
 titleLabel.Font = Enum.Font.GothamBold
-titleLabel.TextSize = 14
-titleLabel.Parent = title
+titleLabel.TextSize = 13
+titleLabel.Parent = titleBar
 
 -- Fechar
 local close = Instance.new("TextButton")
@@ -195,36 +126,48 @@ close.Position = UDim2.new(1,-30,0,0)
 close.BackgroundTransparency = 1
 close.Text = "✕"
 close.TextColor3 = Color3.fromRGB(200,200,200)
-close.TextSize = 16
-close.Parent = title
+close.Parent = titleBar
 close.MouseButton1Click:Connect(function() gui:Destroy() end)
 
+-- Minimizar
+local mini = Instance.new("TextButton")
+mini.Size = UDim2.new(0,30,1,0)
+mini.Position = UDim2.new(1,-60,0,0)
+mini.BackgroundTransparency = 1
+mini.Text = "─"
+mini.TextColor3 = Color3.fromRGB(200,200,200)
+mini.Parent = titleBar
+local minimized = false
+mini.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    window.Size = minimized and UDim2.new(0, 580, 0, 30) or UDim2.new(0, 580, 0, 420)
+end)
+
 -- Arrastar
-local drag = false
-local dragStart, startPos
-title.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        drag = true
-        dragStart = input.Position
-        startPos = frame.Position
+local dragStart, startPos, dragging = nil, nil, false
+titleBar.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = inp.Position
+        startPos = window.Position
     end
 end)
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-    if drag and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+game:GetService("UserInputService").InputChanged:Connect(function(inp)
+    if dragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = inp.Position - dragStart
+        window.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
-game:GetService("UserInputService").InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end
+game:GetService("UserInputService").InputEnded:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
 end)
 
 -- Abas
 local tabBar = Instance.new("Frame")
 tabBar.Size = UDim2.new(1,0,0,35)
 tabBar.Position = UDim2.new(0,0,0,30)
-tabBar.BackgroundColor3 = Color3.fromRGB(25,25,30)
-tabBar.Parent = frame
+tabBar.BackgroundColor3 = Color3.fromRGB(25,25,32)
+tabBar.Parent = window
 
 local ssBtn = Instance.new("TextButton")
 ssBtn.Size = UDim2.new(0,110,1,0)
@@ -246,50 +189,75 @@ csBtn.Font = Enum.Font.Gotham
 csBtn.TextSize = 13
 csBtn.Parent = tabBar
 
-local logBtn = Instance.new("TextButton")
-logBtn.Size = UDim2.new(0,110,1,0)
-logBtn.Position = UDim2.new(0,230,0,0)
-logBtn.BackgroundTransparency = 1
-logBtn.Text = "CONSOLE"
-logBtn.TextColor3 = Color3.fromRGB(150,150,150)
-logBtn.Font = Enum.Font.Gotham
-logBtn.TextSize = 13
-logBtn.Parent = tabBar
+local consoleBtn = Instance.new("TextButton")
+consoleBtn.Size = UDim2.new(0,110,1,0)
+consoleBtn.Position = UDim2.new(0,230,0,0)
+consoleBtn.BackgroundTransparency = 1
+consoleBtn.Text = "CONSOLE"
+consoleBtn.TextColor3 = Color3.fromRGB(150,150,150)
+consoleBtn.Font = Enum.Font.Gotham
+consoleBtn.TextSize = 13
+consoleBtn.Parent = tabBar
 
 local content = Instance.new("Frame")
 content.Size = UDim2.new(1,0,1,-65)
 content.Position = UDim2.new(0,0,0,65)
 content.BackgroundTransparency = 1
-content.Parent = frame
+content.Parent = window
 
--- ========== ABA SERVER ==========
+-- ========== ABA SERVER-SIDE (TEXTO SEM LIMITES) ==========
 local ssFrame = Instance.new("Frame")
 ssFrame.Size = UDim2.new(1,0,1,0)
 ssFrame.BackgroundTransparency = 1
 ssFrame.Visible = true
 ssFrame.Parent = content
 
-local ssBox = Instance.new("TextBox")
-ssBox.Size = UDim2.new(1,-20,1,-60)
-ssBox.Position = UDim2.new(0,10,0,10)
-ssBox.BackgroundColor3 = Color3.fromRGB(15,15,20)
-ssBox.TextColor3 = Color3.fromRGB(240,240,240)
-ssBox.TextXAlignment = Enum.TextXAlignment.Left
-ssBox.TextYAlignment = Enum.TextYAlignment.Top
-ssBox.TextWrapped = true
-ssBox.TextSize = 12
-ssBox.Font = Enum.Font.Code
-ssBox.MultiLine = true
-ssBox.ClearTextOnFocus = false
-ssBox.Text = "-- Script server-side (será executado no servidor)\nexample: print(\"Server says hi\")"
-ssBox.Parent = ssFrame
-local ssCorner = Instance.new("UICorner")
-ssCorner.CornerRadius = UDim.new(0,6)
-ssCorner.Parent = ssBox
+-- ScrollingFrame para o TextBox (rolagem infinita)
+local ssScroller = Instance.new("ScrollingFrame")
+ssScroller.Size = UDim2.new(1, -20, 1, -70)
+ssScroller.Position = UDim2.new(0, 10, 0, 10)
+ssScroller.BackgroundColor3 = Color3.fromRGB(15,15,22)
+ssScroller.BorderSizePixel = 0
+ssScroller.ScrollBarThickness = 8
+ssScroller.CanvasSize = UDim2.new(0, 0, 0, 0)
+ssScroller.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ssScroller.Parent = ssFrame
+local scrollerCorner = Instance.new("UICorner")
+scrollerCorner.CornerRadius = UDim.new(0, 6)
+scrollerCorner.Parent = ssScroller
 
+-- TextBox que cresce automaticamente (sem limites de caracteres)
+local ssTextBox = Instance.new("TextBox")
+ssTextBox.Size = UDim2.new(1, -20, 0, 400) -- altura inicial grande
+ssTextBox.Position = UDim2.new(0, 10, 0, 5)
+ssTextBox.BackgroundTransparency = 1
+ssTextBox.TextColor3 = Color3.fromRGB(240,240,240)
+ssTextBox.TextXAlignment = Enum.TextXAlignment.Left
+ssTextBox.TextYAlignment = Enum.TextYAlignment.Top
+ssTextBox.TextWrapped = true
+ssTextBox.TextSize = 12
+ssTextBox.Font = Enum.Font.Code
+ssTextBox.ClearTextOnFocus = false
+ssTextBox.MultiLine = true
+ssTextBox.Text = '-- Cole scripts server-side aqui (sem limite de caracteres)\n-- Exemplo: print("Hello Server")'
+ssTextBox.Parent = ssScroller
+
+-- Função que ajusta a altura do TextBox e do Canvas
+local function ajustarAltura()
+    local textBounds = ssTextBox.TextBounds
+    local newHeight = math.max(400, textBounds.Y + 30) -- mínimo 400, expande conforme texto
+    ssTextBox.Size = UDim2.new(1, -20, 0, newHeight)
+    ssScroller.CanvasSize = UDim2.new(0, 0, 0, newHeight + 20)
+    ssScroller.CanvasPosition = Vector2.new(0, ssScroller.CanvasSize.Y.Offset) -- rola para o fim
+end
+ssTextBox:GetPropertyChangedSignal("TextBounds"):Connect(ajustarAltura)
+ssTextBox:GetPropertyChangedSignal("Text"):Connect(ajustarAltura)
+task.defer(ajustarAltura)
+
+-- Botões
 local execSS = Instance.new("TextButton")
-execSS.Size = UDim2.new(0,120,0,32)
-execSS.Position = UDim2.new(1,-130,1,-40)
+execSS.Size = UDim2.new(0, 120, 0, 34)
+execSS.Position = UDim2.new(1, -130, 1, -44)
 execSS.BackgroundColor3 = Color3.fromRGB(0,200,80)
 execSS.Text = "EXECUTAR (SS)"
 execSS.TextColor3 = Color3.fromRGB(255,255,255)
@@ -297,12 +265,12 @@ execSS.Font = Enum.Font.GothamBold
 execSS.TextSize = 13
 execSS.Parent = ssFrame
 local execCorner = Instance.new("UICorner")
-execCorner.CornerRadius = UDim.new(0,6)
+execCorner.CornerRadius = UDim.new(0, 6)
 execCorner.Parent = execSS
 
 local clearSS = Instance.new("TextButton")
-clearSS.Size = UDim2.new(0,80,0,32)
-clearSS.Position = UDim2.new(1,-220,1,-40)
+clearSS.Size = UDim2.new(0, 80, 0, 34)
+clearSS.Position = UDim2.new(1, -220, 1, -44)
 clearSS.BackgroundColor3 = Color3.fromRGB(220,50,50)
 clearSS.Text = "LIMPAR"
 clearSS.TextColor3 = Color3.fromRGB(255,255,255)
@@ -310,38 +278,57 @@ clearSS.Font = Enum.Font.GothamBold
 clearSS.TextSize = 13
 clearSS.Parent = ssFrame
 local clearCorner = Instance.new("UICorner")
-clearCorner.CornerRadius = UDim.new(0,6)
+clearCorner.CornerRadius = UDim.new(0, 6)
 clearCorner.Parent = clearSS
-clearSS.MouseButton1Click:Connect(function() ssBox.Text = "" end)
+clearSS.MouseButton1Click:Connect(function() ssTextBox.Text = ""; ajustarAltura() end)
 
--- ========== ABA CLIENTE ==========
+-- ========== ABA CLIENT-SIDE (também sem limites) ==========
 local csFrame = Instance.new("Frame")
 csFrame.Size = UDim2.new(1,0,1,0)
 csFrame.BackgroundTransparency = 1
 csFrame.Visible = false
 csFrame.Parent = content
 
-local csBox = Instance.new("TextBox")
-csBox.Size = UDim2.new(1,-20,1,-60)
-csBox.Position = UDim2.new(0,10,0,10)
-csBox.BackgroundColor3 = Color3.fromRGB(15,15,20)
-csBox.TextColor3 = Color3.fromRGB(240,240,240)
-csBox.TextXAlignment = Enum.TextXAlignment.Left
-csBox.TextYAlignment = Enum.TextYAlignment.Top
-csBox.TextWrapped = true
-csBox.TextSize = 12
-csBox.Font = Enum.Font.Code
-csBox.MultiLine = true
-csBox.ClearTextOnFocus = false
-csBox.Text = '-- Script client-side\nlocal plr = game.Players.LocalPlayer\nplr.Character.Humanoid.Health = 0  -- se mataria'
-csBox.Parent = csFrame
-local csCorner = Instance.new("UICorner")
-csCorner.CornerRadius = UDim.new(0,6)
-csCorner.Parent = csBox
+local csScroller = Instance.new("ScrollingFrame")
+csScroller.Size = UDim2.new(1, -20, 1, -70)
+csScroller.Position = UDim2.new(0, 10, 0, 10)
+csScroller.BackgroundColor3 = Color3.fromRGB(15,15,22)
+csScroller.BorderSizePixel = 0
+csScroller.ScrollBarThickness = 8
+csScroller.CanvasSize = UDim2.new(0, 0, 0, 0)
+csScroller.AutomaticCanvasSize = Enum.AutomaticSize.Y
+csScroller.Parent = csFrame
+local csScrollerCorner = Instance.new("UICorner")
+csScrollerCorner.CornerRadius = UDim.new(0, 6)
+csScrollerCorner.Parent = csScroller
+
+local csTextBox = Instance.new("TextBox")
+csTextBox.Size = UDim2.new(1, -20, 0, 400)
+csTextBox.Position = UDim2.new(0, 10, 0, 5)
+csTextBox.BackgroundTransparency = 1
+csTextBox.TextColor3 = Color3.fromRGB(240,240,240)
+csTextBox.TextXAlignment = Enum.TextXAlignment.Left
+csTextBox.TextYAlignment = Enum.TextYAlignment.Top
+csTextBox.TextWrapped = true
+csTextBox.TextSize = 12
+csTextBox.Font = Enum.Font.Code
+csTextBox.ClearTextOnFocus = false
+csTextBox.MultiLine = true
+csTextBox.Text = '-- Cole scripts client-side aqui\n-- Exemplo: game.Players.LocalPlayer.Character.Humanoid.Health = 0'
+csTextBox.Parent = csScroller
+
+local function ajustarAlturaCS()
+    local h = math.max(400, csTextBox.TextBounds.Y + 30)
+    csTextBox.Size = UDim2.new(1, -20, 0, h)
+    csScroller.CanvasSize = UDim2.new(0, 0, 0, h + 20)
+end
+csTextBox:GetPropertyChangedSignal("TextBounds"):Connect(ajustarAlturaCS)
+csTextBox:GetPropertyChangedSignal("Text"):Connect(ajustarAlturaCS)
+task.defer(ajustarAlturaCS)
 
 local execCS = Instance.new("TextButton")
-execCS.Size = UDim2.new(0,120,0,32)
-execCS.Position = UDim2.new(1,-130,1,-40)
+execCS.Size = UDim2.new(0, 120, 0, 34)
+execCS.Position = UDim2.new(1, -130, 1, -44)
 execCS.BackgroundColor3 = Color3.fromRGB(0,150,220)
 execCS.Text = "EXECUTAR (CS)"
 execCS.TextColor3 = Color3.fromRGB(255,255,255)
@@ -349,12 +336,12 @@ execCS.Font = Enum.Font.GothamBold
 execCS.TextSize = 13
 execCS.Parent = csFrame
 local execCSCorner = Instance.new("UICorner")
-execCSCorner.CornerRadius = UDim.new(0,6)
+execCSCorner.CornerRadius = UDim.new(0, 6)
 execCSCorner.Parent = execCS
 
 local clearCS = Instance.new("TextButton")
-clearCS.Size = UDim2.new(0,80,0,32)
-clearCS.Position = UDim2.new(1,-220,1,-40)
+clearCS.Size = UDim2.new(0, 80, 0, 34)
+clearCS.Position = UDim2.new(1, -220, 1, -44)
 clearCS.BackgroundColor3 = Color3.fromRGB(220,50,50)
 clearCS.Text = "LIMPAR"
 clearCS.TextColor3 = Color3.fromRGB(255,255,255)
@@ -362,132 +349,86 @@ clearCS.Font = Enum.Font.GothamBold
 clearCS.TextSize = 13
 clearCS.Parent = csFrame
 local clearCSCorner = Instance.new("UICorner")
-clearCSCorner.CornerRadius = UDim.new(0,6)
+clearCSCorner.CornerRadius = UDim.new(0, 6)
 clearCSCorner.Parent = clearCS
-clearCS.MouseButton1Click:Connect(function() csBox.Text = "" end)
+clearCS.MouseButton1Click:Connect(function() csTextBox.Text = ""; ajustarAlturaCS() end)
 
 -- ========== CONSOLE ==========
-local logFrame = Instance.new("ScrollingFrame")
-logFrame.Size = UDim2.new(1,-20,1,-20)
-logFrame.Position = UDim2.new(0,10,0,10)
-logFrame.BackgroundColor3 = Color3.fromRGB(10,10,15)
-logFrame.BorderSizePixel = 0
-logFrame.ScrollBarThickness = 6
-logFrame.Visible = false
-logFrame.Parent = content
-local logCorner = Instance.new("UICorner")
-logCorner.CornerRadius = UDim.new(0,8)
-logCorner.Parent = logFrame
+local consoleFrame = Instance.new("ScrollingFrame")
+consoleFrame.Size = UDim2.new(1, -20, 1, -20)
+consoleFrame.Position = UDim2.new(0, 10, 0, 10)
+consoleFrame.BackgroundColor3 = Color3.fromRGB(8,8,14)
+consoleFrame.BorderSizePixel = 0
+consoleFrame.ScrollBarThickness = 8
+consoleFrame.Visible = false
+consoleFrame.Parent = content
+local consoleCorner = Instance.new("UICorner")
+consoleCorner.CornerRadius = UDim.new(0, 8)
+consoleCorner.Parent = consoleFrame
 
-local logText = Instance.new("TextLabel")
-logText.Size = UDim2.new(1,-10,1,-10)
-logText.Position = UDim2.new(0,5,0,5)
-logText.BackgroundTransparency = 1
-logText.Text = ""
-logText.TextColor3 = Color3.fromRGB(200,200,200)
-logText.TextXAlignment = Enum.TextXAlignment.Left
-logText.TextYAlignment = Enum.TextYAlignment.Top
-logText.TextWrapped = true
-logText.TextSize = 11
-logText.Font = Enum.Font.Code
-logText.Parent = logFrame
+local consoleText = Instance.new("TextLabel")
+consoleText.Size = UDim2.new(1, -10, 1, -10)
+consoleText.Position = UDim2.new(0, 5, 0, 5)
+consoleText.BackgroundTransparency = 1
+consoleText.Text = ""
+consoleText.TextColor3 = Color3.fromRGB(200,200,200)
+consoleText.TextXAlignment = Enum.TextXAlignment.Left
+consoleText.TextYAlignment = Enum.TextYAlignment.Top
+consoleText.TextWrapped = true
+consoleText.TextSize = 11
+consoleText.Font = Enum.Font.Code
+consoleText.Parent = consoleFrame
 
-function updateConsole()
+function Nexus.updateConsole()
     local str = ""
-    for i = math.max(1, #consoleLines - 30), #consoleLines do
-        str = str .. consoleLines[i].msg .. "\n"
+    for i = math.max(1, #Nexus.logs - 40), #Nexus.logs do
+        str = str .. Nexus.logs[i].msg .. "\n"
     end
-    logText.Text = str
-    logFrame.CanvasSize = UDim2.new(0,0,0, logText.TextBounds.Y + 20)
-    logFrame.CanvasPosition = Vector2.new(0, logFrame.CanvasSize.Y.Offset)
+    consoleText.Text = str
+    consoleFrame.CanvasSize = UDim2.new(0,0,0, consoleText.TextBounds.Y + 20)
+    consoleFrame.CanvasPosition = Vector2.new(0, consoleFrame.CanvasSize.Y.Offset)
 end
 
--- Sobrescrever log para atualizar UI
-local oldLog = log
-log = function(msg, color)
-    oldLog(msg, color)
-    updateConsole()
-end
-
--- ========== CONECTAR BOTÕES ==========
-execSS.MouseButton1Click:Connect(function()
-    local code = ssBox.Text
-    log(">>> Executando server-side...", Color3.fromRGB(255,255,100))
-    ExecuteServerSide(code)
+local clearConsoleBtn = Instance.new("TextButton")
+clearConsoleBtn.Size = UDim2.new(0, 70, 0, 26)
+clearConsoleBtn.Position = UDim2.new(1, -80, 0, 10)
+clearConsoleBtn.BackgroundColor3 = Color3.fromRGB(220,50,50)
+clearConsoleBtn.Text = "LIMPAR"
+clearConsoleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+clearConsoleBtn.Font = Enum.Font.Gotham
+clearConsoleBtn.TextSize = 11
+clearConsoleBtn.Parent = consoleFrame
+clearConsoleBtn.MouseButton1Click:Connect(function()
+    Nexus.logs = {}
+    Nexus.updateConsole()
+    Nexus.addLog("Console limpo", Color3.fromRGB(255,255,100))
 end)
 
-execCS.MouseButton1Click:Connect(function()
-    local code = csBox.Text
-    log(">>> Executando client-side...", Color3.fromRGB(255,255,100))
-    ExecuteClientSide(code)
-end)
-
--- Troca de abas
-function switchTab(tab)
+-- ========== TROCA DE ABAS ==========
+local function switchTab(tab)
     ssFrame.Visible = (tab == "ss")
     csFrame.Visible = (tab == "cs")
-    logFrame.Visible = (tab == "log")
+    consoleFrame.Visible = (tab == "console")
     ssBtn.TextColor3 = (tab == "ss") and Color3.fromRGB(0,180,255) or Color3.fromRGB(150,150,150)
     csBtn.TextColor3 = (tab == "cs") and Color3.fromRGB(0,180,255) or Color3.fromRGB(150,150,150)
-    logBtn.TextColor3 = (tab == "log") and Color3.fromRGB(0,180,255) or Color3.fromRGB(150,150,150)
+    consoleBtn.TextColor3 = (tab == "console") and Color3.fromRGB(0,180,255) or Color3.fromRGB(150,150,150)
 end
 ssBtn.MouseButton1Click:Connect(function() switchTab("ss") end)
 csBtn.MouseButton1Click:Connect(function() switchTab("cs") end)
-logBtn.MouseButton1Click:Connect(function() switchTab("log") end)
+consoleBtn.MouseButton1Click:Connect(function() switchTab("console") end)
 
--- ========== SCRIPT DE TESTE INTEGRADO (CLIQUE NO BOTÃO "TESTE") ==========
-local testBtn = Instance.new("TextButton")
-testBtn.Size = UDim2.new(0,80,0,32)
-testBtn.Position = UDim2.new(0,10,1,-40)
-testBtn.BackgroundColor3 = Color3.fromRGB(100,100,200)
-testBtn.Text = "TESTE SS"
-testBtn.TextColor3 = Color3.fromRGB(255,255,255)
-testBtn.Font = Enum.Font.GothamBold
-testBtn.TextSize = 12
-testBtn.Parent = ssFrame
-local testCorner = Instance.new("UICorner")
-testCorner.CornerRadius = UDim.new(0,6)
-testCorner.Parent = testBtn
-
-testBtn.MouseButton1Click:Connect(function()
-    local testCode = [[
-        -- Cria uma parte brilhante no centro do mapa que TODOS os jogadores veem
-        local part = Instance.new("Part")
-        part.Name = "NexusServerTest"
-        part.Size = Vector3.new(15, 2, 15)
-        part.BrickColor = BrickColor.new("Bright red")
-        part.Material = Enum.Material.Neon
-        part.Anchored = true
-        part.CanCollide = false
-        part.Position = Vector3.new(0, 5, 0)
-        part.Parent = workspace
-        
-        -- Adiciona um texto flutuante
-        local billboard = Instance.new("BillboardGui")
-        billboard.AlwaysOnTop = true
-        billboard.Size = UDim2.new(0, 200, 0, 50)
-        billboard.Parent = part
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1,0,1,0)
-        label.BackgroundTransparency = 1
-        label.Text = "✓ SERVER-SIDE ATIVO!"
-        label.TextColor3 = Color3.fromRGB(255,255,0)
-        label.TextScaled = true
-        label.Font = Enum.Font.GothamBold
-        label.Parent = billboard
-        
-        -- Log no console do servidor (se disponível)
-        print("=== TESTE SERVER-SIDE: PARTE CRIADA NO SERVIDOR ===")
-        
-        -- Remove após 10 segundos
-        task.wait(10)
-        part:Destroy()
-    ]]
-    ssBox.Text = testCode
-    log("Script de teste server-side carregado. Clique em EXECUTAR (SS) para ver a parte vermelha.", Color3.fromRGB(100,200,255))
+-- Conectar execução
+execSS.MouseButton1Click:Connect(function()
+    Nexus.executeServer(ssTextBox.Text)
+end)
+execCS.MouseButton1Click:Connect(function()
+    Nexus.executeClient(csTextBox.Text)
 end)
 
--- Mensagem inicial
-log("Nexus Omega V6 carregado.", Color3.fromRGB(0,255,0))
-log("Modo server-side tentará 6 métodos diferentes.", Color3.fromRGB(200,200,200))
-log("Clique em TESTE SS e depois EXECUTAR (SS) para validar.", Color3.fromRGB(255,200,0))
+-- Inicialização
+Nexus.addLog("Nexus Omega V7 carregado.", Color3.fromRGB(0,255,0))
+Nexus.addLog("Campo de texto agora suporta scripts de qualquer tamanho (rolagem automática).", Color3.fromRGB(100,200,255))
+Nexus.addLog("Teste server-side: cole o script da tag ou qualquer outro e execute.", Color3.fromRGB(200,200,200))
+
+-- Expor funções globais
+getgenv().Nexus = Nexus
