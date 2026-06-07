@@ -1,7 +1,8 @@
 --[[
-    🔥 Executor Pro – Interface limpa e funcional
-    Editor sem limites de texto, console visível, botões alinhados.
-    Arrastável, com Attach/Scan, execução Client e Server.
+    🔥 Executor Pro – Versão Estável e Definitiva
+    Interface limpa, sem bugs. Editor com scroll nativo.
+    Console, botões de ação, scanner de backdoors.
+    Arrastável e com botão de fechar.
 --]]
 
 local Players = game:GetService("Players")
@@ -13,7 +14,6 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local Lighting = game:GetService("Lighting")
-local TextService = game:GetService("TextService")
 
 -- Aguarda personagem
 if not Player.Character then Player.CharacterAdded:Wait() end
@@ -71,7 +71,7 @@ end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui", CoreGui)
-gui.Name = "ExecutorPro"
+gui.Name = "ExecutorProStable"
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
 
@@ -125,53 +125,39 @@ CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255); CloseBtn.TextSize = 12
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 5)
 CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Executor", "Fechado") end)
 
--- ==================== EDITOR COM SCROLL ILIMITADO ====================
-local EditorScroll = Instance.new("ScrollingFrame", Main)
-EditorScroll.BackgroundTransparency = 1; EditorScroll.BorderSizePixel = 0
-EditorScroll.Position = UDim2.new(0, 10, 0, 42)
-EditorScroll.Size = UDim2.new(1, -20, 0, 310)
-EditorScroll.ScrollBarThickness = 3
-EditorScroll.ScrollBarImageColor3 = C.Accent
-EditorScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-
-local Editor = Instance.new("TextBox", EditorScroll)
+-- ==================== EDITOR (TEXTBOX COM SCROLL NATIVO) ====================
+local Editor = Instance.new("TextBox", Main)
 Editor.BackgroundColor3 = C.Surface
 Editor.BorderSizePixel = 0
-Editor.Position = UDim2.new(0, 0, 0, 0)
-Editor.Size = UDim2.new(1, -4, 0, 0)
+Editor.Position = UDim2.new(0, 10, 0, 42)
+Editor.Size = UDim2.new(1, -20, 0, 300)
 Editor.Font = Enum.Font.Code
 Editor.Text = "-- Cole seu script aqui\nprint('Hello, world!')"
 Editor.TextColor3 = C.Text
 Editor.TextSize = 13
 Editor.ClearTextOnFocus = false
 Editor.TextEditable = true
-Editor.TextWrapped = false
+Editor.TextWrapped = false  -- permite scroll horizontal também
 Editor.TextXAlignment = Enum.TextXAlignment.Left
 Editor.TextYAlignment = Enum.TextYAlignment.Top
 Editor.MaxLength = 0  -- sem limite
 Instance.new("UICorner", Editor).CornerRadius = UDim.new(0, 6)
 
-local function updateEditorCanvas()
-    local text = Editor.Text
-    if text == "" then text = " " end
-    local textSize = TextService:GetTextSize(text, Editor.TextSize, Editor.Font, Vector2.new(Editor.AbsoluteSize.X - 8, math.huge))
-    local neededHeight = math.max(textSize.Y + 20, EditorScroll.AbsoluteSize.Y)
-    Editor.Size = UDim2.new(1, -4, 0, neededHeight)
-    EditorScroll.CanvasSize = UDim2.new(0, 0, 0, neededHeight)
-end
-Editor:GetPropertyChangedSignal("Text"):Connect(updateEditorCanvas)
-Editor:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateEditorCanvas)
-Editor.AncestryChanged:Connect(function() if Editor.Parent then updateEditorCanvas() end end)
-updateEditorCanvas()
-
 -- ==================== CONSOLE ====================
 local Console = Instance.new("TextBox", Main)
-Console.BackgroundColor3 = C.Surface; Console.BorderSizePixel = 0
-Console.Position = UDim2.new(0, 10, 0, 360); Console.Size = UDim2.new(1, -20, 0, 70)
-Console.Font = Enum.Font.Code; Console.Text = "Console iniciado.\n"
-Console.TextColor3 = C.Text2; Console.TextSize = 11
-Console.ClearTextOnFocus = false; Console.TextEditable = false
-Console.TextWrapped = true; Console.TextXAlignment = Enum.TextXAlignment.Left; Console.TextYAlignment = Enum.TextYAlignment.Top
+Console.BackgroundColor3 = C.Surface
+Console.BorderSizePixel = 0
+Console.Position = UDim2.new(0, 10, 0, 352)
+Console.Size = UDim2.new(1, -20, 0, 70)
+Console.Font = Enum.Font.Code
+Console.Text = "Console iniciado.\n"
+Console.TextColor3 = C.Text2
+Console.TextSize = 11
+Console.ClearTextOnFocus = false
+Console.TextEditable = false
+Console.TextWrapped = true
+Console.TextXAlignment = Enum.TextXAlignment.Left
+Console.TextYAlignment = Enum.TextYAlignment.Top
 Instance.new("UICorner", Console).CornerRadius = UDim.new(0, 6)
 
 local function Log(msg)
@@ -226,6 +212,7 @@ local backdoors = {}
 
 local function scanBackdoors()
     backdoors = {}
+    Console.Text = ""
     Log("🔍 Escaneando backdoors...")
 
     local funcs = {"loadstring", "execute", "run", "eval", "exec", "RunScript", "ServerScript", "require"}
@@ -352,7 +339,6 @@ end)
 
 ClearBtn.MouseButton1Click:Connect(function()
     Editor.Text = ""
-    updateEditorCanvas()
     Log("🧹 Editor limpo.")
 end)
 
@@ -370,7 +356,6 @@ OpenBtn.MouseButton1Click:Connect(function()
     local success, content = pcall(function() return readfile("script.txt") end)
     if success and content then
         Editor.Text = content
-        updateEditorCanvas()
         Notify("Aberto", "Arquivo script.txt carregado.", 2, C.Green)
     else
         Notify("Erro", "Arquivo não encontrado.", 3, C.Red)
@@ -407,4 +392,4 @@ end)
 
 -- ==================== INICIALIZAÇÃO ====================
 scanBackdoors()
-Notify("Executor Pro", "Interface carregada! Cole seu script e execute.", 5)
+Notify("Executor Pro", "Pronto. Cole seu script e execute.", 5)
