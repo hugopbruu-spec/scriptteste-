@@ -1,8 +1,12 @@
 --[[
-    🔥 Executor Pro – Versão Completa e Estável
-    Interface profissional, editor com scroll, console, scanner de backdoors.
-    Execute scripts no cliente e no servidor com um clique.
-    Arrastável, com botão de fechar. SEM redimensionamentos que bugam.
+    🔥 Executor Pro – Interface Limpa e Funcional
+    ✅ Editor com scroll nativo
+    ✅ Console integrado
+    ✅ Botões: Client, Server, Limpar, Copiar, Salvar, Abrir
+    ✅ Scanner de backdoors (Attach)
+    ✅ Arrastável e com botão de fechar
+    ✅ Notificações estilizadas
+    ✅ Tamanhos fixos, sem redimensionamentos quebrados
 --]]
 
 local Players = game:GetService("Players")
@@ -15,10 +19,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local Lighting = game:GetService("Lighting")
 
--- Aguarda personagem
-if not Player.Character then Player.CharacterAdded:Wait() end
+-- Aguarda o personagem existir (se já não existir)
+if not Player.Character then
+    Player.CharacterAdded:Wait()
+end
 
--- ==================== CORES ====================
+-- ==================== TEMAS ====================
 local C = {
     Bg = Color3.fromRGB(22, 22, 33),
     Surface = Color3.fromRGB(30, 30, 44),
@@ -78,13 +84,13 @@ gui.ResetOnSpawn = false
 local Main = Instance.new("Frame", gui)
 Main.BackgroundColor3 = C.Bg
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 600, 0, 440)   -- altura total 440
-Main.Position = UDim2.new(0.5, -300, 0.5, -220)
+Main.Size = UDim2.new(0, 600, 0, 460)   -- 600x460
+Main.Position = UDim2.new(0.5, -300, 0.5, -230)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
 Instance.new("UIStroke", Main).Color = C.Border
 
--- ==================== BARRA DE TÍTULO (32px) ====================
+-- ==================== BARRA DE TÍTULO ====================
 local TitleBar = Instance.new("Frame", Main)
 TitleBar.BackgroundColor3 = C.Surface
 TitleBar.BorderSizePixel = 0
@@ -123,7 +129,7 @@ CloseBtn.TextSize = 12
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 5)
 CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Executor", "Fechado") end)
 
--- ==================== EDITOR (280px, com scroll nativo) ====================
+-- ==================== EDITOR (280px) ====================
 local Editor = Instance.new("TextBox", Main)
 Editor.BackgroundColor3 = C.Surface
 Editor.BorderSizePixel = 0
@@ -135,18 +141,18 @@ Editor.TextColor3 = C.Text
 Editor.TextSize = 13
 Editor.ClearTextOnFocus = false
 Editor.TextEditable = true
-Editor.TextWrapped = true   -- SCROLL NATIVO
+Editor.TextWrapped = true   -- ativa scroll nativo
 Editor.TextXAlignment = Enum.TextXAlignment.Left
 Editor.TextYAlignment = Enum.TextYAlignment.Top
-Editor.MaxLength = 0         -- sem limite de caracteres
+Editor.MaxLength = 0
 Instance.new("UICorner", Editor).CornerRadius = UDim.new(0, 6)
 
--- ==================== CONSOLE (70px) ====================
+-- ==================== CONSOLE (80px) ====================
 local Console = Instance.new("TextBox", Main)
 Console.BackgroundColor3 = C.Surface
 Console.BorderSizePixel = 0
 Console.Position = UDim2.new(0, 10, 0, 324)
-Console.Size = UDim2.new(1, -20, 0, 70)
+Console.Size = UDim2.new(1, -20, 0, 80)
 Console.Font = Enum.Font.Code
 Console.Text = "Console iniciado.\n"
 Console.TextColor3 = C.Text2
@@ -162,13 +168,13 @@ local function Log(msg)
     Console.Text = Console.Text .. msg .. "\n"
 end
 
--- ==================== BOTÕES DE AÇÃO (26px, alinhados) ====================
-local buttonY = 400
+-- ==================== BOTÕES DE AÇÃO (30px) ====================
+local buttonY = 410
 local RunClientBtn = Instance.new("TextButton", Main)
 RunClientBtn.BackgroundColor3 = C.Accent
 RunClientBtn.BorderSizePixel = 0
 RunClientBtn.Position = UDim2.new(0, 10, 0, buttonY)
-RunClientBtn.Size = UDim2.new(0, 100, 0, 26)
+RunClientBtn.Size = UDim2.new(0, 100, 0, 30)
 RunClientBtn.Text = "▶ Client"
 RunClientBtn.Font = Enum.Font.GothamBold
 RunClientBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -179,7 +185,7 @@ local RunServerBtn = Instance.new("TextButton", Main)
 RunServerBtn.BackgroundColor3 = C.Orange
 RunServerBtn.BorderSizePixel = 0
 RunServerBtn.Position = UDim2.new(0, 120, 0, buttonY)
-RunServerBtn.Size = UDim2.new(0, 100, 0, 26)
+RunServerBtn.Size = UDim2.new(0, 100, 0, 30)
 RunServerBtn.Text = "🚀 Server"
 RunServerBtn.Font = Enum.Font.GothamBold
 RunServerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -190,7 +196,7 @@ local ClearBtn = Instance.new("TextButton", Main)
 ClearBtn.BackgroundColor3 = C.Surface
 ClearBtn.BorderSizePixel = 0
 ClearBtn.Position = UDim2.new(0, 230, 0, buttonY)
-ClearBtn.Size = UDim2.new(0, 80, 0, 26)
+ClearBtn.Size = UDim2.new(0, 80, 0, 30)
 ClearBtn.Text = "🗑️ Limpar"
 ClearBtn.Font = Enum.Font.GothamBold
 ClearBtn.TextColor3 = C.Text
@@ -201,7 +207,7 @@ local CopyBtn = Instance.new("TextButton", Main)
 CopyBtn.BackgroundColor3 = C.Surface
 CopyBtn.BorderSizePixel = 0
 CopyBtn.Position = UDim2.new(0, 320, 0, buttonY)
-CopyBtn.Size = UDim2.new(0, 80, 0, 26)
+CopyBtn.Size = UDim2.new(0, 80, 0, 30)
 CopyBtn.Text = "📋 Copiar"
 CopyBtn.Font = Enum.Font.GothamBold
 CopyBtn.TextColor3 = C.Text
@@ -212,7 +218,7 @@ local SaveBtn = Instance.new("TextButton", Main)
 SaveBtn.BackgroundColor3 = C.Surface
 SaveBtn.BorderSizePixel = 0
 SaveBtn.Position = UDim2.new(0, 410, 0, buttonY)
-SaveBtn.Size = UDim2.new(0, 80, 0, 26)
+SaveBtn.Size = UDim2.new(0, 80, 0, 30)
 SaveBtn.Text = "💾 Salvar"
 SaveBtn.Font = Enum.Font.GothamBold
 SaveBtn.TextColor3 = C.Text
@@ -223,7 +229,7 @@ local OpenBtn = Instance.new("TextButton", Main)
 OpenBtn.BackgroundColor3 = C.Surface
 OpenBtn.BorderSizePixel = 0
 OpenBtn.Position = UDim2.new(0, 500, 0, buttonY)
-OpenBtn.Size = UDim2.new(0, 80, 0, 26)
+OpenBtn.Size = UDim2.new(0, 80, 0, 30)
 OpenBtn.Text = "📂 Abrir"
 OpenBtn.Font = Enum.Font.GothamBold
 OpenBtn.TextColor3 = C.Text
@@ -297,7 +303,7 @@ local function executeClient(code)
     local success, result = pcall(func)
     if success then
         Log("✅ Executado no cliente com sucesso.")
-        if result then Log("📤 Retorno: " .. tostring(result)) end
+        if result then Log("📤 " .. tostring(result)) end
         return true
     else
         Log("❌ Erro execução: " .. tostring(result))
